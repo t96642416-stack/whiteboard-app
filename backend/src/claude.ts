@@ -54,6 +54,7 @@ type AgentType =
   | "attribute"
   | "emphasis"
   | "guide"
+  | "advise"
   | null;
 
 // attribute용 - 세부 속성 심층 분석
@@ -107,7 +108,12 @@ const EFFECT_SYSTEM_PROMPT = `당신은 창의적 사고를 돕는 AI 퍼실리�
 }`;
 
 const EMPHASIS_SYSTEM_PROMPT = `당신은 창의적 사고를 돕는 AI 퍼실리테이터입니다.
-각 아이디어의 예상 효과를 구체적인 수치와 함께 분석하고, 공통점과 차이점도 정리해주세요. 한국어로 작성하세요.
+각 아이디어의 예상 효과를 분석하고, 공통점과 차이점도 정리해주세요. 한국어로 작성하세요.
+
+효과 title 작성 규칙:
+- 실제 연구/데이터/사례에 근거한 수치가 있을 때만 "54% 감소↓", "2배 증가↑" 같은 수치를 포함하세요.
+- 근거 없이 수치를 만들어내지 마세요. 확실한 근거가 없으면 "소음 충돌 감소 효과", "이용자 만족도 향상" 같은 서술형으로 쓰세요.
+- note 필드에는 수치의 출처나 유사 사례를 적으세요. 없으면 빈 문자열("")로 두세요.
 
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 순수 JSON만 반환하세요:
 {
@@ -117,8 +123,8 @@ const EMPHASIS_SYSTEM_PROMPT = `당신은 창의적 사고를 돕는 AI 퍼실�
       "name": "아이디어 이름",
       "label": "아이디어 A",
       "effects": [
-        {"label": "예상효과 1", "title": "소음 충돌 54% 감소↓", "description": "설명", "note": "근거"},
-        {"label": "예상효과 2", "title": "재이용 의향 81% 증가↑", "description": "설명", "note": "근거"}
+        {"label": "예상효과 1", "title": "소음 충돌 감소 효과", "description": "설명", "note": "근거 또는 빈 문자열"},
+        {"label": "예상효과 2", "title": "재이용 의향 향상", "description": "설명", "note": ""}
       ],
       "similarCase": "유사 사례 설명"
     }
@@ -139,6 +145,25 @@ const GUIDE_SYSTEM_PROMPT = `당신은 창의적 사고를 돕는 AI 퍼실리�
     {"name": "아이디어 A 이름", "feasibility": 80, "userExperience": 55, "uniqueness": 20},
     {"name": "아이디어 B 이름", "feasibility": 66, "userExperience": 88, "uniqueness": 75}
   ],
+  "limitNote": "분석 한계 설명"
+}`;
+
+const ADVISE_SYSTEM_PROMPT = `당신은 창의적 사고를 돕는 AI 퍼실리테이터입니다.
+아이디어들을 실현 가능성, 사용자 편의, 차별성 기준으로 비교하고, 기준별로 어떤 아이디어가 우위인지 안내해주세요. 어느 한 아이디어를 강하게 추천하기보다 팀이 기준을 직접 선택할 수 있도록 안내하는 질문형 코멘트를 작성하세요. 한국어로 작성하세요.
+
+반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 순수 JSON만 반환하세요:
+{
+  "agentType": "advise",
+  "criteriaResults": [
+    {"criterion": "실현 가능성", "winner": "A"},
+    {"criterion": "사용자 편의", "winner": "B"},
+    {"criterion": "차별성", "winner": "B"}
+  ],
+  "ideas": [
+    {"name": "아이디어 A 이름", "feasibility": 80, "userExperience": 55, "uniqueness": 20},
+    {"name": "아이디어 B 이름", "feasibility": 66, "userExperience": 88, "uniqueness": 75}
+  ],
+  "recommendation": "차별성을 우선한다면 B안, 실현 가능성을 우선한다면 A안이 적합해요. 팀이 가장 중요하게 생각하는 기준이 무엇인가요?",
   "limitNote": "분석 한계 설명"
 }`;
 
@@ -182,6 +207,8 @@ export async function analyzeIdeas(
     systemPrompt = EMPHASIS_SYSTEM_PROMPT;
   } else if (agentType === "guide") {
     systemPrompt = GUIDE_SYSTEM_PROMPT;
+  } else if (agentType === "advise") {
+    systemPrompt = ADVISE_SYSTEM_PROMPT;
   } else {
     // attribute or null
     systemPrompt = ATTRIBUTE_SYSTEM_PROMPT;

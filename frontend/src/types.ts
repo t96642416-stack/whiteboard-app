@@ -58,6 +58,7 @@ export type AgentType =
   | "attribute"
   | "emphasis"
   | "guide"
+  | "advise"
   | null;
 
 export interface AgentOption {
@@ -110,7 +111,7 @@ export interface EmphasisAnalysis {
   searchSources?: SearchSource[];
 }
 
-// 결과 안내형
+// 결과 추천형 (구 결과 안내형)
 export interface GuideAnalysis {
   agentType: 'guide';
   recommendedIdea: string;
@@ -120,7 +121,17 @@ export interface GuideAnalysis {
   searchSources?: SearchSource[];
 }
 
-export type AgentAnalysisResult = PerspectiveAnalysis | EffectAnalysis | EmphasisAnalysis | GuideAnalysis;
+// 결과 안내형 (기준별 비교)
+export interface AdviseAnalysis {
+  agentType: 'advise';
+  criteriaResults: { criterion: string; winner: string }[];
+  ideas: { name: string; feasibility: number; userExperience: number; uniqueness: number }[];
+  recommendation: string;
+  limitNote?: string;
+  searchSources?: SearchSource[];
+}
+
+export type AgentAnalysisResult = PerspectiveAnalysis | EffectAnalysis | EmphasisAnalysis | GuideAnalysis | AdviseAnalysis;
 
 export const AGENT_OPTIONS: AgentOption[] = [
   {
@@ -155,9 +166,15 @@ export const AGENT_OPTIONS: AgentOption[] = [
   },
   {
     type: "guide",
+    emoji: "⭐",
+    name: "결과 추천형",
+    description: "점수 기반으로 최적 아이디어 추천",
+  },
+  {
+    type: "advise",
     emoji: "📋",
     name: "결과 안내형",
-    description: "다음 단계 행동 가이드 제시",
+    description: "기준별 비교로 팀 결정을 안내",
   },
 ];
 

@@ -5,7 +5,9 @@ import {
   EffectAnalysis,
   EmphasisAnalysis,
   GuideAnalysis,
+  AdviseAnalysis,
   SearchSource,
+  IDEA_BADGE_COLORS,
 } from "../types";
 
 const SearchSourcesSection: React.FC<{ sources: SearchSource[] }> = ({ sources }) => (
@@ -336,6 +338,116 @@ const GuideView: React.FC<{ result: GuideAnalysis }> = ({ result }) => (
   </div>
 );
 
+// 결과 안내형 UI (기준별 비교)
+const AdviseView: React.FC<{ result: AdviseAnalysis }> = ({ result }) => (
+  <div className="space-y-4">
+    <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm font-bold text-gray-800">검토 완료</p>
+        <button className="text-gray-400 hover:text-gray-600 text-lg leading-none">···</button>
+      </div>
+
+      {/* 기준별 결과 */}
+      <div className="bg-gray-50 rounded-xl p-3 mb-4">
+        <p className="text-xs font-bold text-gray-700 mb-2.5">기준별 결과</p>
+        <div className="space-y-2">
+          {result.criteriaResults.map((c, i) => {
+            const winnerIdx = c.winner.charCodeAt(0) - 65;
+            const badge = IDEA_BADGE_COLORS[winnerIdx % Object.keys(IDEA_BADGE_COLORS).length];
+            return (
+              <div key={i} className="flex items-center justify-between">
+                <span className="text-xs text-gray-600">{c.criterion}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">→ {c.winner}안 우위</span>
+                  <span
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                    style={{ backgroundColor: badge.bg, color: badge.text }}
+                  >
+                    {c.winner}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 아이디어 나란히 비교 */}
+      <div className="flex gap-3 mb-4">
+        {result.ideas.map((idea, i) => {
+          const badge = IDEA_BADGE_COLORS[i % Object.keys(IDEA_BADGE_COLORS).length];
+          return (
+            <div key={i} className="flex-1 bg-gray-50 rounded-lg p-3">
+              <div className="flex items-center gap-1.5 mb-2">
+                <span
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                  style={{ backgroundColor: badge.bg, color: badge.text }}
+                >
+                  {String.fromCharCode(65 + i)}
+                </span>
+                <span className="text-xs font-semibold text-gray-700 truncate">{idea.name}</span>
+              </div>
+              <div className="space-y-1.5">
+                <div>
+                  <div className="flex justify-between mb-0.5">
+                    <span className="text-xs text-gray-500">실현 가능성</span>
+                    <span className="text-xs font-medium text-gray-700">{idea.feasibility}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                    <div className="h-1.5 rounded-full" style={{ width: `${idea.feasibility}%`, backgroundColor: "#3b82f6" }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between mb-0.5">
+                    <span className="text-xs text-gray-500">사용자 편의</span>
+                    <span className="text-xs font-medium text-gray-700">{idea.userExperience}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                    <div className="h-1.5 rounded-full" style={{ width: `${idea.userExperience}%`, backgroundColor: "#eab308" }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between mb-0.5">
+                    <span className="text-xs text-gray-500">차별성</span>
+                    <span
+                      className="text-xs font-medium"
+                      style={{ color: idea.uniqueness >= 50 ? "#16a34a" : "#ef4444" }}
+                    >
+                      {idea.uniqueness}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                    <div
+                      className="h-1.5 rounded-full"
+                      style={{
+                        width: `${idea.uniqueness}%`,
+                        backgroundColor: idea.uniqueness >= 50 ? "#16a34a" : "#ef4444",
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 안내 추천 텍스트 */}
+      <div className="rounded-xl p-3 mb-3" style={{ backgroundColor: "#EEF2FF" }}>
+        <p className="text-xs font-semibold text-indigo-700 leading-relaxed">{result.recommendation}</p>
+      </div>
+
+      {/* 분석 한계 안내 */}
+      {result.limitNote && (
+        <div className="rounded-xl p-3" style={{ backgroundColor: "#fff1f2" }}>
+          <p className="text-xs font-bold text-rose-600 mb-1">분석 한계 안내</p>
+          <p className="text-xs text-rose-700 leading-relaxed">{result.limitNote}</p>
+        </div>
+      )}
+    </div>
+  </div>
+);
+
 const AgentAnalysisResultComponent: React.FC<Props> = ({ result }) => {
   switch (result.agentType) {
     case "question":
@@ -354,6 +466,10 @@ const AgentAnalysisResultComponent: React.FC<Props> = ({ result }) => {
     case "guide": {
       const r = result as GuideAnalysis;
       return <><GuideView result={r} />{r.searchSources && r.searchSources.length > 0 && <SearchSourcesSection sources={r.searchSources} />}</>;
+    }
+    case "advise": {
+      const r = result as AdviseAnalysis;
+      return <><AdviseView result={r} />{r.searchSources && r.searchSources.length > 0 && <SearchSourcesSection sources={r.searchSources} />}</>;
     }
     default:
       return null;
