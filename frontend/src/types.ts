@@ -189,6 +189,12 @@ export const AGENT_OPTIONS: AgentOption[] = [
     name: "결과 강조형",
     description: "점수 기반으로 최적 아이디어 추천",
   },
+  {
+    type: "advise",
+    emoji: "📋",
+    name: "결과 안내형",
+    description: "기준별 비교로 팀 결정을 안내",
+  },
 ];
 
 export interface AnalysisFile {
