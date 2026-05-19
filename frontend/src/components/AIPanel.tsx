@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
-import { AgentType, AnalysisResult as AnalysisResultType, AgentAnalysisResult, ChatMessage, AGENT_OPTIONS, AnalysisFile, IdeaCategory, IDEA_CATEGORIES } from "../types";
+import { AgentType, AnalysisResult as AnalysisResultType, AgentAnalysisResult, ChatMessage, AGENT_OPTIONS, AnalysisFile, IdeaCategory, IDEA_CATEGORIES, AnalysisHistoryItem } from "../types";
 import AnalysisResult from "./AnalysisResult";
 import AgentAnalysisResultComponent from "./AgentAnalysisResult";
 import { useMeetingRecognition } from "../hooks/useVoiceRecognition";
@@ -9,6 +9,7 @@ interface AIPanelProps {
   analysisResult: AnalysisResultType | null;
   agentAnalysisResult: AgentAnalysisResult | null;
   isAnalyzing: boolean;
+  analysisHistory?: AnalysisHistoryItem[];
   chatMessages: ChatMessage[];
   aiChatMessages?: ChatMessage[];
   selectedAgent?: AgentType;
@@ -25,6 +26,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
   analysisResult,
   agentAnalysisResult,
   isAnalyzing,
+  analysisHistory = [],
   chatMessages,
   aiChatMessages = [],
   onAgentChange,
@@ -41,6 +43,8 @@ const AIPanel: React.FC<AIPanelProps> = ({
   const [activeTab, setActiveTab] = useState<"analysis" | "chat" | "meeting">("analysis");
   const [showAgentList, setShowAgentList] = useState(false);
   const [showInitial, setShowInitial] = useState(false);
+  const [showAnalysisHistory, setShowAnalysisHistory] = useState(false);
+  const [viewingHistoryItem, setViewingHistoryItem] = useState<AnalysisHistoryItem | null>(null);
   const [analysisFiles, setAnalysisFiles] = useState<AnalysisFile[]>([]);
   const [transcriptLines, setTranscriptLines] = useState<string[]>([]);
   const [voiceError, setVoiceError] = useState<string | null>(null);
@@ -391,24 +395,52 @@ const AIPanel: React.FC<AIPanelProps> = ({
               분석 중...
             </span>
           ) : showResult ? (
-            <span className="text-xs text-green-600 font-medium flex items-center gap-1">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="20 6 9 17 4 12" />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                {(AGENT_OPTIONS.find((a) => a.type === (agentAnalysisResult as any)?.agentType) ||
+                  AGENT_OPTIONS.find((a) => a.type === analysisHistory[0]?.agentType))?.name || "속성 분석형"} 결과 완료
+              </span>
+              <button
+                onClick={() => { setShowAnalysisHistory(true); setViewingHistoryItem(null); }}
+                className="text-xs text-gray-400 hover:text-purple-500 flex items-center gap-1 transition-colors"
+                title="분석 내역 보기"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                내역 {analysisHistory.length > 0 && <span className="bg-purple-100 text-purple-600 rounded-full px-1">{analysisHistory.length}</span>}
+              </button>
+            </div>
+          ) : analysisHistory.length > 0 ? (
+            <button
+              onClick={() => { setShowAnalysisHistory(true); setViewingHistoryItem(null); }}
+              className="text-xs text-gray-400 hover:text-purple-500 flex items-center gap-1 transition-colors"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              분석 완료
-            </span>
+              분석 내역 <span className="bg-purple-100 text-purple-600 rounded-full px-1">{analysisHistory.length}</span>
+            </button>
           ) : null}
         </div>
 
         {/* 탭 */}
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
           <button
-            onClick={() => setActiveTab("analysis")}
-            className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all ${
+            onClick={() => { setActiveTab("analysis"); setShowAnalysisHistory(false); setViewingHistoryItem(null); }}
+            className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all relative ${
               activeTab === "analysis" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
             }`}
           >
             분석 결과
+            {analysisHistory.length > 0 && activeTab !== "analysis" && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full text-white text-xs flex items-center justify-center">
+                {analysisHistory.length > 9 ? "9+" : analysisHistory.length}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab("chat")}
@@ -443,7 +475,66 @@ const AIPanel: React.FC<AIPanelProps> = ({
         {/* ── 분석 결과 탭 ── */}
         {activeTab === "analysis" && (
           <div className="p-4 flex flex-col">
-            {isAnalyzing ? (
+
+            {/* ── 분석 내역 목록 ── */}
+            {showAnalysisHistory && !viewingHistoryItem ? (
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <button onClick={() => setShowAnalysisHistory(false)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6" /></svg>
+                  </button>
+                  <span className="text-sm font-semibold text-gray-700">분석 내역</span>
+                </div>
+                {analysisHistory.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center">
+                    <div className="text-3xl mb-3">📊</div>
+                    <p className="text-gray-500 text-sm font-medium">저장된 분석 내역이 없어요</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {analysisHistory.map((item) => {
+                      const agent = AGENT_OPTIONS.find((a) => a.type === item.agentType);
+                      return (
+                        <button key={item.id} onClick={() => setViewingHistoryItem(item)}
+                          className="w-full text-left px-4 py-3 rounded-xl border border-gray-100 hover:border-purple-200 hover:bg-purple-50 transition-all group">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-semibold text-purple-600 flex items-center gap-1">
+                              {agent?.emoji} {agent?.name || "속성 분석형"}
+                            </span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" className="group-hover:stroke-purple-400"><path d="M9 18l6-6-6-6" /></svg>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500">👤 {item.requester || "알 수 없음"}</span>
+                            <span className="text-gray-200">·</span>
+                            <span className="text-xs text-gray-400">{new Date(item.timestamp).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : showAnalysisHistory && viewingHistoryItem ? (
+              /* 특정 분석 결과 다시 보기 */
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <button onClick={() => setViewingHistoryItem(null)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6" /></svg>
+                  </button>
+                  <div>
+                    <span className="text-sm font-semibold text-gray-700">
+                      {AGENT_OPTIONS.find((a) => a.type === viewingHistoryItem.agentType)?.name || "속성 분석형"} 결과
+                    </span>
+                    <span className="text-xs text-gray-400 ml-2">👤 {viewingHistoryItem.requester}</span>
+                  </div>
+                </div>
+                {viewingHistoryItem.agentResult
+                  ? <AgentAnalysisResultComponent result={viewingHistoryItem.agentResult} />
+                  : viewingHistoryItem.result
+                    ? <AnalysisResult result={viewingHistoryItem.result} />
+                    : null}
+              </div>
+            ) : isAnalyzing ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="w-12 h-12 rounded-full border-4 border-blue-200 border-t-blue-500 animate-spin mb-4" />
                 <p className="text-gray-600 font-medium text-sm">AI가 분석 중입니다...</p>
@@ -451,12 +542,22 @@ const AIPanel: React.FC<AIPanelProps> = ({
               </div>
             ) : showResult ? (
               /* 분석 결과 표시 */
-              agentAnalysisResult
-                ? <AgentAnalysisResultComponent result={agentAnalysisResult} />
-                : analysisResult
-                  ? <AnalysisResult result={analysisResult} />
-                  : null
-            ) : (
+              <>
+                {analysisHistory[0]?.requester && (
+                  <div className="flex items-center gap-1.5 mb-3 px-1">
+                    <span className="text-xs text-gray-400">👤</span>
+                    <span className="text-xs text-gray-500"><span className="font-semibold text-gray-700">{analysisHistory[0].requester}</span>님이 요청</span>
+                    <span className="text-gray-200">·</span>
+                    <span className="text-xs text-gray-400">{new Date(analysisHistory[0].timestamp).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span>
+                  </div>
+                )}
+                {agentAnalysisResult
+                  ? <AgentAnalysisResultComponent result={agentAnalysisResult} />
+                  : analysisResult
+                    ? <AnalysisResult result={analysisResult} />
+                    : null}
+              </>
+            ) : !showAnalysisHistory ? (
               /* 초기 상태 - AI 말풍선 그리팅 */
               <div className="pt-2">
                 <div className="flex items-start gap-2.5">
@@ -522,7 +623,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                   </div>
                 </div>
               </div>
-            )}
+            ) : null}
 
             {/* ── AI 채팅 메시지 영역 ── */}
             {aiChatMessages.length > 0 && (

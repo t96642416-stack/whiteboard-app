@@ -162,7 +162,7 @@ io.on("connection", (socket) => {
       }
 
       // 분석 시작 알림
-      io.to(currentRoom).emit("analysis-started");
+      io.to(currentRoom).emit("analysis-started", { requester: currentUser, agentType });
 
       try {
         const result = await analyzeIdeas(
@@ -172,7 +172,10 @@ io.on("connection", (socket) => {
           files || [],
           useSearch || false
         );
-        io.to(currentRoom).emit("analysis-result", result);
+        io.to(currentRoom).emit("analysis-result", {
+          ...result,
+          _meta: { requester: currentUser, agentType, timestamp: new Date().toISOString() },
+        });
         console.log(`분석 완료 (방: ${currentRoom})`);
       } catch (error) {
         // 실제 에러 메시지를 그대로 전달 (API 키 오류, 모델 오류 등 디버깅용)

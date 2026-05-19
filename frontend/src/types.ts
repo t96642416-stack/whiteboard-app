@@ -166,6 +166,15 @@ export interface AnalysisFile {
   content: string; // text content 또는 base64 data URL
 }
 
+export interface AnalysisHistoryItem {
+  id: string;
+  agentType: AgentType;
+  requester: string;
+  timestamp: string;
+  result: AnalysisResult | null;
+  agentResult: AgentAnalysisResult | null;
+}
+
 export const CARD_COLORS = [
   "#fef9c3", // 노란
   "#fce7f3", // 분홍

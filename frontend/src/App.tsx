@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { getSocket } from "./socket";
-import { Idea, AnalysisResult, AgentAnalysisResult, ChatMessage, AgentType, CARD_COLORS, AnalysisFile, IdeaCategory, IdeaAttachment } from "./types";
+import { Idea, AnalysisResult, AgentAnalysisResult, ChatMessage, AgentType, CARD_COLORS, AnalysisFile, IdeaCategory, IdeaAttachment, AnalysisHistoryItem } from "./types";
 import Board from "./components/Board";
 import AIPanel from "./components/AIPanel";
 
@@ -88,6 +88,8 @@ function App() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [agentAnalysisResult, setAgentAnalysisResult] = useState<AgentAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisHistory, setAnalysisHistory] = useState<AnalysisHistoryItem[]>([]);
+  const pendingAnalysisRef = useRef<{ requester: string; agentType: string | null }>({ requester: "", agentType: null });
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [aiChatMessages, setAiChatMessages] = useState<ChatMessage[]>([]);
   const [isAIResponding, setIsAIResponding] = useState(false);
@@ -150,15 +152,27 @@ function App() {
       setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, title, content, ...(category ? { category } : {}) } : i));
     });
 
-    socket.on("analysis-started", () => {
+    socket.on("analysis-started", ({ requester, agentType }: { requester: string; agentType: string | null }) => {
       setIsAnalyzing(true);
       setAnalysisResult(null);
       setAgentAnalysisResult(null);
+      pendingAnalysisRef.current = { requester, agentType };
     });
 
-    socket.on("analysis-result", (result: AnalysisResult & { agentType?: string }) => {
+    socket.on("analysis-result", (result: AnalysisResult & { agentType?: string; _meta?: { requester: string; agentType: string | null; timestamp: string } }) => {
       setIsAnalyzing(false);
-      if (result.agentType) {
+      const meta = result._meta || pendingAnalysisRef.current;
+      const isAgent = !!(result.agentType);
+      const historyItem: AnalysisHistoryItem = {
+        id: `${Date.now()}-${Math.random()}`,
+        agentType: (meta.agentType || result.agentType || null) as AgentType,
+        requester: meta.requester || "",
+        timestamp: (result._meta?.timestamp) || new Date().toISOString(),
+        result: isAgent ? null : result,
+        agentResult: isAgent ? result as unknown as AgentAnalysisResult : null,
+      };
+      setAnalysisHistory((prev) => [historyItem, ...prev]);
+      if (isAgent) {
         setAgentAnalysisResult(result as unknown as AgentAnalysisResult);
       } else {
         setAnalysisResult(result);
@@ -314,6 +328,7 @@ function App() {
         analysisResult={analysisResult}
         agentAnalysisResult={agentAnalysisResult}
         isAnalyzing={isAnalyzing}
+        analysisHistory={analysisHistory}
         chatMessages={chatMessages}
         aiChatMessages={aiChatMessages}
         selectedAgent={selectedAgent}
