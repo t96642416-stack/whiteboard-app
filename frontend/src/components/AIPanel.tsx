@@ -9,9 +9,11 @@ interface AIPanelProps {
   agentAnalysisResult: AgentAnalysisResult | null;
   isAnalyzing: boolean;
   chatMessages: ChatMessage[];
+  aiChatMessages?: ChatMessage[];
   selectedAgent?: AgentType;
   onAgentChange: (agent: AgentType) => void;
   onSendChat: (message: string, imageUrl?: string) => void;
+  onSendAIMessage?: (message: string) => void;
   onRequestAnalysis: (agentType: AgentType, files?: AnalysisFile[]) => void;
   isAIResponding: boolean;
   onClearChat?: () => void;
@@ -23,13 +25,17 @@ const AIPanel: React.FC<AIPanelProps> = ({
   agentAnalysisResult,
   isAnalyzing,
   chatMessages,
+  aiChatMessages = [],
   onAgentChange,
   onSendChat,
+  onSendAIMessage,
   onRequestAnalysis,
   isAIResponding,
   selectedCategory = "all",
 }) => {
   const [inputText, setInputText] = useState("");
+  const [aiInputText, setAiInputText] = useState("");
+  const aiChatEndRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<"analysis" | "chat" | "meeting">("analysis");
   const [showAgentList, setShowAgentList] = useState(false);
   const [showInitial, setShowInitial] = useState(false);
@@ -67,6 +73,10 @@ const AIPanel: React.FC<AIPanelProps> = ({
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [currentMessages]);
+
+  useEffect(() => {
+    aiChatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [aiChatMessages, isAIResponding]);
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -128,6 +138,20 @@ const AIPanel: React.FC<AIPanelProps> = ({
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendChat();
+    }
+  };
+
+  const handleSendAIChat = () => {
+    const msg = aiInputText.trim();
+    if (!msg || isAIResponding) return;
+    onSendAIMessage?.(msg);
+    setAiInputText("");
+  };
+
+  const handleAIKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendAIChat();
     }
   };
 
@@ -416,7 +440,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
 
         {/* ── 분석 결과 탭 ── */}
         {activeTab === "analysis" && (
-          <div className="p-4">
+          <div className="p-4 flex flex-col">
             {isAnalyzing ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="w-12 h-12 rounded-full border-4 border-blue-200 border-t-blue-500 animate-spin mb-4" />
@@ -468,6 +492,53 @@ const AIPanel: React.FC<AIPanelProps> = ({
                     <FileAttachSection />
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* ── AI 채팅 메시지 영역 ── */}
+            {aiChatMessages.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-gray-100 space-y-3">
+                <p className="text-xs font-semibold text-gray-400 flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-purple-100 flex items-center justify-center text-xs">💬</span>
+                  AI와의 대화
+                </p>
+                {aiChatMessages.map((msg) => (
+                  <div key={msg.id} className={`flex flex-col gap-0.5 ${msg.isAI ? "" : "items-end"}`}>
+                    {msg.isAI ? (
+                      <div className="flex items-start gap-2">
+                        <div className="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="text-xs">🤖</span>
+                        </div>
+                        <div className={`max-w-[85%] rounded-2xl rounded-tl-sm px-3 py-2 text-xs leading-relaxed ${
+                          msg.isError ? "bg-red-50 text-red-700 border border-red-100" : "bg-purple-50 text-gray-800 border border-purple-100"
+                        }`}>
+                          {msg.message}
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className="max-w-[85%] rounded-2xl rounded-tr-sm px-3 py-2 text-xs leading-relaxed text-white"
+                        style={{ backgroundColor: "#6366f1" }}
+                      >
+                        {msg.message}
+                      </div>
+                    )}
+                    <span className="text-xs text-gray-300 px-1">
+                      {new Date(msg.timestamp).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                ))}
+                {isAIResponding && (
+                  <div className="flex items-center gap-2 pl-8">
+                    <div className="flex gap-1">
+                      <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
+                    <span className="text-xs text-gray-400">AI가 답변 중...</span>
+                  </div>
+                )}
+                <div ref={aiChatEndRef} />
               </div>
             )}
           </div>
@@ -748,6 +819,40 @@ const AIPanel: React.FC<AIPanelProps> = ({
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                 stroke={!inputText.trim() ? "#9ca3af" : "white"}
+                strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              >
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 분석 탭 하단 - AI 채팅 입력창 (항상 표시) */}
+      {activeTab === "analysis" && (
+        <div className="border-t border-gray-100 px-3 pt-2 pb-2">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-full px-3 py-2 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100 transition-all">
+              <span className="text-sm flex-shrink-0">🤖</span>
+              <input
+                type="text"
+                value={aiInputText}
+                onChange={(e) => setAiInputText(e.target.value)}
+                onKeyDown={handleAIKeyDown}
+                placeholder="AI에게 질문하거나 지시해보세요..."
+                disabled={isAIResponding || isAnalyzing}
+                className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 focus:outline-none disabled:opacity-50"
+              />
+            </div>
+            <button
+              onClick={handleSendAIChat}
+              disabled={!aiInputText.trim() || isAIResponding || isAnalyzing}
+              className="w-9 h-9 rounded-full bg-purple-500 hover:bg-purple-600 disabled:bg-gray-200
+                         flex items-center justify-center transition-all flex-shrink-0 shadow-sm"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                stroke={!aiInputText.trim() || isAIResponding ? "#9ca3af" : "white"}
                 strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
               >
                 <line x1="22" y1="2" x2="11" y2="13" />

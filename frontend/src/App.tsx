@@ -89,8 +89,9 @@ function App() {
   const [agentAnalysisResult, setAgentAnalysisResult] = useState<AgentAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [aiChatMessages, setAiChatMessages] = useState<ChatMessage[]>([]);
+  const [isAIResponding, setIsAIResponding] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentType>(null);
-  const [isAIResponding, _setIsAIResponding] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
   // 카테고리 필터 (Board와 분석 공통)
@@ -190,6 +191,14 @@ function App() {
       ]);
     });
 
+    socket.on("ai-response", ({ message, timestamp, isError }: { message: string; timestamp: string; isError?: boolean }) => {
+      setIsAIResponding(false);
+      setAiChatMessages((prev) => [
+        ...prev,
+        { id: `ai-${Date.now()}-${Math.random()}`, userName: "AI", message, timestamp, isAI: true, isError },
+      ]);
+    });
+
     return () => {
       socket.off("connect");
       socket.off("room-state");
@@ -203,6 +212,7 @@ function App() {
       socket.off("user-left");
       socket.off("topic-changed");
       socket.off("chat-message");
+      socket.off("ai-response");
     };
   }, [joined, showError]);
 
@@ -246,6 +256,17 @@ function App() {
   const handleSendChat = useCallback((message: string, imageUrl?: string) => {
     getSocket().emit("chat-message", { message, imageUrl, userColor });
   }, [userColor]);
+
+  const handleSendAIMessage = useCallback((message: string) => {
+    if (!message.trim()) return;
+    // 내 메시지를 먼저 로컬에 추가
+    setAiChatMessages((prev) => [
+      ...prev,
+      { id: `user-${Date.now()}-${Math.random()}`, userName, message, timestamp: new Date().toISOString(), isAI: false, userColor },
+    ]);
+    setIsAIResponding(true);
+    getSocket().emit("user-message", { message, agentType: null });
+  }, [userName, userColor]);
 
   const handleClearChat = useCallback(() => {
     setChatMessages([]);
@@ -293,9 +314,11 @@ function App() {
         agentAnalysisResult={agentAnalysisResult}
         isAnalyzing={isAnalyzing}
         chatMessages={chatMessages}
+        aiChatMessages={aiChatMessages}
         selectedAgent={selectedAgent}
         onAgentChange={setSelectedAgent}
         onSendChat={handleSendChat}
+        onSendAIMessage={handleSendAIMessage}
         onRequestAnalysis={handleRequestAnalysis}
         isAIResponding={isAIResponding}
         onClearChat={handleClearChat}
