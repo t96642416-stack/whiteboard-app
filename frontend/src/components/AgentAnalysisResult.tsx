@@ -180,8 +180,8 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
 
             <div className="space-y-2 mb-2">
               {idea.effects.map((effect, j) => {
-                const isIncrease = effect.title.includes("↑") || effect.title.includes("증가");
-                const isDecrease = effect.title.includes("↓") || effect.title.includes("감소");
+                const isIncrease = effect.title.includes("↑");
+                const isDecrease = effect.title.includes("↓");
                 const titleColor = isDecrease ? "#2563eb" : isIncrease ? "#16a34a" : "#374151";
                 const { cleanText: noteText, source: src } = effect.note
                   ? parseSourceRef(effect.note, sources || [])
