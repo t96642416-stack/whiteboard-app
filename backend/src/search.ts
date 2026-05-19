@@ -68,7 +68,7 @@ export async function searchForIdeas(
     .map((r, i) => `[검색결과 ${i + 1}] ${r.title}\n${r.description}`)
     .join("\n\n");
 
-  const promptText = `\n\n=== 실시간 검색 자료 (네이버) ===\n검색어: "${query}"\n\n${formatted}\n================================`;
+  const promptText = `\n\n=== 실시간 검색 자료 (네이버) ===\n검색어: "${query}"\n\n${formatted}\n================================\n\n⚠️ 근거(evidence/note) 작성 규칙: 위 검색결과를 인용할 때 반드시 "[검색결과 N]" 형태로 번호를 포함하세요. 예: "낮잠 효과 연구 [검색결과 1]", "[검색결과 2]에 따르면..." - 검색결과에 없는 내용은 번호 없이 작성하세요.`;
 
   return { query, sources: results, promptText };
 }
