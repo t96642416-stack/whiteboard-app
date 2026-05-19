@@ -307,6 +307,10 @@ export async function analyzeIdeas(
   }
 
   const result = JSON.parse(jsonMatch[0]);
+  // agentType이 없으면 요청한 타입으로 강제 주입 (Claude가 빠뜨리는 경우 대비)
+  if (agentType && !result.agentType) {
+    result.agentType = agentType;
+  }
   // 검색 출처가 있으면 결과에 포함
   if (searchSources.length > 0) {
     result.searchSources = searchSources;
