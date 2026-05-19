@@ -57,37 +57,62 @@ type AgentType =
   | "advise"
   | null;
 
-// attribute용 - 세부 속성 심층 분석
+// attribute용 - 장단점 2열 비교 분석
 const ATTRIBUTE_SYSTEM_PROMPT = `당신은 창의적 사고를 돕는 AI 퍼실리테이터입니다.
-각 아이디어의 세부 속성(대상 사용자, 핵심 기능, 구현 난이도, 차별성, 잠재 리스크 등)을 한국어로 심층 분석해주세요.
+각 아이디어의 장점과 단점을 구체적으로 분석하고, 공통점과 차이점도 정리해주세요.
+각 장/단점에는 짧은 근거(수치, 사례, 출처)를 포함하세요. 마지막으로 팀에게 던지는 탐색 질문 1개를 작성하세요. 한국어로 작성하세요.
 
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 순수 JSON만 반환하세요:
 {
+  "agentType": "attribute",
   "ideas": [
     {
       "id": "아이디어 ID",
       "name": "아이디어 이름",
-      "pros": [{"point": "핵심 속성 및 강점", "evidence": "구체적 근거나 특징"}],
-      "cons": [{"point": "보완이 필요한 속성", "evidence": "개선 방향이나 우려사항"}]
+      "pros": [
+        {"point": "핵심 장점", "evidence": "짧은 근거 (수치/사례)"},
+        {"point": "장점 2", "evidence": "근거"}
+      ],
+      "cons": [
+        {"point": "핵심 단점", "evidence": "짧은 근거"},
+        {"point": "단점 2", "evidence": "근거"}
+      ]
     }
   ],
-  "commonalities": ["공통 속성1", "공통 속성2"],
-  "differences": ["차별화 속성1", "차별화 속성2"],
-  "agentResponse": "전체 속성 분석 종합 코멘트"
+  "commonalities": ["공통점1", "공통점2"],
+  "differences": ["차이점1", "차이점2"],
+  "agentResponse": "두 아이디어를 실제로 운영한다면 어떤 장점과 문제점이 생길 수 있고, 이를 어떻게 보완할 수 있을까요?"
 }`;
 
-const QUESTION_SUGGESTION_SYSTEM_PROMPT = `당신은 창의적 사고를 돕는 AI 퍼실리테이터입니다.
+// 관점 제시형 (suggestion) - 빠진 관점 카드
+const PERSPECTIVE_SYSTEM_PROMPT = `당신은 창의적 사고를 돕는 AI 퍼실리테이터입니다.
 아이디어들을 분석하여 현재 논의에서 빠진 관점을 파악하고 한국어로 정리해주세요.
 
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 순수 JSON만 반환하세요:
 {
-  "agentType": "question",
+  "agentType": "suggestion",
   "summary": "현재 논의 요약 2-3문장",
   "currentFocus": ["키워드1", "키워드2", "키워드3", "키워드4"],
   "perspectives": [
     {"title": "빠진 관점 제목", "description": "설명 1-2문장"},
     {"title": "빠진 관점 제목", "description": "설명"},
     {"title": "빠진 관점 제목", "description": "설명"}
+  ]
+}`;
+
+// 관점 탐색형 (question) - Q1/Q2/Q3 탐색 질문
+const EXPLORE_SYSTEM_PROMPT = `당신은 창의적 사고를 돕는 AI 퍼실리테이터입니다.
+아이디어들을 탐색하는 시각전환 질문들을 만들어주세요. 각 질문은 팀이 놓치기 쉬운 전제나 관점을 파고드는 열린 질문이어야 합니다. 한국어로 작성하세요.
+
+반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 순수 JSON만 반환하세요:
+{
+  "agentType": "question",
+  "summary": "현재 논의 요약 2-3문장",
+  "currentFocus": ["키워드1", "키워드2", "키워드3"],
+  "questions": [
+    {"text": "탐색 질문 1 (물음표로 끝나는 질문형)"},
+    {"text": "탐색 질문 2"},
+    {"text": "탐색 질문 3"}
   ]
 }`;
 
@@ -196,11 +221,10 @@ export async function analyzeIdeas(
   let systemPrompt: string;
   let agentInstruction = "";
 
-  if (agentType === "question" || agentType === "suggestion") {
-    systemPrompt = QUESTION_SUGGESTION_SYSTEM_PROMPT;
-    if (agentType === "suggestion") {
-      systemPrompt = systemPrompt.replace('"agentType": "question"', '"agentType": "suggestion"');
-    }
+  if (agentType === "suggestion") {
+    systemPrompt = PERSPECTIVE_SYSTEM_PROMPT;
+  } else if (agentType === "question") {
+    systemPrompt = EXPLORE_SYSTEM_PROMPT;
   } else if (agentType === "effect") {
     systemPrompt = EFFECT_SYSTEM_PROMPT;
   } else if (agentType === "emphasis") {
@@ -209,10 +233,11 @@ export async function analyzeIdeas(
     systemPrompt = GUIDE_SYSTEM_PROMPT;
   } else if (agentType === "advise") {
     systemPrompt = ADVISE_SYSTEM_PROMPT;
-  } else {
-    // attribute or null
+  } else if (agentType === "attribute") {
     systemPrompt = ATTRIBUTE_SYSTEM_PROMPT;
-    agentInstruction = agentType ? "각 아이디어의 비용/시간/난이도/영향도를 점수(1-10)로 분석해주세요. JSON의 agentResponse 필드에 문자열로 포함시켜주세요." : "";
+  } else {
+    // null (기본 분석)
+    systemPrompt = ATTRIBUTE_SYSTEM_PROMPT;
   }
 
   // 검색 기반 분석: 네이버 검색 결과 가져오기

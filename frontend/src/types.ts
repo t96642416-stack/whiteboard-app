@@ -61,6 +61,7 @@ export type AgentType =
   | "advise"
   | null;
 
+
 export interface AgentOption {
   type: AgentType;
   emoji: string;
@@ -79,21 +80,45 @@ export interface ChatMessage {
   userColor?: string;
 }
 
-// 사고전환 질문형 / 사고전환 제안형 공통
+// 관점 제시형 (suggestion)
 export interface PerspectiveAnalysis {
-  agentType: 'question' | 'suggestion';
+  agentType: 'suggestion';
   summary: string;
   currentFocus: string[];
   perspectives: { title: string; description: string }[];
   searchSources?: SearchSource[];
 }
 
-// 효과 예측형
+// 관점 탐색형 (question) - Q1/Q2/Q3 탐색 질문
+export interface QuestionAnalysis {
+  agentType: 'question';
+  summary: string;
+  currentFocus: string[];
+  questions: { text: string }[];
+  searchSources?: SearchSource[];
+}
+
+// 효과 예측형 (effect) - 레거시, 내부적으로만 사용
 export interface EffectAnalysis {
   agentType: 'effect';
   summary: string;
   currentFocus: string[];
   questions: { text: string }[];
+  searchSources?: SearchSource[];
+}
+
+// 속성 분석형 (attribute) - 장점/단점 2열 비교
+export interface AttributeAnalysis {
+  agentType: 'attribute';
+  ideas: {
+    id: string;
+    name: string;
+    pros: { point: string; evidence: string }[];
+    cons: { point: string; evidence: string }[];
+  }[];
+  commonalities: string[];
+  differences: string[];
+  agentResponse?: string;
   searchSources?: SearchSource[];
 }
 
@@ -131,50 +156,38 @@ export interface AdviseAnalysis {
   searchSources?: SearchSource[];
 }
 
-export type AgentAnalysisResult = PerspectiveAnalysis | EffectAnalysis | EmphasisAnalysis | GuideAnalysis | AdviseAnalysis;
+export type AgentAnalysisResult = PerspectiveAnalysis | QuestionAnalysis | EffectAnalysis | AttributeAnalysis | EmphasisAnalysis | GuideAnalysis | AdviseAnalysis;
 
 export const AGENT_OPTIONS: AgentOption[] = [
   {
-    type: "question",
-    emoji: "🔄",
-    name: "사고전환 질문형",
-    description: "고정관념을 깨는 질문으로 새 시각 유도",
-  },
-  {
     type: "suggestion",
     emoji: "💡",
-    name: "사고전환 제안형",
-    description: "다른 관점의 아이디어 제안",
+    name: "관점 제시형",
+    description: "빠진 관점을 찾아 새 시각 제안",
   },
   {
-    type: "effect",
+    type: "question",
+    emoji: "🔍",
+    name: "관점 탐색형",
+    description: "새로운 시각을 여는 탐색 질문",
+  },
+  {
+    type: "emphasis",
     emoji: "📊",
     name: "효과 예측형",
     description: "아이디어 실행 시 예상 효과 분석",
   },
   {
     type: "attribute",
-    emoji: "🔍",
+    emoji: "🔬",
     name: "속성 분석형",
-    description: "아이디어의 세부 속성을 깊이 분석",
-  },
-  {
-    type: "emphasis",
-    emoji: "✨",
-    name: "결과 강조형",
-    description: "가장 긍정적 결과를 강조",
+    description: "아이디어의 장단점을 깊이 분석",
   },
   {
     type: "guide",
     emoji: "⭐",
-    name: "결과 추천형",
+    name: "결과 강조형",
     description: "점수 기반으로 최적 아이디어 추천",
-  },
-  {
-    type: "advise",
-    emoji: "📋",
-    name: "결과 안내형",
-    description: "기준별 비교로 팀 결정을 안내",
   },
 ];
 
