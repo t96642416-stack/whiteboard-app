@@ -107,6 +107,7 @@ export interface EmphasisAnalysis {
   }[];
   commonalities: string[];
   differences: string[];
+  searchSources?: SearchSource[];
 }
 
 // 결과 안내형
@@ -116,6 +117,7 @@ export interface GuideAnalysis {
   recommendReason: string;
   ideas: { name: string; feasibility: number; userExperience: number; uniqueness: number }[];
   limitNote: string;
+  searchSources?: SearchSource[];
 }
 
 export type AgentAnalysisResult = PerspectiveAnalysis | EffectAnalysis | EmphasisAnalysis | GuideAnalysis;
