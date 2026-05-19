@@ -17,6 +17,23 @@ interface Props {
   result: AgentAnalysisResult;
 }
 
+// 증거 텍스트와 가장 관련 있는 출처를 단어 매칭으로 찾기
+const findBestSource = (text: string, sources: SearchSource[], usedIndices?: Set<number>): SearchSource | null => {
+  if (!sources || sources.length === 0) return null;
+  const words = text.toLowerCase().replace(/[()[\]]/g, ' ').split(/\s+/).filter(w => w.length > 1);
+  let bestScore = -1;
+  let bestIdx = 0;
+  sources.forEach((src, idx) => {
+    const srcText = `${src.title} ${src.description}`.toLowerCase();
+    let score = words.reduce((acc, w) => acc + (srcText.includes(w) ? 1 : 0), 0);
+    // 이미 사용된 인덱스에 약간 페널티 (중복 최소화)
+    if (usedIndices?.has(idx)) score -= 0.5;
+    if (score > bestScore) { bestScore = score; bestIdx = idx; }
+  });
+  usedIndices?.add(bestIdx);
+  return sources[bestIdx];
+};
+
 // 소스 링크 뱃지 (작은 인라인 버튼)
 const SrcLink: React.FC<{ source: SearchSource; label?: string }> = ({ source, label }) => (
   <a
@@ -142,7 +159,7 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
 // 효과 예측형 UI - note를 링크로
 const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[] }> = ({ result, sources }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "효과 예측형";
-  let srcIdx = 0;
+  const usedIndices = new Set<number>();
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
@@ -167,7 +184,7 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
                 const isIncrease = effect.title.includes("↑") || effect.title.includes("증가");
                 const isDecrease = effect.title.includes("↓") || effect.title.includes("감소");
                 const titleColor = isDecrease ? "#2563eb" : isIncrease ? "#16a34a" : "#374151";
-                const src = sources && sources.length > 0 ? sources[srcIdx++ % sources.length] : null;
+                const src = effect.note ? findBestSource(effect.note, sources || [], usedIndices) : null;
                 return (
                   <div key={j} className="bg-gray-50 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-1">
@@ -250,7 +267,7 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
 // 속성 분석형 UI - evidence를 링크로
 const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSource[] }> = ({ result, sources }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "속성 분석형";
-  let srcIdx = 0;
+  const usedIndices = new Set<number>();
   return (
     <div className="space-y-3">
       <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
@@ -278,7 +295,7 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                   <p className="text-xs font-bold text-green-700 mb-2">장점</p>
                   <div className="space-y-2">
                     {idea.pros.map((pro, j) => {
-                      const src = sources && sources.length > 0 ? sources[srcIdx++ % sources.length] : null;
+                      const src = pro.evidence ? findBestSource(pro.evidence, sources || [], usedIndices) : null;
                       return (
                         <div key={j}>
                           <p className="text-xs font-semibold text-gray-800">{j + 1} {pro.point}</p>
@@ -304,7 +321,7 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                   <p className="text-xs font-bold text-red-600 mb-2">단점</p>
                   <div className="space-y-2">
                     {idea.cons.map((con, j) => {
-                      const src = sources && sources.length > 0 ? sources[srcIdx++ % sources.length] : null;
+                      const src = con.evidence ? findBestSource(con.evidence, sources || [], usedIndices) : null;
                       return (
                         <div key={j}>
                           <p className="text-xs font-semibold text-gray-800">{j + 1} {con.point}</p>
