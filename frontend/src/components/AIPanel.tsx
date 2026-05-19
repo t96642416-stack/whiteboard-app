@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import ReactMarkdown from "react-markdown";
 import { AgentType, AnalysisResult as AnalysisResultType, AgentAnalysisResult, ChatMessage, AGENT_OPTIONS, AnalysisFile, IdeaCategory, IDEA_CATEGORIES } from "../types";
 import AnalysisResult from "./AnalysisResult";
 import AgentAnalysisResultComponent from "./AgentAnalysisResult";
@@ -537,10 +538,25 @@ const AIPanel: React.FC<AIPanelProps> = ({
                         <div className="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center flex-shrink-0 mt-0.5">
                           <span className="text-xs">🤖</span>
                         </div>
-                        <div className={`max-w-[85%] rounded-2xl rounded-tl-sm px-3 py-2 text-xs leading-relaxed ${
+                        <div className={`max-w-[85%] rounded-2xl rounded-tl-sm px-3 py-2 text-xs leading-relaxed prose prose-xs max-w-none ${
                           msg.isError ? "bg-red-50 text-red-700 border border-red-100" : "bg-purple-50 text-gray-800 border border-purple-100"
                         }`}>
-                          {msg.message}
+                          <ReactMarkdown
+                            components={{
+                              p: ({children}) => <p className="mb-1 last:mb-0">{children}</p>,
+                              strong: ({children}) => <strong className="font-semibold">{children}</strong>,
+                              ul: ({children}) => <ul className="list-disc pl-4 mb-1 space-y-0.5">{children}</ul>,
+                              ol: ({children}) => <ol className="list-decimal pl-4 mb-1 space-y-0.5">{children}</ol>,
+                              li: ({children}) => <li className="leading-relaxed">{children}</li>,
+                              hr: () => <hr className="border-purple-200 my-2" />,
+                              h1: ({children}) => <p className="font-bold text-sm mb-1">{children}</p>,
+                              h2: ({children}) => <p className="font-bold mb-1">{children}</p>,
+                              h3: ({children}) => <p className="font-semibold mb-0.5">{children}</p>,
+                              code: ({children}) => <code className="bg-purple-100 px-1 rounded text-xs font-mono">{children}</code>,
+                            }}
+                          >
+                            {msg.message}
+                          </ReactMarkdown>
                         </div>
                       </div>
                     ) : (

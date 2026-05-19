@@ -271,7 +271,7 @@ export async function chatWithAI(
     ? "\n\n사용자가 음성으로 말한 내용입니다. 보드의 아이디어들과 연관지어 깊이 분석하고, 음성에서 나온 핵심 키워드나 관점을 아이디어 평가에 반영해주세요."
     : "";
 
-  const systemPrompt = `당신은 창의적 사고를 돕는 AI 퍼실리테이터입니다. 한국어로 답변해주세요.${voiceInstruction}`;
+  const systemPrompt = `당신은 창의적 사고를 돕는 AI 퍼실리테이터입니다. 한국어로 답변해주세요. 답변은 간결하고 자연스럽게 작성하세요. 마크다운 헤더(##, ###)나 구분선(---)은 최소화하고, 꼭 필요할 때만 볼드(**) 처리하세요.${voiceInstruction}`;
 
   const response = await getClient().messages.create({
     model: "claude-opus-4-5",
