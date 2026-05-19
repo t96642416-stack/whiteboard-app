@@ -37,11 +37,18 @@ export interface IdeaAnalysis {
   cons: ProCon[];
 }
 
+export interface SearchSource {
+  title: string;
+  description: string;
+  link: string;
+}
+
 export interface AnalysisResult {
   ideas: IdeaAnalysis[];
   commonalities: string[];
   differences: string[];
   agentResponse?: string;
+  searchSources?: SearchSource[];
 }
 
 export type AgentType =
@@ -77,6 +84,7 @@ export interface PerspectiveAnalysis {
   summary: string;
   currentFocus: string[];
   perspectives: { title: string; description: string }[];
+  searchSources?: SearchSource[];
 }
 
 // 효과 예측형
@@ -85,6 +93,7 @@ export interface EffectAnalysis {
   summary: string;
   currentFocus: string[];
   questions: { text: string }[];
+  searchSources?: SearchSource[];
 }
 
 // 결과 강조형

@@ -1,5 +1,52 @@
 import React, { useState } from "react";
-import { AnalysisResult as AnalysisResultType, IDEA_BADGE_COLORS } from "../types";
+import { AnalysisResult as AnalysisResultType, IDEA_BADGE_COLORS, SearchSource } from "../types";
+
+const SearchSourcesSection: React.FC<{ sources: SearchSource[] }> = ({ sources }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border border-green-100 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-2.5 bg-green-50 hover:bg-green-100 transition-colors"
+      >
+        <span className="flex items-center gap-2 text-xs font-semibold text-green-700">
+          <span>🔍</span>
+          네이버 검색 참고 자료 ({sources.length}개)
+        </span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5"
+          className={`transition-transform ${open ? "rotate-180" : ""}`}>
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {open && (
+        <div className="divide-y divide-green-50">
+          {sources.map((s, i) => (
+            <a
+              key={i}
+              href={s.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-start gap-2.5 px-4 py-3 bg-white hover:bg-green-50 transition-colors group"
+            >
+              <span className="text-xs font-bold text-green-600 flex-shrink-0 mt-0.5">{i + 1}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-gray-800 group-hover:text-green-700 truncate leading-snug">
+                  {s.title}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 leading-relaxed">{s.description}</p>
+              </div>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"
+                className="flex-shrink-0 mt-0.5 group-hover:stroke-green-500">
+                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface AnalysisResultProps {
   result: AnalysisResultType;
@@ -190,6 +237,11 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result }) => {
             {result.agentResponse}
           </p>
         </div>
+      )}
+
+      {/* 네이버 검색 출처 */}
+      {result.searchSources && result.searchSources.length > 0 && (
+        <SearchSourcesSection sources={result.searchSources} />
       )}
     </div>
   );

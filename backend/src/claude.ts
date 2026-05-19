@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import dotenv from "dotenv";
 import path from "path";
-import { searchForIdeas } from "./search";
+import { searchForIdeas, SearchResult } from "./search";
 
 // .env 파일을 명시적 경로로 로딩
 dotenv.config({ path: path.join(__dirname, "../../.env"), override: true });
@@ -189,12 +189,16 @@ export async function analyzeIdeas(
   }
 
   // 검색 기반 분석: 네이버 검색 결과 가져오기
-  const searchContext = useSearch ? await searchForIdeas(ideas) : "";
-  if (useSearch && searchContext) {
-    console.log("✅ 검색 자료 포함하여 분석합니다.");
+  let searchSources: SearchResult[] = [];
+  let searchPromptText = "";
+  if (useSearch) {
+    const ctx = await searchForIdeas(ideas);
+    searchSources = ctx.sources;
+    searchPromptText = ctx.promptText;
+    if (searchSources.length > 0) console.log("✅ 검색 자료 포함하여 분석합니다.");
   }
 
-  const userPrompt = `다음 아이디어들을 분석해주세요:\n\n${ideasText}${agentInstruction ? "\n\n" + agentInstruction : ""}${userMessageInstruction}${searchContext}`;
+  const userPrompt = `다음 아이디어들을 분석해주세요:\n\n${ideasText}${agentInstruction ? "\n\n" + agentInstruction : ""}${userMessageInstruction}${searchPromptText}`;
 
   // 첨부 파일 처리: 텍스트 파일은 프롬프트에 추가, 이미지는 content block으로
   const textFilesContext = files
@@ -251,6 +255,10 @@ export async function analyzeIdeas(
   }
 
   const result = JSON.parse(jsonMatch[0]);
+  // 검색 출처가 있으면 결과에 포함
+  if (searchSources.length > 0) {
+    result.searchSources = searchSources;
+  }
   return result;
 }
 

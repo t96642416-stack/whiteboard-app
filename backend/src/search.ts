@@ -42,29 +42,33 @@ export async function searchNaver(query: string, display = 5): Promise<SearchRes
   }
 }
 
+export interface SearchContext {
+  query: string;
+  sources: SearchResult[];
+  promptText: string;
+}
+
 // 아이디어 목록에서 검색 쿼리 자동 생성 + 검색 실행
 export async function searchForIdeas(
   ideas: { title: string; content: string }[],
   topic?: string
-): Promise<string> {
-  if (ideas.length === 0) return "";
+): Promise<SearchContext> {
+  const empty: SearchContext = { query: "", sources: [], promptText: "" };
+  if (ideas.length === 0) return empty;
 
-  // 검색 쿼리 구성: 주제 + 대표 아이디어 키워드
-  const keywords = ideas
-    .slice(0, 3)
-    .map((i) => i.title)
-    .join(" ");
-
+  const keywords = ideas.slice(0, 3).map((i) => i.title).join(" ");
   const query = topic ? `${topic} ${keywords}` : keywords;
 
   console.log(`🔍 네이버 검색: "${query}"`);
   const results = await searchNaver(query, 5);
 
-  if (results.length === 0) return "";
+  if (results.length === 0) return empty;
 
   const formatted = results
     .map((r, i) => `[검색결과 ${i + 1}] ${r.title}\n${r.description}`)
     .join("\n\n");
 
-  return `\n\n=== 실시간 검색 자료 (네이버) ===\n검색어: "${query}"\n\n${formatted}\n================================`;
+  const promptText = `\n\n=== 실시간 검색 자료 (네이버) ===\n검색어: "${query}"\n\n${formatted}\n================================`;
+
+  return { query, sources: results, promptText };
 }
