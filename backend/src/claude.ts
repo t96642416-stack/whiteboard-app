@@ -220,36 +220,29 @@ export async function analyzeIdeas(
         ]
       : fullTextPrompt;
 
-  try {
-    const message = await getClient().messages.create({
-      model: "claude-opus-4-5",
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: userContent,
-        },
-      ],
-    });
+  const message = await getClient().messages.create({
+    model: "claude-opus-4-5",
+    max_tokens: 4096,
+    system: systemPrompt,
+    messages: [
+      {
+        role: "user",
+        content: userContent,
+      },
+    ],
+  });
 
-    const responseText =
-      message.content[0].type === "text" ? message.content[0].text : "";
+  const responseText =
+    message.content[0].type === "text" ? message.content[0].text : "";
 
-    // JSON 파싱 시도
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("JSON 형식의 응답을 찾을 수 없습니다.");
-    }
-
-    const result = JSON.parse(jsonMatch[0]);
-    return result;
-  } catch (error) {
-    console.error("Claude API 오류:", error);
-    throw new Error(
-      "AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
-    );
+  // JSON 파싱 시도
+  const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error("JSON 형식의 응답을 찾을 수 없습니다.");
   }
+
+  const result = JSON.parse(jsonMatch[0]);
+  return result;
 }
 
 export async function chatWithAI(
@@ -272,24 +265,19 @@ export async function chatWithAI(
 
   const systemPrompt = `당신은 창의적 사고를 돕는 AI 퍼실리테이터입니다. 한국어로 답변해주세요.${voiceInstruction}`;
 
-  try {
-    const response = await getClient().messages.create({
-      model: "claude-opus-4-5",
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: `${ideasContext}${message}`,
-        },
-      ],
-    });
+  const response = await getClient().messages.create({
+    model: "claude-opus-4-5",
+    max_tokens: 1024,
+    system: systemPrompt,
+    messages: [
+      {
+        role: "user",
+        content: `${ideasContext}${message}`,
+      },
+    ],
+  });
 
-    return response.content[0].type === "text"
-      ? response.content[0].text
-      : "응답을 생성할 수 없습니다.";
-  } catch (error) {
-    console.error("Claude 채팅 오류:", error);
-    throw new Error("AI 응답 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
-  }
+  return response.content[0].type === "text"
+    ? response.content[0].text
+    : "응답을 생성할 수 없습니다.";
 }

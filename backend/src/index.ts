@@ -172,12 +172,15 @@ io.on("connection", (socket) => {
         io.to(currentRoom).emit("analysis-result", result);
         console.log(`분석 완료 (방: ${currentRoom})`);
       } catch (error) {
-        const errorMessage =
-          error instanceof Error
-            ? error.message
-            : "알 수 없는 오류가 발생했습니다.";
-        io.to(currentRoom).emit("analysis-error", { message: errorMessage });
+        // 실제 에러 메시지를 그대로 전달 (API 키 오류, 모델 오류 등 디버깅용)
+        let errorMessage = "알 수 없는 오류가 발생했습니다.";
+        if (error instanceof Error) {
+          errorMessage = error.message;
+        } else if (typeof error === "object" && error !== null) {
+          errorMessage = JSON.stringify(error);
+        }
         console.error(`분석 오류 (방: ${currentRoom}):`, error);
+        io.to(currentRoom).emit("analysis-error", { message: errorMessage });
       }
     }
   );
