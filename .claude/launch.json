@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Backend (Express + Socket.io)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "/Users/parksuhyun/project/backend",
+      "port": 3001
+    },
+    {
+      "name": "Frontend (Vite + React)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "/Users/parksuhyun/project/frontend",
+      "port": 5173
+    }
+  ]
+}
