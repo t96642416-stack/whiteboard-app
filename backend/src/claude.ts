@@ -56,9 +56,9 @@ type AgentType =
   | "guide"
   | null;
 
-// attribute용 기존 형식 유지
+// attribute용 - 세부 속성 심층 분석
 const ATTRIBUTE_SYSTEM_PROMPT = `당신은 창의적 사고를 돕는 AI 퍼실리테이터입니다.
-사용자의 아이디어를 분석하여 장단점, 공통점, 차이점을 한국어로 정리해주세요.
+각 아이디어의 세부 속성(대상 사용자, 핵심 기능, 구현 난이도, 차별성, 잠재 리스크 등)을 한국어로 심층 분석해주세요.
 
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 순수 JSON만 반환하세요:
 {
@@ -66,13 +66,13 @@ const ATTRIBUTE_SYSTEM_PROMPT = `당신은 창의적 사고를 돕는 AI 퍼실�
     {
       "id": "아이디어 ID",
       "name": "아이디어 이름",
-      "pros": [{"point": "장점", "evidence": "근거나 데이터"}],
-      "cons": [{"point": "단점", "evidence": "근거나 우려사항"}]
+      "pros": [{"point": "핵심 속성 및 강점", "evidence": "구체적 근거나 특징"}],
+      "cons": [{"point": "보완이 필요한 속성", "evidence": "개선 방향이나 우려사항"}]
     }
   ],
-  "commonalities": ["공통점1", "공통점2"],
-  "differences": ["차이점1", "차이점2"],
-  "agentResponse": "에이전트 응답 (해당하는 경우)"
+  "commonalities": ["공통 속성1", "공통 속성2"],
+  "differences": ["차별화 속성1", "차별화 속성2"],
+  "agentResponse": "전체 속성 분석 종합 코멘트"
 }`;
 
 const QUESTION_SUGGESTION_SYSTEM_PROMPT = `당신은 창의적 사고를 돕는 AI 퍼실리테이터입니다.
@@ -91,17 +91,18 @@ const QUESTION_SUGGESTION_SYSTEM_PROMPT = `당신은 창의적 사고를 돕는 
 }`;
 
 const EFFECT_SYSTEM_PROMPT = `당신은 창의적 사고를 돕는 AI 퍼실리테이터입니다.
-아이디어들을 분석하여 사고를 전환하는 질문들을 제시해주세요. 한국어로 작성하세요.
+아이디어들을 실행했을 때 나타날 수 있는 예상 효과를 분석해주세요. 수치보다는 "~할 것이다", "~로 이어질 것이다", "~에 긍정적인 영향을 줄 것이다" 같은 서술형으로 자연스럽게 작성하세요. 한국어로 작성하세요.
 
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 순수 JSON만 반환하세요:
 {
   "agentType": "effect",
-  "summary": "현재 논의 요약",
-  "currentFocus": ["키워드1", "키워드2"],
+  "summary": "아이디어들의 전체적인 방향 요약",
+  "currentFocus": ["핵심 키워드1", "핵심 키워드2"],
   "questions": [
-    {"text": "사고를 전환하는 질문 1"},
-    {"text": "질문 2"},
-    {"text": "질문 3"}
+    {"text": "예상 효과 1: ~할 것이다 또는 ~로 이어질 것이다 형태로 서술"},
+    {"text": "예상 효과 2"},
+    {"text": "예상 효과 3"},
+    {"text": "예상 효과 4"}
   ]
 }`;
 

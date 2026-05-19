@@ -99,18 +99,12 @@ const EffectView: React.FC<{ result: EffectAnalysis }> = ({ result }) => (
 
       <hr className="border-gray-100 mb-3" />
 
-      {/* 생각해볼 부분 안내 */}
-      <div className="bg-gray-50 rounded-lg px-3 py-2.5 flex items-center justify-between mb-3">
-        <p className="text-xs text-gray-600">이런 부분도 생각해볼 수 있어요</p>
-        <button className="text-gray-400 hover:text-gray-600 transition-colors ml-2 flex-shrink-0">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="23 4 23 10 17 10" />
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-          </svg>
-        </button>
+      {/* 안내 배너 */}
+      <div className="bg-gray-50 rounded-lg px-3 py-2.5 mb-3">
+        <p className="text-xs text-gray-600">📊 아이디어 실행 시 예상되는 효과예요</p>
       </div>
 
-      {/* 질문 카드들 */}
+      {/* 예상 효과 카드들 */}
       <div className="space-y-2">
         {result.questions.map((q, i) => (
           <div key={i} className="rounded-xl p-3" style={{ backgroundColor: "#F0EFFD" }}>
@@ -119,7 +113,7 @@ const EffectView: React.FC<{ result: EffectAnalysis }> = ({ result }) => (
                 className="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0 mt-0.5"
                 style={{ backgroundColor: "#4F48ED", color: "white" }}
               >
-                Q{i + 1}
+                효과 {i + 1}
               </span>
               <p className="text-xs text-gray-800 leading-relaxed font-medium">{q.text}</p>
             </div>
