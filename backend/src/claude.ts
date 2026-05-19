@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import dotenv from "dotenv";
 import path from "path";
+import { searchForIdeas } from "./search";
 
 // .env 파일을 명시적 경로로 로딩
 dotenv.config({ path: path.join(__dirname, "../../.env"), override: true });
@@ -144,7 +145,8 @@ export async function analyzeIdeas(
   ideas: IdeaInput[],
   agentType: AgentType = null,
   userMessage: string = "",
-  files: AnalysisFile[] = []
+  files: AnalysisFile[] = [],
+  useSearch: boolean = false
 ): Promise<AnalysisResult | Record<string, unknown>> {
   if (ideas.length === 0) {
     return {
@@ -185,7 +187,13 @@ export async function analyzeIdeas(
     agentInstruction = agentType ? "각 아이디어의 비용/시간/난이도/영향도를 점수(1-10)로 분석해주세요. JSON의 agentResponse 필드에 문자열로 포함시켜주세요." : "";
   }
 
-  const userPrompt = `다음 아이디어들을 분석해주세요:\n\n${ideasText}${agentInstruction ? "\n\n" + agentInstruction : ""}${userMessageInstruction}`;
+  // 검색 기반 분석: 네이버 검색 결과 가져오기
+  const searchContext = useSearch ? await searchForIdeas(ideas) : "";
+  if (useSearch && searchContext) {
+    console.log("✅ 검색 자료 포함하여 분석합니다.");
+  }
+
+  const userPrompt = `다음 아이디어들을 분석해주세요:\n\n${ideasText}${agentInstruction ? "\n\n" + agentInstruction : ""}${userMessageInstruction}${searchContext}`;
 
   // 첨부 파일 처리: 텍스트 파일은 프롬프트에 추가, 이미지는 content block으로
   const textFilesContext = files

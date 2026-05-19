@@ -244,12 +244,13 @@ function App() {
   }, []);
 
   // 분석 요청 - 현재 선택된 카테고리 + 파일 포함
-  const handleRequestAnalysis = useCallback((agentType: AgentType, files?: AnalysisFile[]) => {
+  const handleRequestAnalysis = useCallback((agentType: AgentType, files?: AnalysisFile[], useSearch?: boolean) => {
     getSocket().emit("analysis-requested", {
       agentType,
       userMessage: "",
       files: files || [],
       categoryFilter: selectedCategory === "all" ? null : selectedCategory,
+      useSearch: useSearch || false,
     });
   }, [selectedCategory]);
 

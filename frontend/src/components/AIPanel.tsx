@@ -14,7 +14,7 @@ interface AIPanelProps {
   onAgentChange: (agent: AgentType) => void;
   onSendChat: (message: string, imageUrl?: string) => void;
   onSendAIMessage?: (message: string) => void;
-  onRequestAnalysis: (agentType: AgentType, files?: AnalysisFile[]) => void;
+  onRequestAnalysis: (agentType: AgentType, files?: AnalysisFile[], useSearch?: boolean) => void;
   isAIResponding: boolean;
   onClearChat?: () => void;
   selectedCategory?: IdeaCategory | "all";
@@ -35,6 +35,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
 }) => {
   const [inputText, setInputText] = useState("");
   const [aiInputText, setAiInputText] = useState("");
+  const [useSearch, setUseSearch] = useState(false);
   const aiChatEndRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<"analysis" | "chat" | "meeting">("analysis");
   const [showAgentList, setShowAgentList] = useState(false);
@@ -229,7 +230,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
   const handleAgentClick = (agentType: AgentType) => {
     if (agentType === null) return;
     onAgentChange(agentType);
-    onRequestAnalysis(agentType, analysisFiles.length > 0 ? analysisFiles : undefined);
+    onRequestAnalysis(agentType, analysisFiles.length > 0 ? analysisFiles : undefined, useSearch);
     setShowAgentList(false);
     setShowInitial(false);
   };
@@ -489,6 +490,33 @@ const AIPanel: React.FC<AIPanelProps> = ({
                         <AgentListItems />
                       </>
                     )}
+                    {/* 실시간 검색 토글 */}
+                    <div className="mt-3 pt-3 border-t border-purple-100">
+                      <button
+                        type="button"
+                        onClick={() => setUseSearch((v) => !v)}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 transition-all ${
+                          useSearch
+                            ? "border-green-400 bg-green-50"
+                            : "border-gray-200 bg-white hover:border-gray-300"
+                        }`}
+                      >
+                        <span className="text-base">🔍</span>
+                        <div className="flex-1 text-left">
+                          <div className={`text-xs font-semibold ${useSearch ? "text-green-700" : "text-gray-600"}`}>
+                            실시간 검색 기반 분석
+                            {useSearch && <span className="ml-1.5 text-xs bg-green-500 text-white px-1.5 py-0.5 rounded-full">ON</span>}
+                          </div>
+                          <div className="text-xs text-gray-400 mt-0.5">
+                            {useSearch ? "네이버 검색 자료를 참고해 더 정확하게 분석해요" : "켜면 네이버 실시간 검색 결과를 참고해요"}
+                          </div>
+                        </div>
+                        <div className={`w-10 h-5 rounded-full transition-all flex items-center px-0.5 ${useSearch ? "bg-green-500" : "bg-gray-200"}`}>
+                          <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-all ${useSearch ? "translate-x-5" : "translate-x-0"}`} />
+                        </div>
+                      </button>
+                    </div>
+
                     <FileAttachSection />
                   </div>
                 </div>

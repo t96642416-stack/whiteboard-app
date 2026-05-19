@@ -136,11 +136,13 @@ io.on("connection", (socket) => {
       userMessage,
       files,
       categoryFilter,
+      useSearch,
     }: {
       agentType: string | null;
       userMessage?: string;
       files?: AnalysisFile[];
       categoryFilter?: string | null;
+      useSearch?: boolean;
     }) => {
       if (!currentRoom) return;
 
@@ -167,7 +169,8 @@ io.on("connection", (socket) => {
           ideas,
           agentType as any,
           userMessage || "",
-          files || []
+          files || [],
+          useSearch || false
         );
         io.to(currentRoom).emit("analysis-result", result);
         console.log(`분석 완료 (방: ${currentRoom})`);
