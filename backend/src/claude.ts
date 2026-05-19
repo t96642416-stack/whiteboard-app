@@ -20,6 +20,13 @@ export interface IdeaInput {
   author: string;
 }
 
+export interface AnalysisFile {
+  name: string;
+  type: "text" | "image";
+  mimeType?: string;
+  content: string; // text content 또는 base64 data URL
+}
+
 export interface ProCon {
   point: string;
   evidence: string;
@@ -136,7 +143,8 @@ const GUIDE_SYSTEM_PROMPT = `당신은 창의적 사고를 돕는 AI 퍼실리�
 export async function analyzeIdeas(
   ideas: IdeaInput[],
   agentType: AgentType = null,
-  userMessage: string = ""
+  userMessage: string = "",
+  files: AnalysisFile[] = []
 ): Promise<AnalysisResult | Record<string, unknown>> {
   if (ideas.length === 0) {
     return {
@@ -179,6 +187,39 @@ export async function analyzeIdeas(
 
   const userPrompt = `다음 아이디어들을 분석해주세요:\n\n${ideasText}${agentInstruction ? "\n\n" + agentInstruction : ""}${userMessageInstruction}`;
 
+  // 첨부 파일 처리: 텍스트 파일은 프롬프트에 추가, 이미지는 content block으로
+  const textFilesContext = files
+    .filter((f) => f.type === "text")
+    .map((f) => `\n\n[첨부 파일: ${f.name}]\n${f.content}`)
+    .join("");
+
+  const imageBlocks = files
+    .filter((f) => f.type === "image" && f.mimeType && f.content)
+    .map((f) => {
+      // data URL에서 base64 데이터만 추출 (data:image/jpeg;base64,XXXX → XXXX)
+      const base64Data = f.content.includes(",") ? f.content.split(",")[1] : f.content;
+      const mediaType = (f.mimeType || "image/jpeg") as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+      return {
+        type: "image" as const,
+        source: {
+          type: "base64" as const,
+          media_type: mediaType,
+          data: base64Data,
+        },
+      };
+    });
+
+  const fullTextPrompt = userPrompt + textFilesContext + (textFilesContext ? "\n\n위 첨부 파일 내용도 참고하여 분석해주세요." : "");
+
+  // 이미지가 있으면 content block 배열, 없으면 단순 문자열
+  const userContent =
+    imageBlocks.length > 0
+      ? [
+          ...imageBlocks,
+          { type: "text" as const, text: fullTextPrompt + "\n\n위 첨부 이미지도 참고하여 분석해주세요." },
+        ]
+      : fullTextPrompt;
+
   try {
     const message = await getClient().messages.create({
       model: "claude-opus-4-5",
@@ -187,7 +228,7 @@ export async function analyzeIdeas(
       messages: [
         {
           role: "user",
-          content: userPrompt,
+          content: userContent,
         },
       ],
     });

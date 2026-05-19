@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { getSocket } from "./socket";
-import { Idea, AnalysisResult, AgentAnalysisResult, ChatMessage, AgentType, CARD_COLORS } from "./types";
+import { Idea, AnalysisResult, AgentAnalysisResult, ChatMessage, AgentType, CARD_COLORS, AnalysisFile, IdeaCategory, IdeaAttachment } from "./types";
 import Board from "./components/Board";
 import AIPanel from "./components/AIPanel";
 
@@ -52,22 +52,15 @@ const LoginModal: React.FC<{ onJoin: (userName: string, roomId: string, color: s
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">내 컬러</label>
             <div className="flex items-center gap-3">
               {COLOR_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setSelectedColor(opt.value)}
-                  title={opt.label}
+                <button key={opt.value} type="button" onClick={() => setSelectedColor(opt.value)} title={opt.label}
                   className="w-8 h-8 rounded-full transition-all flex-shrink-0"
                   style={{
                     backgroundColor: opt.value,
                     border: selectedColor === opt.value ? `3px solid #3b82f6` : `2px solid #d1d5db`,
                     boxShadow: selectedColor === opt.value ? "0 0 0 2px #93c5fd" : "none",
-                  }}
-                />
+                  }} />
               ))}
-              <span className="text-xs text-gray-500">
-                {COLOR_OPTIONS.find((o) => o.value === selectedColor)?.label}
-              </span>
+              <span className="text-xs text-gray-500">{COLOR_OPTIONS.find((o) => o.value === selectedColor)?.label}</span>
             </div>
           </div>
           <button type="submit" disabled={!userName.trim()}
@@ -87,9 +80,9 @@ function App() {
   const [userColor, setUserColor] = useState("#E5E7EB");
   const [roomId, setRoomId] = useState("");
 
-  // 재연결 시 join-room 재전송을 위한 ref
   const joinInfoRef = useRef<{ roomId: string; userName: string; userColor: string } | null>(null);
   const [ideas, setIdeas] = useState<Idea[]>([]);
+  const ideasRef = useRef<Idea[]>([]);
   const [users, setUsers] = useState<{ name: string; color: string }[]>([]);
   const [topic, setTopic] = useState("");
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -100,10 +93,17 @@ function App() {
   const [isAIResponding, _setIsAIResponding] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
+  // 카테고리 필터 (Board와 분석 공통)
+  const [selectedCategory, setSelectedCategory] = useState<IdeaCategory | "all">("all");
+
   const showError = useCallback((msg: string) => {
     setErrorBanner(msg);
     setTimeout(() => setErrorBanner(null), 5000);
   }, []);
+
+  useEffect(() => {
+    ideasRef.current = ideas;
+  }, [ideas]);
 
   const handleJoin = useCallback((name: string, room: string, color: string) => {
     const socket = getSocket();
@@ -119,17 +119,22 @@ function App() {
     if (!joined) return;
     const socket = getSocket();
 
-    // 소켓 재연결 시 자동으로 방 재참가
     socket.on("connect", () => {
       if (joinInfoRef.current) {
         const { roomId: r, userName: u, userColor: c } = joinInfoRef.current;
         socket.emit("join-room", { roomId: r, userName: u, userColor: c });
+        if (ideasRef.current.length > 0) {
+          socket.emit("ideas-sync", ideasRef.current);
+        }
       }
     });
 
-    socket.on("room-state", ({ ideas: roomIdeas, users: roomUsers }: { ideas: Idea[]; users: { name: string; color: string }[] }) => {
+    socket.on("room-state", ({ ideas: roomIdeas, users: roomUsers, messages: roomMessages }: { ideas: Idea[]; users: { name: string; color: string }[]; messages?: ChatMessage[] }) => {
       setIdeas(roomIdeas);
       setUsers(roomUsers);
+      if (roomMessages && roomMessages.length > 0) {
+        setChatMessages(roomMessages);
+      }
     });
 
     socket.on("idea-added", (idea: Idea) => {
@@ -138,6 +143,10 @@ function App() {
 
     socket.on("idea-deleted", ({ ideaId }: { ideaId: string }) => {
       setIdeas((prev) => prev.filter((i) => i.id !== ideaId));
+    });
+
+    socket.on("idea-updated", ({ ideaId, title, content, category }: { ideaId: string; title: string; content: string; category?: IdeaCategory }) => {
+      setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, title, content, ...(category ? { category } : {}) } : i));
     });
 
     socket.on("analysis-started", () => {
@@ -168,12 +177,10 @@ function App() {
       setUsers(updatedUsers);
     });
 
-    // 주제 변경 수신
     socket.on("topic-changed", ({ topic: newTopic }: { topic: string }) => {
       setTopic(newTopic);
     });
 
-    // 순수 채팅 메시지 수신
     socket.on("chat-message", ({
       userName: msgUser, message, imageUrl, userColor: msgColor, timestamp,
     }: { userName: string; message: string; imageUrl?: string; userColor?: string; timestamp: string }) => {
@@ -188,6 +195,7 @@ function App() {
       socket.off("room-state");
       socket.off("idea-added");
       socket.off("idea-deleted");
+      socket.off("idea-updated");
       socket.off("analysis-started");
       socket.off("analysis-result");
       socket.off("analysis-error");
@@ -198,13 +206,15 @@ function App() {
     };
   }, [joined, showError]);
 
-  const handleAddIdea = useCallback((title: string, content: string, color: string) => {
+  const handleAddIdea = useCallback((title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[]) => {
     const socket = getSocket();
     const idea: Idea = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       title, content, author: userName,
       color: color || CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)],
       createdAt: new Date().toISOString(),
+      category,
+      attachments,
     };
     socket.emit("idea-added", idea);
   }, [userName]);
@@ -213,20 +223,33 @@ function App() {
     getSocket().emit("idea-deleted", { ideaId });
   }, []);
 
+  const handleEditIdea = useCallback((ideaId: string, title: string, content: string, category: IdeaCategory) => {
+    setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, title, content, category } : i));
+    getSocket().emit("idea-updated", { ideaId, title, content, category });
+  }, []);
+
   const handleTopicChange = useCallback((newTopic: string) => {
     setTopic(newTopic);
     getSocket().emit("topic-changed", { topic: newTopic });
   }, []);
 
-  // 속성 분석형 선택 시 자동으로 분석 요청
-  const handleRequestAnalysis = useCallback((agentType: AgentType) => {
-    getSocket().emit("analysis-requested", { agentType, userMessage: "" });
-  }, []);
+  // 분석 요청 - 현재 선택된 카테고리 + 파일 포함
+  const handleRequestAnalysis = useCallback((agentType: AgentType, files?: AnalysisFile[]) => {
+    getSocket().emit("analysis-requested", {
+      agentType,
+      userMessage: "",
+      files: files || [],
+      categoryFilter: selectedCategory === "all" ? null : selectedCategory,
+    });
+  }, [selectedCategory]);
 
-  // 순수 채팅 전송 (AI 응답 없음)
   const handleSendChat = useCallback((message: string, imageUrl?: string) => {
     getSocket().emit("chat-message", { message, imageUrl, userColor });
   }, [userColor]);
+
+  const handleClearChat = useCallback(() => {
+    setChatMessages([]);
+  }, []);
 
   if (!joined) return <LoginModal onJoin={handleJoin} />;
 
@@ -259,6 +282,9 @@ function App() {
           onTopicChange={handleTopicChange}
           onAddIdea={handleAddIdea}
           onDeleteIdea={handleDeleteIdea}
+          onEditIdea={handleEditIdea}
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
         />
       </div>
 
@@ -272,6 +298,8 @@ function App() {
         onSendChat={handleSendChat}
         onRequestAnalysis={handleRequestAnalysis}
         isAIResponding={isAIResponding}
+        onClearChat={handleClearChat}
+        selectedCategory={selectedCategory}
       />
     </div>
   );

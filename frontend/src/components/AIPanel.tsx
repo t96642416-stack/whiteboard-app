@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { AgentType, AnalysisResult as AnalysisResultType, AgentAnalysisResult, ChatMessage } from "../types";
-import AgentSelector from "./AgentSelector";
+import { AgentType, AnalysisResult as AnalysisResultType, AgentAnalysisResult, ChatMessage, AGENT_OPTIONS, AnalysisFile, IdeaCategory, IDEA_CATEGORIES } from "../types";
 import AnalysisResult from "./AnalysisResult";
 import AgentAnalysisResultComponent from "./AgentAnalysisResult";
 import { useMeetingRecognition } from "../hooks/useVoiceRecognition";
@@ -10,11 +9,13 @@ interface AIPanelProps {
   agentAnalysisResult: AgentAnalysisResult | null;
   isAnalyzing: boolean;
   chatMessages: ChatMessage[];
-  selectedAgent: AgentType;
+  selectedAgent?: AgentType;
   onAgentChange: (agent: AgentType) => void;
   onSendChat: (message: string, imageUrl?: string) => void;
-  onRequestAnalysis: (agentType: AgentType) => void;
+  onRequestAnalysis: (agentType: AgentType, files?: AnalysisFile[]) => void;
   isAIResponding: boolean;
+  onClearChat?: () => void;
+  selectedCategory?: IdeaCategory | "all";
 }
 
 const AIPanel: React.FC<AIPanelProps> = ({
@@ -22,24 +23,37 @@ const AIPanel: React.FC<AIPanelProps> = ({
   agentAnalysisResult,
   isAnalyzing,
   chatMessages,
-  selectedAgent,
   onAgentChange,
   onSendChat,
   onRequestAnalysis,
   isAIResponding,
+  selectedCategory = "all",
 }) => {
   const [inputText, setInputText] = useState("");
-  const [showAgentSelector, setShowAgentSelector] = useState(false);
   const [activeTab, setActiveTab] = useState<"analysis" | "chat" | "meeting">("analysis");
+  const [showAgentList, setShowAgentList] = useState(false);
+  const [showInitial, setShowInitial] = useState(false);
+  const [analysisFiles, setAnalysisFiles] = useState<AnalysisFile[]>([]);
   const [transcriptLines, setTranscriptLines] = useState<string[]>([]);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [panelWidth, setPanelWidth] = useState(400);
+
+  // 채팅 세션 관리
+  const [sessionStartIndex, setSessionStartIndex] = useState(0);
+  const [savedSessions, setSavedSessions] = useState<{ id: string; label: string; messages: ChatMessage[] }[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [viewingSession, setViewingSession] = useState<{ id: string; label: string; messages: ChatMessage[] } | null>(null);
+
   const chatEndRef = useRef<HTMLDivElement>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const analysisFileInputRef = useRef<HTMLInputElement>(null);
   const isResizing = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(400);
+
+  // 현재 세션 메시지만 추출
+  const currentMessages = chatMessages.slice(sessionStartIndex);
 
   const { isRecording, interimText, startRecording, stopRecording, clearTranscript, isSupported } =
     useMeetingRecognition({
@@ -52,11 +66,19 @@ const AIPanel: React.FC<AIPanelProps> = ({
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages]);
+  }, [currentMessages]);
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [transcriptLines, interimText]);
+
+  // 새 결과가 오면 초기 화면 숨기기
+  useEffect(() => {
+    if (analysisResult || agentAnalysisResult) {
+      setShowInitial(false);
+      setShowAgentList(false);
+    }
+  }, [analysisResult, agentAnalysisResult]);
 
   // 리사이즈 핸들러
   const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
@@ -73,9 +95,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
       const newWidth = Math.min(720, Math.max(320, startWidth.current + delta));
       setPanelWidth(newWidth);
     };
-    const handleMouseUp = () => {
-      isResizing.current = false;
-    };
+    const handleMouseUp = () => { isResizing.current = false; };
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
     return () => {
@@ -91,6 +111,19 @@ const AIPanel: React.FC<AIPanelProps> = ({
     setInputText("");
   };
 
+  // 새 채팅 시작 (현재 내용 저장 후 초기화)
+  const handleNewChat = () => {
+    const current = chatMessages.slice(sessionStartIndex);
+    if (current.length > 0) {
+      const now = new Date();
+      const label = now.toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      setSavedSessions((prev) => [...prev, { id: Date.now().toString(), label, messages: current }]);
+    }
+    setSessionStartIndex(chatMessages.length);
+    setShowHistory(false);
+    setViewingSession(null);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -98,7 +131,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
     }
   };
 
-  // 이미지 업로드 처리
+  // 채팅 이미지 업로드
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -115,16 +148,66 @@ const AIPanel: React.FC<AIPanelProps> = ({
     e.target.value = "";
   };
 
-  // 에이전트 선택 핸들러
-  const handleAgentSelect = (agent: AgentType) => {
-    onAgentChange(agent);
-    if (agent !== null) {
-      onRequestAnalysis(agent);
-      setActiveTab("analysis");
-      setShowAgentSelector(false);
-    } else {
-      setShowAgentSelector(false);
-    }
+  // 분석용 파일 업로드
+  const handleAnalysisFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach((file) => {
+      if (analysisFiles.length >= 3) {
+        alert("파일은 최대 3개까지 첨부할 수 있어요");
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        alert(`${file.name}: 5MB 이하 파일만 업로드 가능해요`);
+        return;
+      }
+
+      const isImage = file.type.startsWith("image/");
+
+      const reader = new FileReader();
+      if (isImage) {
+        reader.onload = () => {
+          setAnalysisFiles((prev) => {
+            if (prev.length >= 3) return prev;
+            return [...prev, {
+              name: file.name,
+              type: "image",
+              mimeType: file.type,
+              content: reader.result as string,
+            }];
+          });
+        };
+        reader.readAsDataURL(file);
+      } else {
+        reader.onload = () => {
+          setAnalysisFiles((prev) => {
+            if (prev.length >= 3) return prev;
+            return [...prev, {
+              name: file.name,
+              type: "text",
+              content: reader.result as string,
+            }];
+          });
+        };
+        reader.readAsText(file, "utf-8");
+      }
+    });
+
+    e.target.value = "";
+  };
+
+  const removeAnalysisFile = (index: number) => {
+    setAnalysisFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // 에이전트 클릭 핸들러
+  const handleAgentClick = (agentType: AgentType) => {
+    if (agentType === null) return;
+    onAgentChange(agentType);
+    onRequestAnalysis(agentType, analysisFiles.length > 0 ? analysisFiles : undefined);
+    setShowAgentList(false);
+    setShowInitial(false);
   };
 
   // 회의 내용 AI 분석
@@ -137,6 +220,111 @@ const AIPanel: React.FC<AIPanelProps> = ({
   };
 
   const hasResult = !!(analysisResult || agentAnalysisResult);
+  // 결과가 있고 초기화 요청 없을 때만 결과 표시
+  const showResult = hasResult && !showInitial;
+
+  // 에이전트 목록 컴포넌트 (공용)
+  const AgentListItems = ({ compact = false }: { compact?: boolean }) => (
+    <div className="space-y-1 mt-2">
+      {AGENT_OPTIONS.map((agent) => (
+        <button
+          key={agent.type}
+          onClick={() => handleAgentClick(agent.type)}
+          className={`w-full text-left rounded-xl hover:bg-purple-50 transition-colors group flex items-start gap-2.5 border border-transparent hover:border-purple-100 ${compact ? "px-2 py-2" : "px-3 py-2.5"}`}
+        >
+          <span className={`flex-shrink-0 mt-0.5 ${compact ? "text-base" : "text-lg"}`}>{agent.emoji}</span>
+          <div>
+            <div className={`font-semibold text-gray-800 group-hover:text-purple-700 leading-tight ${compact ? "text-xs" : "text-sm"}`}>
+              {agent.name}
+            </div>
+            <div className={`text-gray-400 group-hover:text-purple-500 mt-0.5 leading-snug ${compact ? "text-xs" : "text-xs"}`}>
+              {agent.description}
+            </div>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+
+  // 파일 첨부 섹션 (초기화면용)
+  const FileAttachSection = () => (
+    <div className="mt-4 pt-3 border-t border-purple-100">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold text-gray-500 flex items-center gap-1">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+          </svg>
+          참고 파일 첨부 <span className="text-gray-400 font-normal">(선택사항)</span>
+        </span>
+        <button
+          type="button"
+          onClick={() => analysisFileInputRef.current?.click()}
+          disabled={analysisFiles.length >= 3}
+          className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          파일 추가
+        </button>
+        <input
+          ref={analysisFileInputRef}
+          type="file"
+          accept=".txt,.md,.csv,.json,.pdf,image/*"
+          multiple
+          className="hidden"
+          onChange={handleAnalysisFileUpload}
+        />
+      </div>
+
+      {analysisFiles.length === 0 ? (
+        <button
+          type="button"
+          onClick={() => analysisFileInputRef.current?.click()}
+          className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-purple-200 rounded-xl text-xs text-gray-400 hover:border-purple-400 hover:text-purple-500 hover:bg-purple-50 transition-all"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+          </svg>
+          이미지, 텍스트 파일 등 AI가 참고할 파일을 추가해요
+        </button>
+      ) : (
+        <div className="space-y-1.5">
+          {analysisFiles.map((f, i) => (
+            <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 bg-purple-50 border border-purple-100 rounded-lg">
+              <span className="text-base flex-shrink-0">
+                {f.type === "image" ? "🖼️" : "📄"}
+              </span>
+              <span className="text-xs text-gray-700 flex-1 truncate">{f.name}</span>
+              <button
+                onClick={() => removeAnalysisFile(i)}
+                className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          ))}
+          {analysisFiles.length < 3 && (
+            <button
+              type="button"
+              onClick={() => analysisFileInputRef.current?.click()}
+              className="w-full flex items-center justify-center gap-1.5 py-1.5 border border-dashed border-purple-200 rounded-lg text-xs text-purple-400 hover:border-purple-400 hover:bg-purple-50 transition-all"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              파일 더 추가
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div
@@ -146,7 +334,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
       {/* 리사이즈 핸들 */}
       <div
         onMouseDown={handleResizeMouseDown}
-        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-10 group"
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-10"
         style={{ width: "4px" }}
       >
         <div
@@ -176,16 +364,14 @@ const AIPanel: React.FC<AIPanelProps> = ({
               </svg>
               분석 중...
             </span>
-          ) : hasResult ? (
+          ) : showResult ? (
             <span className="text-xs text-green-600 font-medium flex items-center gap-1">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
               분석 완료
             </span>
-          ) : (
-            <span className="text-xs text-gray-400">대기 중</span>
-          )}
+          ) : null}
         </div>
 
         {/* 탭 */}
@@ -228,7 +414,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
       {/* 컨텐츠 */}
       <div className="flex-1 overflow-y-auto">
 
-        {/* 분석 결과 탭 */}
+        {/* ── 분석 결과 탭 ── */}
         {activeTab === "analysis" && (
           <div className="p-4">
             {isAnalyzing ? (
@@ -237,80 +423,118 @@ const AIPanel: React.FC<AIPanelProps> = ({
                 <p className="text-gray-600 font-medium text-sm">AI가 분석 중입니다...</p>
                 <p className="text-gray-400 text-xs mt-1">잠시만 기다려주세요</p>
               </div>
-            ) : agentAnalysisResult ? (
-              <AgentAnalysisResultComponent result={agentAnalysisResult} />
-            ) : analysisResult ? (
-              <AnalysisResult result={analysisResult} />
+            ) : showResult ? (
+              /* 분석 결과 표시 */
+              agentAnalysisResult
+                ? <AgentAnalysisResultComponent result={agentAnalysisResult} />
+                : analysisResult
+                  ? <AnalysisResult result={analysisResult} />
+                  : null
             ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-center px-4">
-                <div className="w-14 h-14 rounded-2xl bg-purple-50 flex items-center justify-center mb-4">
-                  <span className="text-2xl">🔍</span>
-                </div>
-                <p className="text-gray-700 font-semibold text-sm mb-1">에이전트를 선택해서 분석하기</p>
-                <p className="text-gray-400 text-xs mb-4 leading-relaxed">
-                  에이전트를 선택하면<br />
-                  아이디어를 다양한 관점으로 분석해요
-                </p>
-                <button
-                  onClick={() => setShowAgentSelector(true)}
-                  className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white text-xs font-semibold rounded-lg transition-all"
-                >
-                  에이전트 선택하기
-                </button>
-                {showAgentSelector && (
-                  <div className="fixed inset-0 z-50" onClick={() => setShowAgentSelector(false)}>
-                    <div className="absolute bottom-20 right-4" onClick={(e) => e.stopPropagation()}>
-                      <AgentSelector
-                        selectedAgent={selectedAgent}
-                        onSelect={handleAgentSelect}
-                        onClose={() => setShowAgentSelector(false)}
-                      />
-                    </div>
+              /* 초기 상태 - AI 말풍선 그리팅 */
+              <div className="pt-2">
+                <div className="flex items-start gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+                    <span className="text-base">🤖</span>
                   </div>
-                )}
+                  <div className="flex-1 bg-purple-50 border border-purple-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+                    <p className="text-sm text-gray-800 font-medium leading-relaxed">
+                      안녕하세요! 아이디어 분석을 도와드릴게요.
+                    </p>
+                    {/* 현재 카테고리 필터 표시 */}
+                    {selectedCategory !== "all" ? (() => {
+                      const cat = IDEA_CATEGORIES.find((c) => c.id === selectedCategory);
+                      return cat ? (
+                        <div className="mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-purple-100">
+                          <span className="text-base">{cat.emoji}</span>
+                          <span className="text-xs font-semibold" style={{ color: cat.text }}>
+                            {cat.label}
+                          </span>
+                          <span className="text-xs text-gray-500">아이디어만 분석합니다</span>
+                        </div>
+                      ) : null;
+                    })() : (
+                      <p className="text-sm text-gray-600 mt-1">
+                        분석 방식을 선택해주세요 👇
+                      </p>
+                    )}
+                    {selectedCategory === "all" && <AgentListItems />}
+                    {selectedCategory !== "all" && (
+                      <>
+                        <p className="text-sm text-gray-600 mt-2">분석 방식을 선택해주세요 👇</p>
+                        <AgentListItems />
+                      </>
+                    )}
+                    <FileAttachSection />
+                  </div>
+                </div>
               </div>
             )}
           </div>
         )}
 
-        {/* 채팅 탭 (순수 채팅방) */}
+        {/* ── 채팅 탭 ── */}
         {activeTab === "chat" && (
-          <div className="p-4 space-y-3">
-            {chatMessages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="1.5">
-                    <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
+          <>
+            {/* 내역 목록 보기 */}
+            {showHistory && !viewingSession ? (
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <button onClick={() => setShowHistory(false)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round">
+                      <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                  </button>
+                  <span className="text-sm font-semibold text-gray-700">채팅 내역</span>
                 </div>
-                <p className="text-gray-600 font-medium text-sm mb-1">팀원들과 채팅해보세요</p>
-                <p className="text-gray-400 text-xs">이미지도 올릴 수 있어요 📸</p>
-              </div>
-            ) : (
-              <>
-                {chatMessages.map((msg) => (
-                  <div key={msg.id} className="flex flex-col gap-0.5">
-                    <span
-                      className="text-xs font-semibold px-1"
-                      style={{ color: msg.userColor || "#6b7280" }}
-                    >
-                      {msg.userName}
-                    </span>
-                    {msg.imageUrl ? (
-                      <img
-                        src={msg.imageUrl}
-                        alt="shared"
-                        className="w-full rounded-xl border border-gray-100 shadow-sm cursor-pointer object-contain"
-                        onClick={() => window.open(msg.imageUrl, "_blank")}
-                      />
-                    ) : (
-                      <div
-                        className="inline-block max-w-[280px] rounded-2xl rounded-tl-sm px-3 py-2 text-sm leading-relaxed"
-                        style={{
-                          backgroundColor: msg.userColor || "#E5E7EB",
-                          color: msg.userColor === "#4F48ED" ? "#ffffff" : "#1f2937",
-                        }}
+                {savedSessions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center">
+                    <div className="text-3xl mb-3">📭</div>
+                    <p className="text-gray-500 text-sm font-medium">저장된 내역이 없어요</p>
+                    <p className="text-gray-400 text-xs mt-1">새 채팅을 시작하면 이전 내용이 여기 저장돼요</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {[...savedSessions].reverse().map((session) => (
+                      <button
+                        key={session.id}
+                        onClick={() => setViewingSession(session)}
+                        className="w-full text-left px-4 py-3 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-all group"
                       >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-semibold text-gray-500">{session.label}</span>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" className="group-hover:stroke-blue-400">
+                            <path d="M9 18l6-6-6-6" />
+                          </svg>
+                        </div>
+                        <p className="text-sm text-gray-700 truncate">
+                          {session.messages[0]?.message || "이미지"}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-0.5">{session.messages.length}개 메시지</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : showHistory && viewingSession ? (
+              /* 특정 세션 내용 보기 */
+              <div className="p-4 space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <button onClick={() => setViewingSession(null)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round">
+                      <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                  </button>
+                  <span className="text-sm font-semibold text-gray-700">{viewingSession.label}</span>
+                </div>
+                {viewingSession.messages.map((msg) => (
+                  <div key={msg.id} className="flex flex-col gap-0.5 opacity-80">
+                    <span className="text-xs font-semibold px-1" style={{ color: msg.userColor || "#6b7280" }}>{msg.userName}</span>
+                    {msg.imageUrl ? (
+                      <img src={msg.imageUrl} alt="shared" className="w-full rounded-xl border border-gray-100 shadow-sm cursor-pointer object-contain" onClick={() => window.open(msg.imageUrl, "_blank")} />
+                    ) : (
+                      <div className="inline-block max-w-[280px] rounded-2xl rounded-tl-sm px-3 py-2 text-sm leading-relaxed"
+                        style={{ backgroundColor: msg.userColor || "#E5E7EB", color: msg.userColor === "#4F48ED" ? "#ffffff" : "#1f2937" }}>
                         {msg.message}
                       </div>
                     )}
@@ -319,13 +543,47 @@ const AIPanel: React.FC<AIPanelProps> = ({
                     </span>
                   </div>
                 ))}
-                <div ref={chatEndRef} />
-              </>
+              </div>
+            ) : (
+              /* 현재 채팅 */
+              <div className="p-4 space-y-3">
+                {currentMessages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="1.5">
+                        <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                    </div>
+                    <p className="text-gray-600 font-medium text-sm mb-1">팀원들과 채팅해보세요</p>
+                    <p className="text-gray-400 text-xs">이미지도 올릴 수 있어요 📸</p>
+                  </div>
+                ) : (
+                  <>
+                    {currentMessages.map((msg) => (
+                      <div key={msg.id} className="flex flex-col gap-0.5">
+                        <span className="text-xs font-semibold px-1" style={{ color: msg.userColor || "#6b7280" }}>{msg.userName}</span>
+                        {msg.imageUrl ? (
+                          <img src={msg.imageUrl} alt="shared" className="w-full rounded-xl border border-gray-100 shadow-sm cursor-pointer object-contain" onClick={() => window.open(msg.imageUrl, "_blank")} />
+                        ) : (
+                          <div className="inline-block max-w-[280px] rounded-2xl rounded-tl-sm px-3 py-2 text-sm leading-relaxed"
+                            style={{ backgroundColor: msg.userColor || "#E5E7EB", color: msg.userColor === "#4F48ED" ? "#ffffff" : "#1f2937" }}>
+                            {msg.message}
+                          </div>
+                        )}
+                        <span className="text-xs text-gray-300 px-1">
+                          {new Date(msg.timestamp).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                    ))}
+                    <div ref={chatEndRef} />
+                  </>
+                )}
+              </div>
             )}
-          </div>
+          </>
         )}
 
-        {/* 🎤 회의 탭 */}
+        {/* ── 🎤 회의 탭 ── */}
         {activeTab === "meeting" && (
           <div className="flex flex-col h-full">
             <div className="p-4 border-b border-gray-100">
@@ -430,11 +688,34 @@ const AIPanel: React.FC<AIPanelProps> = ({
         )}
       </div>
 
-      {/* 하단 입력창 - 채팅 탭만 표시 */}
-      {activeTab === "chat" && (
+      {/* ── 하단 영역 ── */}
+
+      {/* 채팅 탭 - 입력창 */}
+      {activeTab === "chat" && !showHistory && (
         <div className="border-t border-gray-100 p-3">
+          {/* 새 채팅 / 내역 버튼 */}
+          <div className="flex items-center justify-between mb-2">
+            <button
+              onClick={handleNewChat}
+              className="flex items-center gap-1.5 text-xs font-semibold text-blue-500 hover:text-blue-700 px-2.5 py-1.5 rounded-lg hover:bg-blue-50 transition-all"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              새 채팅
+            </button>
+            <button
+              onClick={() => { setShowHistory(true); setViewingSession(null); }}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 px-2.5 py-1.5 rounded-lg hover:bg-gray-50 transition-all"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              내역 {savedSessions.length > 0 && <span className="bg-gray-200 text-gray-600 rounded-full px-1.5">{savedSessions.length}</span>}
+            </button>
+          </div>
           <div className="flex items-center gap-2">
-            {/* 이미지 업로드 버튼 */}
             <button
               onClick={() => fileInputRef.current?.click()}
               className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center flex-shrink-0 transition-all"
@@ -448,7 +729,6 @@ const AIPanel: React.FC<AIPanelProps> = ({
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
 
-            {/* 텍스트 입력 */}
             <input
               type="text"
               value={inputText}
@@ -460,7 +740,6 @@ const AIPanel: React.FC<AIPanelProps> = ({
                          transition-all text-gray-800 placeholder-gray-400"
             />
 
-            {/* 전송 버튼 */}
             <button
               onClick={handleSendChat}
               disabled={!inputText.trim()}
@@ -479,26 +758,56 @@ const AIPanel: React.FC<AIPanelProps> = ({
         </div>
       )}
 
-      {/* 분석 결과 탭 하단 - 에이전트 선택 버튼 */}
-      {activeTab === "analysis" && !isAnalyzing && (
-        <div className="border-t border-gray-100 p-3 relative">
-          <button
-            onClick={() => setShowAgentSelector(!showAgentSelector)}
-            className="w-full py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-600
-                       hover:border-purple-400 hover:text-purple-600 hover:bg-purple-50 transition-all flex items-center justify-center gap-2"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14" />
-            </svg>
-            에이전트 선택해서 분석하기
-          </button>
-          {showAgentSelector && (
-            <AgentSelector
-              selectedAgent={selectedAgent}
-              onSelect={handleAgentSelect}
-              onClose={() => setShowAgentSelector(false)}
-            />
+      {/* 분석 탭 하단 - 결과 있을 때: 처음으로 + 다시 분석하기 두 버튼 */}
+      {activeTab === "analysis" && !isAnalyzing && showResult && (
+        <div className="border-t border-gray-100 p-3">
+          {showAgentList ? (
+            /* 에이전트 재선택 목록 */
+            <div className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-gray-600">분석 에이전트 선택</span>
+                <button
+                  onClick={() => setShowAgentList(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+              <AgentListItems compact />
+            </div>
+          ) : (
+            /* 처음으로 + 다시 분석하기 */
+            <div className="flex gap-2">
+              {/* 버튼 1: 처음으로 */}
+              <button
+                onClick={() => {
+                  setShowInitial(true);
+                  setShowAgentList(false);
+                }}
+                className="flex-1 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-500
+                           hover:border-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-all flex items-center justify-center gap-1.5"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+                처음으로
+              </button>
+              {/* 버튼 2: 다시 분석하기 */}
+              <button
+                onClick={() => setShowAgentList(true)}
+                className="flex-1 py-2 rounded-lg border border-purple-200 text-xs font-medium text-purple-600
+                           hover:border-purple-400 hover:bg-purple-50 transition-all flex items-center justify-center gap-1.5"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M23 4a.998.998 0 00-.8-.976C22.094 3.01 17.9 2 12 2S1.906 3.01 1.8 3.024A1 1 0 001 4c0 .4.24.76.6.92L10 9.5V19a1 1 0 00.553.894l4 2A1 1 0 0016 21v-11.5l8.4-4.58A1 1 0 0023 4z" />
+                </svg>
+                다시 분석하기
+              </button>
+            </div>
           )}
         </div>
       )}

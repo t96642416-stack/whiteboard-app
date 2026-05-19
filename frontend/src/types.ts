@@ -1,3 +1,19 @@
+export const IDEA_CATEGORIES = [
+  { id: "brainstorm", label: "브레인스토밍", emoji: "🧠", bg: "#dbeafe", text: "#1e40af", border: "#bfdbfe" },
+  { id: "review",     label: "최종 검토",    emoji: "✅", bg: "#dcfce7", text: "#166534", border: "#bbf7d0" },
+  { id: "candidate",  label: "후보 아이디어", emoji: "💡", bg: "#fef9c3", text: "#854d0e", border: "#fef08a" },
+  { id: "other",      label: "기타",         emoji: "📌", bg: "#f3f4f6", text: "#4b5563", border: "#e5e7eb" },
+] as const;
+
+export type IdeaCategory = typeof IDEA_CATEGORIES[number]["id"];
+
+export interface IdeaAttachment {
+  name: string;
+  type: "image" | "file";
+  mimeType?: string;
+  content: string; // base64 data URL
+}
+
 export interface Idea {
   id: string;
   title: string;
@@ -5,6 +21,8 @@ export interface Idea {
   author: string;
   color: string;
   createdAt: string;
+  category?: IdeaCategory;
+  attachments?: IdeaAttachment[];
 }
 
 export interface ProCon {
@@ -131,6 +149,13 @@ export const AGENT_OPTIONS: AgentOption[] = [
     description: "다음 단계 행동 가이드 제시",
   },
 ];
+
+export interface AnalysisFile {
+  name: string;
+  type: "text" | "image";
+  mimeType?: string;
+  content: string; // text content 또는 base64 data URL
+}
 
 export const CARD_COLORS = [
   "#fef9c3", // 노란

@@ -4,7 +4,7 @@ import { Server } from "socket.io";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
-import { analyzeIdeas, chatWithAI, IdeaInput } from "./claude";
+import { analyzeIdeas, chatWithAI, IdeaInput, AnalysisFile } from "./claude";
 
 dotenv.config();
 
@@ -29,6 +29,7 @@ app.use(express.static(frontendDist));
 // 방별 아이디어 저장
 const roomIdeas: Record<string, IdeaInput[]> = {};
 const roomUsers: Record<string, Map<string, string>> = {}; // userName -> color
+const roomMessages: Record<string, any[]> = {};
 
 // 헬스 체크
 app.get("/health", (_req, res) => {
@@ -60,6 +61,9 @@ io.on("connection", (socket) => {
       if (!roomUsers[roomId]) {
         roomUsers[roomId] = new Map();
       }
+      if (!roomMessages[roomId]) {
+        roomMessages[roomId] = [];
+      }
       roomUsers[roomId].set(userName, userColor || "#E5E7EB");
 
       const usersArray = Array.from(roomUsers[roomId].entries()).map(([name, color]) => ({ name, color }));
@@ -68,6 +72,7 @@ io.on("connection", (socket) => {
       socket.emit("room-state", {
         ideas: roomIdeas[roomId],
         users: usersArray,
+        messages: roomMessages[roomId] || [],
       });
 
       // 다른 유저들에게 알림
@@ -95,6 +100,20 @@ io.on("connection", (socket) => {
     console.log(`아이디어 추가: ${idea.title} (방: ${currentRoom})`);
   });
 
+  // 아이디어 수정
+  socket.on("idea-updated", ({ ideaId, title, content, category }: { ideaId: string; title: string; content: string; category?: string }) => {
+    if (!currentRoom) return;
+    if (roomIdeas[currentRoom]) {
+      const idea = roomIdeas[currentRoom].find((i: any) => i.id === ideaId) as any;
+      if (idea) {
+        idea.title = title;
+        idea.content = content;
+        if (category) idea.category = category;
+      }
+    }
+    socket.to(currentRoom).emit("idea-updated", { ideaId, title, content, category });
+  });
+
   // 아이디어 삭제
   socket.on("idea-deleted", ({ ideaId }: { ideaId: string }) => {
     if (!currentRoom) return;
@@ -115,18 +134,28 @@ io.on("connection", (socket) => {
     async ({
       agentType,
       userMessage,
+      files,
+      categoryFilter,
     }: {
       agentType: string | null;
       userMessage?: string;
+      files?: AnalysisFile[];
+      categoryFilter?: string | null;
     }) => {
       if (!currentRoom) return;
 
-      const ideas = roomIdeas[currentRoom] || [];
+      const allIdeas = roomIdeas[currentRoom] || [];
+
+      // 카테고리 필터 적용
+      const ideas = categoryFilter
+        ? allIdeas.filter((i: any) => (i.category ?? "brainstorm") === categoryFilter)
+        : allIdeas;
 
       if (ideas.length === 0) {
-        socket.emit("analysis-error", {
-          message: "분석할 아이디어가 없습니다. 먼저 아이디어를 추가해주세요.",
-        });
+        const msg = categoryFilter
+          ? `'${categoryFilter}' 카테고리에 분석할 아이디어가 없습니다.`
+          : "분석할 아이디어가 없습니다. 먼저 아이디어를 추가해주세요.";
+        socket.emit("analysis-error", { message: msg });
         return;
       }
 
@@ -137,7 +166,8 @@ io.on("connection", (socket) => {
         const result = await analyzeIdeas(
           ideas,
           agentType as any,
-          userMessage || ""
+          userMessage || "",
+          files || []
         );
         io.to(currentRoom).emit("analysis-result", result);
         console.log(`분석 완료 (방: ${currentRoom})`);
@@ -204,15 +234,28 @@ io.on("connection", (socket) => {
     "chat-message",
     ({ message, imageUrl, userColor }: { message: string; imageUrl?: string; userColor?: string }) => {
       if (!currentRoom) return;
-      io.to(currentRoom).emit("chat-message", {
+      const chatMsg = {
         userName: currentUser,
         message,
         imageUrl,
         userColor,
         timestamp: new Date().toISOString(),
-      });
+      };
+      if (!roomMessages[currentRoom]) {
+        roomMessages[currentRoom] = [];
+      }
+      roomMessages[currentRoom].push(chatMsg);
+      io.to(currentRoom).emit("chat-message", chatMsg);
     }
   );
+
+  // 아이디어 재동기화 (백엔드 재시작 후 프론트엔드에서 전송)
+  socket.on("ideas-sync", (syncedIdeas: IdeaInput[]) => {
+    if (!currentRoom) return;
+    if (!roomIdeas[currentRoom] || roomIdeas[currentRoom].length === 0) {
+      roomIdeas[currentRoom] = syncedIdeas;
+    }
+  });
 
   // 연결 해제
   socket.on("disconnect", () => {
