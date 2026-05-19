@@ -594,23 +594,54 @@ const AIPanel: React.FC<AIPanelProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {[...savedSessions].reverse().map((session) => (
+                    {/* 전체 삭제 버튼 */}
+                    <div className="flex justify-end mb-1">
                       <button
-                        key={session.id}
-                        onClick={() => setViewingSession(session)}
-                        className="w-full text-left px-4 py-3 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-all group"
+                        onClick={() => {
+                          if (confirm("채팅 내역을 전체 삭제할까요?")) {
+                            setSavedSessions([]);
+                          }
+                        }}
+                        className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded-lg hover:bg-red-50 transition-all"
                       >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-semibold text-gray-500">{session.label}</span>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" className="group-hover:stroke-blue-400">
-                            <path d="M9 18l6-6-6-6" />
-                          </svg>
-                        </div>
-                        <p className="text-sm text-gray-700 truncate">
-                          {session.messages[0]?.message || "이미지"}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-0.5">{session.messages.length}개 메시지</p>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                          <path d="M10 11v6M14 11v6" />
+                        </svg>
+                        전체 삭제
                       </button>
+                    </div>
+                    {[...savedSessions].reverse().map((session) => (
+                      <div key={session.id} className="flex items-stretch gap-2">
+                        <button
+                          onClick={() => setViewingSession(session)}
+                          className="flex-1 text-left px-4 py-3 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-all group"
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-semibold text-gray-500">{session.label}</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" className="group-hover:stroke-blue-400">
+                              <path d="M9 18l6-6-6-6" />
+                            </svg>
+                          </div>
+                          <p className="text-sm text-gray-700 truncate">
+                            {session.messages[0]?.message || "이미지"}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5">{session.messages.length}개 메시지</p>
+                        </button>
+                        {/* 개별 삭제 버튼 */}
+                        <button
+                          onClick={() => setSavedSessions((prev) => prev.filter((s) => s.id !== session.id))}
+                          className="px-2.5 rounded-xl border border-gray-100 hover:border-red-200 hover:bg-red-50 text-gray-300 hover:text-red-500 transition-all flex-shrink-0"
+                          title="이 내역 삭제"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                            <path d="M10 11v6M14 11v6" />
+                          </svg>
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}
