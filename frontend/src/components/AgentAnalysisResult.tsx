@@ -15,7 +15,51 @@ import {
 
 interface Props {
   result: AgentAnalysisResult;
+  onAddIdea?: (title: string, content: string) => void;
 }
+
+// 드래그 가능한 카드 래퍼
+const DraggableCard: React.FC<{
+  title: string;
+  content: string;
+  onAdd?: (title: string, content: string) => void;
+  children: React.ReactNode;
+}> = ({ title, content, onAdd, children }) => {
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData("application/agent-idea", JSON.stringify({ title, content }));
+    e.dataTransfer.effectAllowed = "copy";
+  };
+  return (
+    <div
+      draggable
+      onDragStart={handleDragStart}
+      className="relative group cursor-grab active:cursor-grabbing"
+    >
+      {/* 드래그 핸들 (왼쪽) */}
+      <div className="absolute -left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-60 transition-opacity pointer-events-none">
+        <svg width="8" height="14" viewBox="0 0 8 14" fill="#6b7280">
+          <circle cx="2" cy="2" r="1.5"/><circle cx="6" cy="2" r="1.5"/>
+          <circle cx="2" cy="7" r="1.5"/><circle cx="6" cy="7" r="1.5"/>
+          <circle cx="2" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/>
+        </svg>
+      </div>
+      {/* 빠른 추가 버튼 (우측 상단) */}
+      {onAdd && (
+        <button
+          draggable={false}
+          onClick={(e) => { e.stopPropagation(); onAdd(title, content); }}
+          className="absolute -right-1 -top-1 opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center shadow-sm hover:bg-indigo-600 z-10"
+          title="보드에 바로 추가"
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+      )}
+      {children}
+    </div>
+  );
+};
 
 // [검색결과 N] 파싱 → 정확한 출처 연결, 없으면 null 반환
 const parseSourceRef = (
@@ -52,7 +96,7 @@ const SrcLink: React.FC<{ source: SearchSource; label?: string }> = ({ source, l
 );
 
 // 관점 제시형 UI
-const PerspectiveView: React.FC<{ result: PerspectiveAnalysis; sources?: SearchSource[] }> = ({ result, sources }) => {
+const PerspectiveView: React.FC<{ result: PerspectiveAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string) => void }> = ({ result, sources, onAddIdea }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "관점 제시형";
   return (
     <div className="space-y-3">
@@ -85,17 +129,19 @@ const PerspectiveView: React.FC<{ result: PerspectiveAnalysis; sources?: SearchS
           {result.perspectives.map((p, i) => {
             const src = sources && sources.length > 0 ? sources[i % sources.length] : null;
             return (
-              <div key={i} className="rounded-xl p-3" style={{ backgroundColor: "#F0EFFD" }}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold"
-                    style={{ backgroundColor: "#4F48ED", color: "white" }}>
-                    관점 {i + 1}
-                  </span>
-                  <span className="text-xs font-bold text-gray-800 flex-1">{p.title}</span>
-                  {src && <SrcLink source={src} label={`${i % sources!.length + 1}`} />}
+              <DraggableCard key={i} title={p.title} content={p.description} onAdd={onAddIdea}>
+                <div className="rounded-xl p-3" style={{ backgroundColor: "#F0EFFD" }}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold"
+                      style={{ backgroundColor: "#4F48ED", color: "white" }}>
+                      관점 {i + 1}
+                    </span>
+                    <span className="text-xs font-bold text-gray-800 flex-1">{p.title}</span>
+                    {src && <SrcLink source={src} label={`${i % sources!.length + 1}`} />}
+                  </div>
+                  <p className="text-xs text-gray-600 leading-relaxed">{p.description}</p>
                 </div>
-                <p className="text-xs text-gray-600 leading-relaxed">{p.description}</p>
-              </div>
+              </DraggableCard>
             );
           })}
         </div>
@@ -105,7 +151,7 @@ const PerspectiveView: React.FC<{ result: PerspectiveAnalysis; sources?: SearchS
 };
 
 // 관점 탐색형 UI
-const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[] }> = ({ result, sources }) => {
+const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string) => void }> = ({ result, sources, onAddIdea }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "관점 탐색형";
   return (
     <div className="space-y-3">
@@ -138,16 +184,18 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
           {result.questions.map((q, i) => {
             const src = sources && sources.length > 0 ? sources[i % sources.length] : null;
             return (
-              <div key={i} className="rounded-xl p-3" style={{ backgroundColor: "#F0EFFD" }}>
-                <div className="flex items-start gap-2">
-                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0 mt-0.5"
-                    style={{ backgroundColor: "#4F48ED", color: "white" }}>
-                    Q{i + 1}
-                  </span>
-                  <p className="text-xs text-gray-800 leading-relaxed font-medium flex-1">{q.text}</p>
-                  {src && <SrcLink source={src} label={`${i % sources!.length + 1}`} />}
+              <DraggableCard key={i} title={`Q${i + 1}. ${q.text.slice(0, 40)}`} content={q.text} onAdd={onAddIdea}>
+                <div className="rounded-xl p-3" style={{ backgroundColor: "#F0EFFD" }}>
+                  <div className="flex items-start gap-2">
+                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0 mt-0.5"
+                      style={{ backgroundColor: "#4F48ED", color: "white" }}>
+                      Q{i + 1}
+                    </span>
+                    <p className="text-xs text-gray-800 leading-relaxed font-medium flex-1">{q.text}</p>
+                    {src && <SrcLink source={src} label={`${i % sources!.length + 1}`} />}
+                  </div>
                 </div>
-              </div>
+              </DraggableCard>
             );
           })}
         </div>
@@ -157,7 +205,7 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
 };
 
 // 효과 예측형 UI - note를 링크로
-const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[] }> = ({ result, sources }) => {
+const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string) => void }> = ({ result, sources, onAddIdea }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "효과 예측형";
   return (
     <div className="space-y-4">
@@ -185,35 +233,37 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
                   ? parseSourceRef(effect.note, sources || [])
                   : { cleanText: "", source: null };
                 return (
-                  <div key={j} className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-600 font-medium">
-                        {effect.label}
-                      </span>
-                      <span className="text-xs font-bold" style={{ color: titleColor }}>
-                        {effect.title}
-                      </span>
+                  <DraggableCard key={j} title={effect.title} content={`${effect.description}${noteText ? `\n\n${noteText}` : ""}`} onAdd={onAddIdea}>
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-600 font-medium">
+                          {effect.label}
+                        </span>
+                        <span className="text-xs font-bold" style={{ color: titleColor }}>
+                          {effect.title}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 leading-relaxed mb-1">{effect.description}</p>
+                      {effect.note && noteText && (
+                        src ? (
+                          <a href={src.link} target="_blank" rel="noopener noreferrer"
+                            className="text-xs text-green-700 hover:text-green-800 hover:underline flex items-center gap-1 leading-relaxed">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                            {noteText}
+                          </a>
+                        ) : (
+                          <p className="text-xs text-gray-400 leading-relaxed flex items-center gap-1">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                            {noteText}
+                          </p>
+                        )
+                      )}
                     </div>
-                    <p className="text-xs text-gray-600 leading-relaxed mb-1">{effect.description}</p>
-                    {effect.note && noteText && (
-                      src ? (
-                        <a href={src.link} target="_blank" rel="noopener noreferrer"
-                          className="text-xs text-green-700 hover:text-green-800 hover:underline flex items-center gap-1 leading-relaxed">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                          </svg>
-                          {noteText}
-                        </a>
-                      ) : (
-                        <p className="text-xs text-gray-400 leading-relaxed flex items-center gap-1">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                          </svg>
-                          {noteText}
-                        </p>
-                      )
-                    )}
-                  </div>
+                  </DraggableCard>
                 );
               })}
             </div>
@@ -264,7 +314,7 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
 };
 
 // 속성 분석형 UI - evidence를 링크로
-const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSource[] }> = ({ result, sources }) => {
+const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string) => void }> = ({ result, sources, onAddIdea }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "속성 분석형";
   return (
     <div className="space-y-3">
@@ -277,8 +327,13 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
         {result.ideas.map((idea, idx) => {
           const badge = IDEA_BADGE_COLORS[idx % Object.keys(IDEA_BADGE_COLORS).length];
           const label = String.fromCharCode(65 + idx);
+          const ideaSummary = [
+            idea.pros.length > 0 ? `장점: ${idea.pros.map(p => p.point).join(", ")}` : "",
+            idea.cons.length > 0 ? `단점: ${idea.cons.map(c => c.point).join(", ")}` : "",
+          ].filter(Boolean).join("\n");
           return (
-            <div key={idea.id} className="mb-4">
+            <DraggableCard key={idea.id} title={idea.name} content={ideaSummary} onAdd={onAddIdea}>
+            <div className="mb-4">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-bold text-gray-500">{label}</span>
                 <span className="text-xs font-bold text-gray-800 flex-1">{idea.name}</span>
@@ -346,6 +401,7 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                 </div>
               </div>
             </div>
+            </DraggableCard>
           );
         })}
 
@@ -603,18 +659,18 @@ const EffectView: React.FC<{ result: EffectAnalysis }> = ({ result }) => (
   </div>
 );
 
-const AgentAnalysisResultComponent: React.FC<Props> = ({ result }) => {
+const AgentAnalysisResultComponent: React.FC<Props> = ({ result, onAddIdea }) => {
   switch (result.agentType) {
     case "suggestion":
-      return <PerspectiveView result={result as PerspectiveAnalysis} sources={(result as PerspectiveAnalysis).searchSources} />;
+      return <PerspectiveView result={result as PerspectiveAnalysis} sources={(result as PerspectiveAnalysis).searchSources} onAddIdea={onAddIdea} />;
     case "question":
-      return <ExploreView result={result as QuestionAnalysis} sources={(result as QuestionAnalysis).searchSources} />;
+      return <ExploreView result={result as QuestionAnalysis} sources={(result as QuestionAnalysis).searchSources} onAddIdea={onAddIdea} />;
     case "effect":
       return <EffectView result={result as EffectAnalysis} />;
     case "attribute":
-      return <AttributeView result={result as AttributeAnalysis} sources={(result as AttributeAnalysis).searchSources} />;
+      return <AttributeView result={result as AttributeAnalysis} sources={(result as AttributeAnalysis).searchSources} onAddIdea={onAddIdea} />;
     case "emphasis":
-      return <EmphasisView result={result as EmphasisAnalysis} sources={(result as EmphasisAnalysis).searchSources} />;
+      return <EmphasisView result={result as EmphasisAnalysis} sources={(result as EmphasisAnalysis).searchSources} onAddIdea={onAddIdea} />;
     case "guide":
       return <GuideView result={result as GuideAnalysis} sources={(result as GuideAnalysis).searchSources} />;
     case "advise":

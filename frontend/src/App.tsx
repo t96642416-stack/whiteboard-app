@@ -339,6 +339,7 @@ function App() {
         isAIResponding={isAIResponding}
         onClearChat={handleClearChat}
         selectedCategory={selectedCategory}
+        onAddIdea={handleAddIdea}
       />
     </div>
   );

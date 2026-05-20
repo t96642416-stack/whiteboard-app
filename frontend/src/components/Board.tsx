@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Idea, IdeaCategory, IDEA_CATEGORIES, IdeaAttachment } from "../types";
+import { Idea, IdeaCategory, IDEA_CATEGORIES, IdeaAttachment, CARD_COLORS } from "../types";
 import IdeaCard from "./IdeaCard";
 import AddIdeaModal from "./AddIdeaModal";
 
@@ -33,6 +33,32 @@ const Board: React.FC<BoardProps> = ({
   const [showModal, setShowModal] = useState(false);
   const [editingTopic, setEditingTopic] = useState(false);
   const [localTopic, setLocalTopic] = useState(topic);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes("application/agent-idea")) {
+      e.preventDefault();
+      setIsDragOver(true);
+    }
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    // 자식 요소로 이동할 때는 무시
+    if ((e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) return;
+    setIsDragOver(false);
+  };
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const raw = e.dataTransfer.getData("application/agent-idea");
+    if (!raw) return;
+    try {
+      const { title, content } = JSON.parse(raw);
+      const color = CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)];
+      onAddIdea(title, content, color, "brainstorm", []);
+    } catch {
+      // ignore
+    }
+  };
 
   const handleTopicBlur = () => {
     setEditingTopic(false);
@@ -195,7 +221,23 @@ const Board: React.FC<BoardProps> = ({
       </div>
 
       {/* ── 보드 영역 ── */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div
+        className={`flex-1 overflow-y-auto p-6 relative transition-colors ${isDragOver ? "bg-indigo-50" : ""}`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {/* 드래그 오버 오버레이 */}
+        {isDragOver && (
+          <div className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center">
+            <div className="border-2 border-dashed border-indigo-400 rounded-2xl bg-indigo-50 bg-opacity-80 px-8 py-6 flex flex-col items-center gap-2 shadow-lg">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2">
+                <path d="M12 5v14M5 12l7 7 7-7"/>
+              </svg>
+              <p className="text-sm font-semibold text-indigo-600">여기에 놓으면 아이디어 카드로 추가돼요</p>
+            </div>
+          </div>
+        )}
         {filteredIdeas.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center">
             <div className="w-20 h-20 rounded-2xl bg-yellow-100 flex items-center justify-center mb-4 shadow-sm">

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
-import { AgentType, AnalysisResult as AnalysisResultType, AgentAnalysisResult, ChatMessage, AGENT_OPTIONS, AnalysisFile, IdeaCategory, IDEA_CATEGORIES, AnalysisHistoryItem } from "../types";
+import { AgentType, AnalysisResult as AnalysisResultType, AgentAnalysisResult, ChatMessage, AGENT_OPTIONS, AnalysisFile, IdeaCategory, IDEA_CATEGORIES, AnalysisHistoryItem, IdeaAttachment, CARD_COLORS } from "../types";
 import AnalysisResult from "./AnalysisResult";
 import AgentAnalysisResultComponent from "./AgentAnalysisResult";
 import { useMeetingRecognition } from "../hooks/useVoiceRecognition";
@@ -20,6 +20,7 @@ interface AIPanelProps {
   isAIResponding: boolean;
   onClearChat?: () => void;
   selectedCategory?: IdeaCategory | "all";
+  onAddIdea?: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[]) => void;
 }
 
 const AIPanel: React.FC<AIPanelProps> = ({
@@ -35,6 +36,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
   onRequestAnalysis,
   isAIResponding,
   selectedCategory = "all",
+  onAddIdea,
 }) => {
   const [inputText, setInputText] = useState("");
   const [aiInputText, setAiInputText] = useState("");
@@ -529,7 +531,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                   </div>
                 </div>
                 {viewingHistoryItem.agentResult
-                  ? <AgentAnalysisResultComponent result={viewingHistoryItem.agentResult} />
+                  ? <AgentAnalysisResultComponent result={viewingHistoryItem.agentResult} onAddIdea={onAddIdea ? (t, c) => onAddIdea(t, c, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "brainstorm", []) : undefined} />
                   : viewingHistoryItem.result
                     ? <AnalysisResult result={viewingHistoryItem.result} />
                     : null}
@@ -552,7 +554,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                   </div>
                 )}
                 {agentAnalysisResult
-                  ? <AgentAnalysisResultComponent result={agentAnalysisResult} />
+                  ? <AgentAnalysisResultComponent result={agentAnalysisResult} onAddIdea={onAddIdea ? (t, c) => onAddIdea(t, c, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "brainstorm", []) : undefined} />
                   : analysisResult
                     ? <AnalysisResult result={analysisResult} />
                     : null}
