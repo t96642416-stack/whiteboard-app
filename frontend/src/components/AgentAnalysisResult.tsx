@@ -246,7 +246,7 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
                       <p className="text-xs text-gray-600 leading-relaxed mb-1">{effect.description}</p>
                       {effect.note && noteText && (
                         src ? (
-                          <a href={src.link} target="_blank" rel="noopener noreferrer"
+                          <a href={src.link} target="_blank" rel="noopener noreferrer" draggable={false}
                             className="text-xs text-green-700 hover:text-green-800 hover:underline flex items-center gap-1 leading-relaxed">
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
@@ -356,7 +356,7 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                           <p className="text-xs font-semibold text-gray-800">{j + 1} {pro.point}</p>
                           {pro.evidence && (
                             src ? (
-                              <a href={src.link} target="_blank" rel="noopener noreferrer"
+                              <a href={src.link} target="_blank" rel="noopener noreferrer" draggable={false}
                                 className="text-xs text-green-700 hover:text-green-800 hover:underline mt-0.5 flex items-start gap-1 leading-relaxed">
                                 <span className="flex-shrink-0">📄</span>{evText}
                               </a>
@@ -384,7 +384,7 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                           <p className="text-xs font-semibold text-gray-800">{j + 1} {con.point}</p>
                           {con.evidence && (
                             src ? (
-                              <a href={src.link} target="_blank" rel="noopener noreferrer"
+                              <a href={src.link} target="_blank" rel="noopener noreferrer" draggable={false}
                                 className="text-xs text-green-700 hover:text-green-800 hover:underline mt-0.5 flex items-start gap-1 leading-relaxed">
                                 <span className="flex-shrink-0">📄</span>{evText}
                               </a>
