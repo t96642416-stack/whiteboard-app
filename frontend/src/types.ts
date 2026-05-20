@@ -1,5 +1,6 @@
 export const IDEA_CATEGORIES = [
   { id: "brainstorm", label: "브레인스토밍", emoji: "🧠", bg: "#dbeafe", text: "#1e40af", border: "#bfdbfe" },
+  { id: "ai",         label: "AI 피드백",    emoji: "🤖", bg: "#ede9fe", text: "#5b21b6", border: "#ddd6fe" },
   { id: "review",     label: "최종 검토",    emoji: "✅", bg: "#dcfce7", text: "#166534", border: "#bbf7d0" },
   { id: "candidate",  label: "후보 아이디어", emoji: "💡", bg: "#fef9c3", text: "#854d0e", border: "#fef08a" },
   { id: "other",      label: "기타",         emoji: "📌", bg: "#f3f4f6", text: "#4b5563", border: "#e5e7eb" },

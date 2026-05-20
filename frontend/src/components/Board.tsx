@@ -54,7 +54,7 @@ const Board: React.FC<BoardProps> = ({
     try {
       const { title, content } = JSON.parse(raw);
       const color = CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)];
-      onAddIdea(title, content, color, "brainstorm", []);
+      onAddIdea(title, content, color, "ai", []);
     } catch {
       // ignore
     }

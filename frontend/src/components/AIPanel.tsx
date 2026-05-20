@@ -531,7 +531,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                   </div>
                 </div>
                 {viewingHistoryItem.agentResult
-                  ? <AgentAnalysisResultComponent result={viewingHistoryItem.agentResult} onAddIdea={onAddIdea ? (t, c) => onAddIdea(t, c, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "brainstorm", []) : undefined} />
+                  ? <AgentAnalysisResultComponent result={viewingHistoryItem.agentResult} onAddIdea={onAddIdea ? (t, c) => onAddIdea(t, c, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "ai", []) : undefined} />
                   : viewingHistoryItem.result
                     ? <AnalysisResult result={viewingHistoryItem.result} />
                     : null}
@@ -554,7 +554,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                   </div>
                 )}
                 {agentAnalysisResult
-                  ? <AgentAnalysisResultComponent result={agentAnalysisResult} onAddIdea={onAddIdea ? (t, c) => onAddIdea(t, c, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "brainstorm", []) : undefined} />
+                  ? <AgentAnalysisResultComponent result={agentAnalysisResult} onAddIdea={onAddIdea ? (t, c) => onAddIdea(t, c, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "ai", []) : undefined} />
                   : analysisResult
                     ? <AnalysisResult result={analysisResult} />
                     : null}
