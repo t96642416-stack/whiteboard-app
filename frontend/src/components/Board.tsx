@@ -317,117 +317,157 @@ const Board: React.FC<BoardProps> = ({
         </div>
       </div>
 
-      {/* ── 피그마 캔버스 ── */}
-      <div
-        ref={canvasRef}
-        className="flex-1 relative overflow-hidden"
-        style={{
-          backgroundColor: "#f0ede8",
-          backgroundImage: "radial-gradient(circle, #c9c5bc 1px, transparent 1px)",
-          backgroundSize: `${28 * zoom}px ${28 * zoom}px`,
-          backgroundPosition: `${offset.x % (28 * zoom)}px ${offset.y % (28 * zoom)}px`,
-          cursor: isPanning ? "grabbing" : activeDragId ? "grabbing" : "default",
-          userSelect: "none",
-        }}
-        onPointerDown={handleCanvasPointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerUp}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        {/* 카드 레이어 */}
+      {selectedCategory === "all" ? (
+        /* ── 전체: 피그마 캔버스 ── */
         <div
+          ref={canvasRef}
+          className="flex-1 relative overflow-hidden"
           style={{
+            backgroundColor: "#f0ede8",
+            backgroundImage: "radial-gradient(circle, #c9c5bc 1px, transparent 1px)",
+            backgroundSize: `${28 * zoom}px ${28 * zoom}px`,
+            backgroundPosition: `${offset.x % (28 * zoom)}px ${offset.y % (28 * zoom)}px`,
+            cursor: isPanning ? "grabbing" : activeDragId ? "grabbing" : "default",
+            userSelect: "none",
+          }}
+          onPointerDown={handleCanvasPointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <div style={{
             position: "absolute",
             transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
             transformOrigin: "0 0",
-            width: 0,
-            height: 0,
-          }}
-        >
-          {filteredIdeas.map((idea) => {
-            const globalIndex = ideas.indexOf(idea);
-            const pos = getCardPos(idea.id, globalIndex);
-            const isActive = activeDragId === idea.id;
-            return (
-              <div
-                key={idea.id}
-                data-card-wrapper="true"
-                className="absolute group"
-                style={{
-                  left: pos.x,
-                  top: pos.y,
-                  width: CARD_WIDTH,
-                  zIndex: isActive ? 1000 : 1,
-                  filter: isActive ? "drop-shadow(0 12px 20px rgba(0,0,0,0.25))" : "none",
-                  transition: isActive ? "none" : "filter 0.2s",
-                }}
-              >
-                {/* ✥ 드래그 핸들 */}
-                <div
-                  className="absolute -top-3.5 left-1/2 -translate-x-1/2 h-3 w-12 rounded-full cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-all z-10 flex items-center justify-center gap-0.5"
-                  style={{ backgroundColor: isActive ? "#6366f1" : "#d1d5db" }}
-                  onPointerDown={e => startCardDrag(e, idea.id)}
-                  title="드래그해서 이동"
-                >
-                  {[0,1,2,3].map(i => (
-                    <div key={i} className="w-0.5 h-1.5 rounded-full" style={{ backgroundColor: isActive ? "white" : "#6b7280" }} />
-                  ))}
+            width: 0, height: 0,
+          }}>
+            {ideas.map((idea) => {
+              const globalIndex = ideas.indexOf(idea);
+              const pos = getCardPos(idea.id, globalIndex);
+              const isActive = activeDragId === idea.id;
+              return (
+                <div key={idea.id} data-card-wrapper="true" className="absolute group"
+                  style={{
+                    left: pos.x, top: pos.y, width: CARD_WIDTH,
+                    zIndex: isActive ? 1000 : 1,
+                    filter: isActive ? "drop-shadow(0 12px 20px rgba(0,0,0,0.25))" : "none",
+                    transition: isActive ? "none" : "filter 0.2s",
+                  }}>
+                  <div
+                    className="absolute -top-3.5 left-1/2 -translate-x-1/2 h-3 w-12 rounded-full cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-all z-10 flex items-center justify-center gap-0.5"
+                    style={{ backgroundColor: isActive ? "#6366f1" : "#d1d5db" }}
+                    onPointerDown={e => startCardDrag(e, idea.id)}
+                    title="드래그해서 이동"
+                  >
+                    {[0,1,2,3].map(i => (
+                      <div key={i} className="w-0.5 h-1.5 rounded-full" style={{ backgroundColor: isActive ? "white" : "#6b7280" }} />
+                    ))}
+                  </div>
+                  <IdeaCard idea={idea} onDelete={onDeleteIdea} onEdit={onEditIdea} onAddComment={onAddComment} />
                 </div>
-                <IdeaCard idea={idea} onDelete={onDeleteIdea} onEdit={onEditIdea} onAddComment={onAddComment} />
+              );
+            })}
+          </div>
+
+          {isDragOver && (
+            <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
+              <div className="border-2 border-dashed border-indigo-400 rounded-2xl bg-indigo-50 bg-opacity-90 px-8 py-5 flex flex-col items-center gap-2 shadow-lg">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2">
+                  <path d="M12 5v14M5 12l7 7 7-7"/>
+                </svg>
+                <p className="text-sm font-semibold text-indigo-600">캔버스에 놓으면 카드로 추가돼요</p>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          )}
 
-        {/* 에이전트 드롭 오버레이 */}
-        {isDragOver && (
-          <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
-            <div className="border-2 border-dashed border-indigo-400 rounded-2xl bg-indigo-50 bg-opacity-90 px-8 py-5 flex flex-col items-center gap-2 shadow-lg">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2">
-                <path d="M12 5v14M5 12l7 7 7-7"/>
-              </svg>
-              <p className="text-sm font-semibold text-indigo-600">캔버스에 놓으면 카드로 추가돼요</p>
+          {ideas.length === 0 && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+              <div className="w-16 h-16 rounded-2xl bg-yellow-100 flex items-center justify-center mb-3 shadow-sm">
+                <span className="text-3xl">💡</span>
+              </div>
+              <p className="text-gray-500 font-medium mb-1">아직 아이디어가 없어요</p>
+              <p className="text-gray-400 text-sm">오른쪽 상단 버튼으로 추가해보세요!</p>
+            </div>
+          )}
+
+          {/* 줌 컨트롤 */}
+          <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2">
+            <div className="text-xs text-gray-400 bg-white bg-opacity-90 rounded-xl px-2.5 py-1.5 shadow-sm border border-gray-100">
+              {userName} · {ideas.length}개
+            </div>
+            <div className="bg-white rounded-2xl shadow-md border border-gray-100 px-1 py-1 flex items-center gap-0.5">
+              <button onClick={() => setZoom(z => Math.max(0.2, z / 1.25))}
+                className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg text-lg font-bold leading-none transition-colors">−</button>
+              <button onClick={resetView}
+                className="text-xs text-gray-600 hover:text-gray-900 font-mono w-12 text-center py-0.5 hover:bg-gray-100 rounded-lg transition-colors">
+                {Math.round(zoom * 100)}%
+              </button>
+              <button onClick={() => setZoom(z => Math.min(3, z * 1.25))}
+                className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg text-lg font-bold leading-none transition-colors">+</button>
             </div>
           </div>
-        )}
-
-        {/* 빈 상태 */}
-        {filteredIdeas.length === 0 && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-            <div className="w-16 h-16 rounded-2xl bg-yellow-100 flex items-center justify-center mb-3 shadow-sm">
-              <span className="text-3xl">
-                {selectedCategory === "all" ? "💡" : IDEA_CATEGORIES.find(c => c.id === selectedCategory)?.emoji ?? "💡"}
-              </span>
-            </div>
-            <p className="text-gray-500 font-medium mb-1">아직 아이디어가 없어요</p>
-            <p className="text-gray-400 text-sm">오른쪽 상단 버튼으로 추가해보세요!</p>
-          </div>
-        )}
-
-        {/* ── 우하단: 줌 컨트롤 ── */}
-        <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2">
-          <div className="text-xs text-gray-400 bg-white bg-opacity-90 rounded-xl px-2.5 py-1.5 shadow-sm border border-gray-100">
-            {userName} · {ideas.length}개
-          </div>
-          <div className="bg-white rounded-2xl shadow-md border border-gray-100 px-1 py-1 flex items-center gap-0.5">
-            <button onClick={() => setZoom(z => Math.max(0.2, z / 1.25))}
-              className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg text-lg font-bold leading-none transition-colors">
-              −
-            </button>
-            <button onClick={resetView}
-              className="text-xs text-gray-600 hover:text-gray-900 font-mono w-12 text-center py-0.5 hover:bg-gray-100 rounded-lg transition-colors">
-              {Math.round(zoom * 100)}%
-            </button>
-            <button onClick={() => setZoom(z => Math.min(3, z * 1.25))}
-              className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg text-lg font-bold leading-none transition-colors">
-              +
-            </button>
-          </div>
         </div>
-      </div>
+      ) : (
+        /* ── 카테고리 선택: 정렬 그리드 뷰 ── */
+        <div className="flex-1 overflow-y-auto" style={{ backgroundColor: "#f4f3ef" }}>
+          {filteredIdeas.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-center">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3 shadow-sm"
+                style={{ backgroundColor: IDEA_CATEGORIES.find(c => c.id === selectedCategory)?.bg ?? "#f3f4f6" }}>
+                <span className="text-3xl">{IDEA_CATEGORIES.find(c => c.id === selectedCategory)?.emoji ?? "💡"}</span>
+              </div>
+              <p className="text-gray-500 font-medium mb-1">
+                '{IDEA_CATEGORIES.find(c => c.id === selectedCategory)?.label}' 아이디어가 없어요
+              </p>
+              <p className="text-gray-400 text-sm mb-4">이 카테고리로 아이디어를 추가해보세요</p>
+              <button onClick={() => setShowModal(true)}
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold shadow-sm transition-all">
+                + 아이디어 추가
+              </button>
+            </div>
+          ) : (
+            <div className="p-6">
+              {/* 카테고리 헤더 */}
+              {(() => {
+                const cat = IDEA_CATEGORIES.find(c => c.id === selectedCategory);
+                return cat ? (
+                  <div className="flex items-center gap-2 mb-5">
+                    <span className="text-lg">{cat.emoji}</span>
+                    <h2 className="text-base font-bold" style={{ color: cat.text }}>{cat.label}</h2>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold"
+                      style={{ backgroundColor: cat.bg, color: cat.text }}>
+                      {filteredIdeas.length}개
+                    </span>
+                  </div>
+                ) : null;
+              })()}
+              <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+                {filteredIdeas.map(idea => (
+                  <IdeaCard
+                    key={idea.id}
+                    idea={idea}
+                    onDelete={onDeleteIdea}
+                    onEdit={onEditIdea}
+                    onAddComment={onAddComment}
+                  />
+                ))}
+                <button onClick={() => setShowModal(true)}
+                  className="rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 min-h-[140px] flex flex-col items-center justify-center gap-2 text-gray-400 hover:text-blue-500 transition-all group">
+                  <div className="w-9 h-9 rounded-full border-2 border-current flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                  </div>
+                  <span className="text-sm font-medium">아이디어 추가</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {showModal && <AddIdeaModal onClose={() => setShowModal(false)} onAdd={onAddIdea} />}
     </div>

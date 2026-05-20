@@ -279,22 +279,25 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
           {/* 코멘트 영역 */}
           {showComments && (
             <div
-              className="mt-2 border-t pt-2"
-              style={{ borderColor: "rgba(0,0,0,0.08)" }}
+              className="mt-2 rounded-xl overflow-hidden"
+              style={{ backgroundColor: "rgba(0,0,0,0.06)" }}
               onClick={e => e.stopPropagation()}
             >
               {/* 기존 코멘트 목록 */}
               {comments.length > 0 && (
-                <div className="space-y-1.5 mb-2 max-h-32 overflow-y-auto">
+                <div className="px-2 pt-2 space-y-1.5 max-h-40 overflow-y-auto">
                   {comments.map(c => (
-                    <div key={c.id} className="bg-white bg-opacity-60 rounded-lg px-2 py-1.5">
-                      <div className="flex items-center gap-1 mb-0.5">
-                        <span className="text-xs font-semibold text-gray-700">{c.author}</span>
+                    <div key={c.id} className="bg-white rounded-lg px-2.5 py-2 shadow-sm">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <div className="w-4 h-4 rounded-full bg-indigo-200 flex items-center justify-center flex-shrink-0">
+                          <span className="text-indigo-700 text-xs font-bold leading-none">{c.author.charAt(0).toUpperCase()}</span>
+                        </div>
+                        <span className="text-xs font-bold text-gray-800">{c.author}</span>
                         <span className="text-xs text-gray-400 ml-auto">
                           {new Date(c.createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-700 leading-relaxed" style={{ whiteSpace: "pre-wrap", wordBreak: "keep-all" }}>
+                      <p className="text-xs text-gray-700 leading-relaxed pl-5" style={{ whiteSpace: "pre-wrap", wordBreak: "keep-all" }}>
                         {c.text}
                       </p>
                     </div>
@@ -302,15 +305,14 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
                 </div>
               )}
               {/* 코멘트 입력 */}
-              <form onSubmit={handleSubmitComment} className="flex items-center gap-1">
+              <form onSubmit={handleSubmitComment} className="flex items-center gap-1 p-2">
                 <input
                   ref={commentInputRef}
                   type="text"
                   value={commentText}
                   onChange={e => setCommentText(e.target.value)}
                   placeholder="코멘트 추가..."
-                  className="flex-1 text-xs px-2 py-1 rounded-lg border focus:outline-none focus:border-indigo-400"
-                  style={{ backgroundColor: "rgba(255,255,255,0.7)", borderColor: "rgba(0,0,0,0.12)" }}
+                  className="flex-1 text-xs px-2.5 py-1.5 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white shadow-sm"
                 />
                 <button
                   type="submit"

@@ -268,7 +268,7 @@ io.on("connection", (socket) => {
         idea.comments.push(comment);
       }
     }
-    io.to(currentRoom).emit("comment-added", { ideaId, comment });
+    socket.broadcast.to(currentRoom).emit("comment-added", { ideaId, comment });
   });
 
   // 아이디어 재동기화 (백엔드 재시작 후 프론트엔드에서 전송)
