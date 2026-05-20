@@ -240,6 +240,7 @@ function App() {
       category,
       attachments,
     };
+    setIdeas((prev) => [...prev, idea]); // 낙관적 업데이트 (서버 응답 전에 즉시 반영)
     socket.emit("idea-added", idea);
   }, [userName]);
 
