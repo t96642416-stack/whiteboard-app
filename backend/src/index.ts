@@ -258,6 +258,19 @@ io.on("connection", (socket) => {
     }
   );
 
+  // 코멘트 추가
+  socket.on("comment-added", ({ ideaId, comment }: { ideaId: string; comment: any }) => {
+    if (!currentRoom) return;
+    if (roomIdeas[currentRoom]) {
+      const idea = roomIdeas[currentRoom].find((i: any) => i.id === ideaId) as any;
+      if (idea) {
+        if (!idea.comments) idea.comments = [];
+        idea.comments.push(comment);
+      }
+    }
+    io.to(currentRoom).emit("comment-added", { ideaId, comment });
+  });
+
   // 아이디어 재동기화 (백엔드 재시작 후 프론트엔드에서 전송)
   socket.on("ideas-sync", (syncedIdeas: IdeaInput[]) => {
     if (!currentRoom) return;

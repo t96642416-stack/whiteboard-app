@@ -15,6 +15,13 @@ export interface IdeaAttachment {
   content: string; // base64 data URL
 }
 
+export interface IdeaComment {
+  id: string;
+  author: string;
+  text: string;
+  createdAt: string;
+}
+
 export interface Idea {
   id: string;
   title: string;
@@ -24,6 +31,7 @@ export interface Idea {
   createdAt: string;
   category?: IdeaCategory;
   attachments?: IdeaAttachment[];
+  comments?: IdeaComment[];
 }
 
 export interface ProCon {

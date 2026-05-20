@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { getSocket } from "./socket";
-import { Idea, AnalysisResult, AgentAnalysisResult, ChatMessage, AgentType, CARD_COLORS, AnalysisFile, IdeaCategory, IdeaAttachment, AnalysisHistoryItem } from "./types";
+import { Idea, IdeaComment, AnalysisResult, AgentAnalysisResult, ChatMessage, AgentType, CARD_COLORS, AnalysisFile, IdeaCategory, IdeaAttachment, AnalysisHistoryItem } from "./types";
 import Board from "./components/Board";
 import AIPanel from "./components/AIPanel";
 
@@ -152,6 +152,12 @@ function App() {
       setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, title, content, ...(category ? { category } : {}) } : i));
     });
 
+    socket.on("comment-added", ({ ideaId, comment }: { ideaId: string; comment: IdeaComment }) => {
+      setIdeas((prev) => prev.map((i) =>
+        i.id === ideaId ? { ...i, comments: [...(i.comments ?? []), comment] } : i
+      ));
+    });
+
     socket.on("analysis-started", ({ requester, agentType }: { requester: string; agentType: string | null }) => {
       setIsAnalyzing(true);
       setAnalysisResult(null);
@@ -253,6 +259,20 @@ function App() {
     getSocket().emit("idea-updated", { ideaId, title, content, category });
   }, []);
 
+  const handleAddComment = useCallback((ideaId: string, text: string) => {
+    const comment: IdeaComment = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      author: userName,
+      text,
+      createdAt: new Date().toISOString(),
+    };
+    // 낙관적 업데이트
+    setIdeas((prev) => prev.map((i) =>
+      i.id === ideaId ? { ...i, comments: [...(i.comments ?? []), comment] } : i
+    ));
+    getSocket().emit("comment-added", { ideaId, comment });
+  }, [userName]);
+
   const handleTopicChange = useCallback((newTopic: string) => {
     setTopic(newTopic);
     getSocket().emit("topic-changed", { topic: newTopic });
@@ -320,6 +340,7 @@ function App() {
           onAddIdea={handleAddIdea}
           onDeleteIdea={handleDeleteIdea}
           onEditIdea={handleEditIdea}
+          onAddComment={handleAddComment}
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
         />

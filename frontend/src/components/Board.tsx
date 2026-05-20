@@ -25,6 +25,7 @@ interface BoardProps {
   onAddIdea: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[]) => void;
   onDeleteIdea: (id: string) => void;
   onEditIdea: (id: string, title: string, content: string, category: IdeaCategory) => void;
+  onAddComment: (ideaId: string, text: string) => void;
   selectedCategory: IdeaCategory | "all";
   onCategoryChange: (category: IdeaCategory | "all") => void;
 }
@@ -39,6 +40,7 @@ const Board: React.FC<BoardProps> = ({
   onAddIdea,
   onDeleteIdea,
   onEditIdea,
+  onAddComment,
   selectedCategory,
   onCategoryChange,
 }) => {
@@ -228,7 +230,7 @@ const Board: React.FC<BoardProps> = ({
   return (
     <div className="flex flex-col h-full">
       {/* ── 상단 헤더 ── */}
-      <div className="px-5 py-3 border-b border-gray-200 bg-white flex-shrink-0 shadow-sm">
+      <div className="px-5 py-3 border-b border-gray-200 bg-white flex-shrink-0">
         <div className="flex items-center gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2.5 mb-1">
@@ -272,6 +274,46 @@ const Board: React.FC<BoardProps> = ({
             </svg>
             아이디어 추가
           </button>
+        </div>
+      </div>
+
+      {/* ── 카테고리 필터 탭 (상단 고정) ── */}
+      <div className="px-5 py-2 bg-white border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto">
+          <button
+            onClick={() => onCategoryChange("all")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${
+              selectedCategory === "all"
+                ? "bg-gray-800 text-white border-gray-800 shadow-sm"
+                : "bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:text-gray-700"
+            }`}
+          >
+            전체
+            <span className={`px-1.5 py-0.5 rounded-full text-xs ${
+              selectedCategory === "all" ? "bg-white bg-opacity-20 text-white" : "bg-gray-100 text-gray-500"
+            }`}>{ideas.length}</span>
+          </button>
+          {IDEA_CATEGORIES.map(cat => {
+            const count = countByCategory(cat.id);
+            const isActive = selectedCategory === cat.id;
+            return (
+              <button key={cat.id} onClick={() => onCategoryChange(cat.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border"
+                style={{
+                  backgroundColor: isActive ? cat.bg : "white",
+                  color: isActive ? cat.text : "#6b7280",
+                  borderColor: isActive ? cat.border : "#e5e7eb",
+                  boxShadow: isActive ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                }}>
+                {cat.emoji} {cat.label}
+                <span className="px-1.5 py-0.5 rounded-full text-xs"
+                  style={{
+                    backgroundColor: isActive ? "rgba(0,0,0,0.1)" : "#f3f4f6",
+                    color: isActive ? cat.text : "#9ca3af",
+                  }}>{count}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -334,7 +376,7 @@ const Board: React.FC<BoardProps> = ({
                     <div key={i} className="w-0.5 h-1.5 rounded-full" style={{ backgroundColor: isActive ? "white" : "#6b7280" }} />
                   ))}
                 </div>
-                <IdeaCard idea={idea} onDelete={onDeleteIdea} onEdit={onEditIdea} />
+                <IdeaCard idea={idea} onDelete={onDeleteIdea} onEdit={onEditIdea} onAddComment={onAddComment} />
               </div>
             );
           })}
@@ -364,37 +406,6 @@ const Board: React.FC<BoardProps> = ({
             <p className="text-gray-400 text-sm">오른쪽 상단 버튼으로 추가해보세요!</p>
           </div>
         )}
-
-        {/* ── 좌하단: 카테고리 필터 ── */}
-        <div className="absolute bottom-4 left-4 z-20">
-          <div className="flex items-center gap-1 bg-white rounded-2xl shadow-md border border-gray-100 px-2.5 py-1.5">
-            <button
-              onClick={() => onCategoryChange("all")}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
-                selectedCategory === "all" ? "bg-gray-800 text-white" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              전체 <span className="opacity-70">{ideas.length}</span>
-            </button>
-            {IDEA_CATEGORIES.map(cat => {
-              const count = countByCategory(cat.id);
-              if (count === 0) return null;
-              const isActive = selectedCategory === cat.id;
-              return (
-                <button key={cat.id}
-                  onClick={() => onCategoryChange(cat.id)}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap border"
-                  style={{
-                    backgroundColor: isActive ? cat.bg : "transparent",
-                    color: isActive ? cat.text : "#6b7280",
-                    borderColor: isActive ? cat.border : "transparent",
-                  }}>
-                  {cat.emoji} <span className="opacity-80">{count}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
         {/* ── 우하단: 줌 컨트롤 ── */}
         <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2">

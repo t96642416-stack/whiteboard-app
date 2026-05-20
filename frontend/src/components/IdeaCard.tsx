@@ -5,13 +5,17 @@ interface IdeaCardProps {
   idea: Idea;
   onDelete: (id: string) => void;
   onEdit: (id: string, title: string, content: string, category: IdeaCategory) => void;
+  onAddComment: (ideaId: string, text: string) => void;
 }
 
-const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit }) => {
+const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddComment }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(idea.title);
   const [editContent, setEditContent] = useState(idea.content);
   const [editCategory, setEditCategory] = useState<IdeaCategory>(idea.category ?? "brainstorm");
+  const [showComments, setShowComments] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const commentInputRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -46,6 +50,23 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit }) => {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleSave();
   };
 
+  const handleToggleComments = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowComments(v => {
+      if (!v) setTimeout(() => commentInputRef.current?.focus(), 50);
+      return !v;
+    });
+  };
+
+  const handleSubmitComment = (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = commentText.trim();
+    if (!text) return;
+    onAddComment(idea.id, text);
+    setCommentText("");
+  };
+
+  const comments = idea.comments ?? [];
   const cat = IDEA_CATEGORIES.find((c) => c.id === (idea.category ?? "brainstorm")) ?? IDEA_CATEGORIES[0];
   const attachments: IdeaAttachment[] = idea.attachments ?? [];
 
@@ -230,7 +251,7 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit }) => {
             </div>
           )}
 
-          {/* 작성자 */}
+          {/* 작성자 + 코멘트 버튼 */}
           <div className="mt-3 flex items-center gap-1">
             <div className="w-5 h-5 rounded-full bg-gray-400 bg-opacity-40 flex items-center justify-center">
               <span className="text-gray-600 text-xs font-semibold">
@@ -241,7 +262,69 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit }) => {
             <span className="text-gray-300 text-xs ml-auto">
               {new Date(idea.createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
             </span>
+            {/* 코멘트 토글 버튼 */}
+            <button
+              onClick={handleToggleComments}
+              className="flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded-full text-xs transition-all hover:bg-black hover:bg-opacity-10"
+              style={{ color: showComments ? "#6366f1" : "#9ca3af" }}
+              title="코멘트"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+              </svg>
+              {comments.length > 0 && <span className="font-semibold">{comments.length}</span>}
+            </button>
           </div>
+
+          {/* 코멘트 영역 */}
+          {showComments && (
+            <div
+              className="mt-2 border-t pt-2"
+              style={{ borderColor: "rgba(0,0,0,0.08)" }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* 기존 코멘트 목록 */}
+              {comments.length > 0 && (
+                <div className="space-y-1.5 mb-2 max-h-32 overflow-y-auto">
+                  {comments.map(c => (
+                    <div key={c.id} className="bg-white bg-opacity-60 rounded-lg px-2 py-1.5">
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <span className="text-xs font-semibold text-gray-700">{c.author}</span>
+                        <span className="text-xs text-gray-400 ml-auto">
+                          {new Date(c.createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-700 leading-relaxed" style={{ whiteSpace: "pre-wrap", wordBreak: "keep-all" }}>
+                        {c.text}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* 코멘트 입력 */}
+              <form onSubmit={handleSubmitComment} className="flex items-center gap-1">
+                <input
+                  ref={commentInputRef}
+                  type="text"
+                  value={commentText}
+                  onChange={e => setCommentText(e.target.value)}
+                  placeholder="코멘트 추가..."
+                  className="flex-1 text-xs px-2 py-1 rounded-lg border focus:outline-none focus:border-indigo-400"
+                  style={{ backgroundColor: "rgba(255,255,255,0.7)", borderColor: "rgba(0,0,0,0.12)" }}
+                />
+                <button
+                  type="submit"
+                  disabled={!commentText.trim()}
+                  className="p-1 rounded-lg disabled:opacity-30 transition-opacity"
+                  style={{ color: "#6366f1" }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                  </svg>
+                </button>
+              </form>
+            </div>
+          )}
         </>
       )}
     </div>
