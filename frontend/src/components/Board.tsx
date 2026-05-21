@@ -1,8 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { Idea, IdeaCategory, IDEA_CATEGORIES, IdeaAttachment, CARD_COLORS } from "../types";
+import { Idea, IdeaCategory, IDEA_CATEGORIES, IdeaAttachment, CARD_COLORS, BoardSection } from "../types";
 import IdeaCard from "./IdeaCard";
 import BoardResultCard from "./BoardResultCard";
 import AddIdeaModal from "./AddIdeaModal";
+import BoardSectionFrame from "./BoardSectionFrame";
 
 const CARD_WIDTH = 240;
 const COLS = 3;
@@ -29,6 +30,7 @@ interface BoardProps {
   onAddComment: (ideaId: string, text: string) => void;
   selectedCategory: IdeaCategory | "all";
   onCategoryChange: (category: IdeaCategory | "all") => void;
+  clusterResult?: any;
 }
 
 const Board: React.FC<BoardProps> = ({
@@ -44,6 +46,7 @@ const Board: React.FC<BoardProps> = ({
   onAddComment,
   selectedCategory,
   onCategoryChange,
+  clusterResult,
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingTopic, setEditingTopic] = useState(false);
@@ -70,6 +73,17 @@ const Board: React.FC<BoardProps> = ({
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // Section state
+  const [sections, setSections] = useState<BoardSection[]>([]);
+  const sectionDragState = useRef<{
+    sectionId: string;
+    startMouseX: number;
+    startMouseY: number;
+    startValX: number;
+    startValY: number;
+  } | null>(null);
+  const [_activeDragSectionId, setActiveDragSectionId] = useState<string | null>(null);
 
   // 에이전트 드롭 위치 (다음 추가될 카드에 적용)
   const pendingDropPos = useRef<{ x: number; y: number } | null>(null);
@@ -187,6 +201,61 @@ const Board: React.FC<BoardProps> = ({
     dragState.current = null;
     setActiveDragId(null);
     setIsPanning(false);
+  }, []);
+
+  // Cluster result handler — react to incoming cluster data from App
+  useEffect(() => {
+    if (!clusterResult || !clusterResult.sections) return;
+    const SECTION_WIDTH_CONST = 320;
+    const SECTION_GAP = 40;
+    const COLS = 3;
+    const newSections: BoardSection[] = clusterResult.sections.map((s: any, idx: number) => {
+      const col = idx % COLS;
+      const row = Math.floor(idx / COLS);
+      return {
+        id: `section-${Date.now()}-${idx}`,
+        title: s.title,
+        description: s.description,
+        color: s.color,
+        x: 60 + col * (SECTION_WIDTH_CONST + SECTION_GAP),
+        y: 60 + row * 340,
+        ideaIds: s.ideaIds,
+      };
+    });
+    setSections(newSections);
+  }, [clusterResult]);
+
+  // Section drag
+  const startSectionDrag = useCallback((e: React.PointerEvent, sectionId: string) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const sec = sections.find(s => s.id === sectionId);
+    if (!sec) return;
+    sectionDragState.current = {
+      sectionId,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startValX: sec.x,
+      startValY: sec.y,
+    };
+    setActiveDragSectionId(sectionId);
+  }, [sections]);
+
+  const handleSectionPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!sectionDragState.current) return;
+    const dx = e.clientX - sectionDragState.current.startMouseX;
+    const dy = e.clientY - sectionDragState.current.startMouseY;
+    const { sectionId } = sectionDragState.current;
+    setSections(prev => prev.map(s =>
+      s.id === sectionId
+        ? { ...s, x: sectionDragState.current!.startValX + dx / zoom, y: sectionDragState.current!.startValY + dy / zoom }
+        : s
+    ));
+  }, [zoom]);
+
+  const handleSectionPointerUp = useCallback(() => {
+    sectionDragState.current = null;
+    setActiveDragSectionId(null);
   }, []);
 
   // 에이전트 결과 드롭
@@ -326,9 +395,9 @@ const Board: React.FC<BoardProps> = ({
             userSelect: "none",
           }}
           onPointerDown={handleCanvasPointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerUp}
+          onPointerMove={(e) => { handlePointerMove(e); handleSectionPointerMove(e); }}
+          onPointerUp={() => { handlePointerUp(); handleSectionPointerUp(); }}
+          onPointerLeave={() => { handlePointerUp(); handleSectionPointerUp(); }}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -339,6 +408,27 @@ const Board: React.FC<BoardProps> = ({
             transformOrigin: "0 0",
             width: 0, height: 0,
           }}>
+            {/* Sections rendered below cards */}
+            {sections.map((section) => {
+              const sectionIdeas = ideas.filter(i => section.ideaIds.includes(i.id));
+              return (
+                <BoardSectionFrame
+                  key={section.id}
+                  section={section}
+                  ideas={sectionIdeas}
+                  onDelete={(id) => setSections(prev => prev.filter(s => s.id !== id))}
+                  onAddIdea={() => setShowModal(true)}
+                  onAnalyze={(sectionId) => {
+                    const sec = sections.find(s => s.id === sectionId);
+                    if (!sec || sec.ideaIds.length === 0) return;
+                    // trigger analysis via parent is complex; open modal for now
+                    // TODO: wire to onRequestAnalysis with idea filter
+                  }}
+                  onDragStart={startSectionDrag}
+                />
+              );
+            })}
+
             {ideas.map((idea) => {
               const globalIndex = ideas.indexOf(idea);
               const pos = getCardPos(idea.id, globalIndex);

@@ -21,6 +21,8 @@ interface AIPanelProps {
   onClearChat?: () => void;
   selectedCategory?: IdeaCategory | "all";
   onAddIdea?: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[], snapshot?: AnalysisSnapshot) => void;
+  onClusterRequest?: () => void;
+  isClustering?: boolean;
 }
 
 const AIPanel: React.FC<AIPanelProps> = ({
@@ -37,6 +39,8 @@ const AIPanel: React.FC<AIPanelProps> = ({
   isAIResponding,
   selectedCategory = "all",
   onAddIdea,
+  onClusterRequest,
+  isClustering = false,
 }) => {
   const [inputText, setInputText] = useState("");
   const [aiInputText, setAiInputText] = useState("");
@@ -388,7 +392,15 @@ const AIPanel: React.FC<AIPanelProps> = ({
             </span>
             AI 분석 패널
           </h2>
-          {isAnalyzing ? (
+          {isClustering ? (
+            <span className="text-xs text-purple-500 font-medium flex items-center gap-1.5">
+              <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              유형화 중...
+            </span>
+          ) : isAnalyzing ? (
             <span className="text-xs text-orange-500 font-medium flex items-center gap-1.5">
               <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -594,6 +606,34 @@ const AIPanel: React.FC<AIPanelProps> = ({
                         <AgentListItems />
                       </>
                     )}
+
+                    {/* 유형화 버튼 */}
+                    <div className="mt-2 pt-2 border-t border-purple-100">
+                      <button
+                        onClick={() => onClusterRequest?.()}
+                        disabled={isClustering || isAnalyzing}
+                        className="w-full text-left rounded-xl hover:bg-purple-50 transition-colors group flex items-start gap-2.5 border border-transparent hover:border-purple-100 px-3 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <span className="flex-shrink-0 mt-0.5 text-lg">
+                          {isClustering ? (
+                            <svg className="animate-spin w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                          ) : "🗂️"}
+                        </span>
+                        <div>
+                          <div className="font-semibold text-gray-800 group-hover:text-purple-700 leading-tight text-sm">
+                            유형화
+                            {isClustering && <span className="ml-1.5 text-xs text-purple-500 font-normal">분류 중...</span>}
+                          </div>
+                          <div className="text-xs text-gray-400 group-hover:text-purple-500 mt-0.5 leading-snug">
+                            아이디어를 의미있는 그룹으로 분류
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+
                     {/* 실시간 검색 토글 */}
                     <div className="mt-3 pt-3 border-t border-purple-100">
                       <button

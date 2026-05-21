@@ -96,6 +96,10 @@ function App() {
   const [selectedAgent, setSelectedAgent] = useState<AgentType>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
+  // 유형화 결과
+  const [clusterResult, setClusterResult] = useState<any>(null);
+  const [isClustering, setIsClustering] = useState(false);
+
   // 카테고리 필터 (Board와 분석 공통)
   const [selectedCategory, setSelectedCategory] = useState<IdeaCategory | "all">("all");
 
@@ -219,6 +223,16 @@ function App() {
       ]);
     });
 
+    socket.on("cluster-result", (result: any) => {
+      setIsClustering(false);
+      setClusterResult(result);
+    });
+
+    socket.on("cluster-error", ({ message }: { message: string }) => {
+      setIsClustering(false);
+      showError(message);
+    });
+
     return () => {
       socket.off("connect");
       socket.off("room-state");
@@ -233,6 +247,8 @@ function App() {
       socket.off("topic-changed");
       socket.off("chat-message");
       socket.off("ai-response");
+      socket.off("cluster-result");
+      socket.off("cluster-error");
     };
   }, [joined, showError]);
 
@@ -309,6 +325,11 @@ function App() {
     setChatMessages([]);
   }, []);
 
+  const handleClusterRequest = useCallback(() => {
+    setIsClustering(true);
+    getSocket().emit("cluster-requested");
+  }, []);
+
   if (!joined) return <LoginModal onJoin={handleJoin} />;
 
   return (
@@ -344,6 +365,7 @@ function App() {
           onAddComment={handleAddComment}
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
+          clusterResult={clusterResult}
         />
       </div>
 
@@ -363,6 +385,8 @@ function App() {
         onClearChat={handleClearChat}
         selectedCategory={selectedCategory}
         onAddIdea={handleAddIdea}
+        onClusterRequest={handleClusterRequest}
+        isClustering={isClustering}
       />
     </div>
   );
