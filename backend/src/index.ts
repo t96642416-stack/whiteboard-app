@@ -101,7 +101,7 @@ io.on("connection", (socket) => {
   });
 
   // 아이디어 수정
-  socket.on("idea-updated", ({ ideaId, title, content, category }: { ideaId: string; title: string; content: string; category?: string }) => {
+  socket.on("idea-updated", ({ ideaId, title, content, category, color }: { ideaId: string; title: string; content: string; category?: string; color?: string }) => {
     if (!currentRoom) return;
     if (roomIdeas[currentRoom]) {
       const idea = roomIdeas[currentRoom].find((i: any) => i.id === ideaId) as any;
@@ -109,9 +109,10 @@ io.on("connection", (socket) => {
         idea.title = title;
         idea.content = content;
         if (category) idea.category = category;
+        if (color) idea.color = color;
       }
     }
-    socket.to(currentRoom).emit("idea-updated", { ideaId, title, content, category });
+    socket.to(currentRoom).emit("idea-updated", { ideaId, title, content, category, color });
   });
 
   // 아이디어 삭제

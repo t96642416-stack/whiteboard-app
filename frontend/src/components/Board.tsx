@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Idea, IdeaCategory, IDEA_CATEGORIES, IdeaAttachment, CARD_COLORS } from "../types";
 import IdeaCard from "./IdeaCard";
+import BoardResultCard from "./BoardResultCard";
 import AddIdeaModal from "./AddIdeaModal";
 
 const CARD_WIDTH = 240;
@@ -22,9 +23,9 @@ interface BoardProps {
   users: { name: string; color: string }[];
   topic: string;
   onTopicChange: (topic: string) => void;
-  onAddIdea: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[]) => void;
+  onAddIdea: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[], snapshot?: import("../types").AnalysisSnapshot) => void;
   onDeleteIdea: (id: string) => void;
-  onEditIdea: (id: string, title: string, content: string, category: IdeaCategory) => void;
+  onEditIdea: (id: string, title: string, content: string, category: IdeaCategory, color: string) => void;
   onAddComment: (ideaId: string, text: string) => void;
   selectedCategory: IdeaCategory | "all";
   onCategoryChange: (category: IdeaCategory | "all") => void;
@@ -131,6 +132,7 @@ const Board: React.FC<BoardProps> = ({
     if (e.button !== 0 && e.button !== 1) return;
     const target = e.target as HTMLElement;
     if (target.closest("[data-card-wrapper]")) return;
+    if (target.closest("[data-toolbar]")) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     dragState.current = {
       type: "canvas",
@@ -204,13 +206,13 @@ const Board: React.FC<BoardProps> = ({
     const raw = e.dataTransfer.getData("application/agent-idea");
     if (!raw) return;
     try {
-      const { title, content } = JSON.parse(raw);
+      const { title, content, snapshot } = JSON.parse(raw);
       const rect = canvasRef.current!.getBoundingClientRect();
       pendingDropPos.current = {
         x: (e.clientX - rect.left - offset.x) / zoom - CARD_WIDTH / 2,
         y: (e.clientY - rect.top - offset.y) / zoom - 70,
       };
-      onAddIdea(title, content, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "ai", []);
+      onAddIdea(title, content, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "ai", [], snapshot);
     } catch { /* ignore */ }
   };
 
@@ -359,7 +361,10 @@ const Board: React.FC<BoardProps> = ({
                       <div key={i} className="w-0.5 h-1.5 rounded-full" style={{ backgroundColor: isActive ? "white" : "#6b7280" }} />
                     ))}
                   </div>
-                  <IdeaCard idea={idea} onDelete={onDeleteIdea} onEdit={onEditIdea} onAddComment={onAddComment} />
+                  {idea.analysisSnapshot
+                    ? <BoardResultCard idea={idea} onDelete={onDeleteIdea} />
+                    : <IdeaCard idea={idea} onDelete={onDeleteIdea} onEdit={onEditIdea} onAddComment={onAddComment} />
+                  }
                 </div>
               );
             })}
@@ -386,16 +391,8 @@ const Board: React.FC<BoardProps> = ({
             </div>
           )}
 
-          {/* ── 좌하단: 아이디어 추가 + 줌 컨트롤 ── */}
-          <div className="absolute bottom-4 left-4 z-20 flex items-center gap-2">
-            {/* 아이디어 추가 버튼 */}
-            <button onClick={() => setShowModal(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-semibold shadow-md transition-all">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-              아이디어 추가
-            </button>
+          {/* ── 좌하단: 줌 컨트롤 ── */}
+          <div data-toolbar className="absolute bottom-4 left-4 z-20 flex items-center gap-2">
             {/* 줌 컨트롤 */}
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 px-1 py-1 flex items-center gap-0.5">
               <button onClick={() => setZoom(z => Math.max(0.2, z / 1.25))}
@@ -411,6 +408,17 @@ const Board: React.FC<BoardProps> = ({
             <div className="text-xs text-gray-400 bg-white bg-opacity-90 rounded-xl px-2.5 py-1.5 shadow-sm border border-gray-100">
               {userName} · {ideas.length}개
             </div>
+          </div>
+
+          {/* ── 우하단: 아이디어 추가 버튼 ── */}
+          <div data-toolbar className="absolute bottom-4 right-4 z-20">
+            <button onClick={() => setShowModal(true)}
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-semibold shadow-lg transition-all">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              아이디어 추가
+            </button>
           </div>
         </div>
       ) : (
@@ -448,15 +456,11 @@ const Board: React.FC<BoardProps> = ({
                 ) : null;
               })()}
               <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
-                {filteredIdeas.map(idea => (
-                  <IdeaCard
-                    key={idea.id}
-                    idea={idea}
-                    onDelete={onDeleteIdea}
-                    onEdit={onEditIdea}
-                    onAddComment={onAddComment}
-                  />
-                ))}
+                {filteredIdeas.map(idea =>
+                  idea.analysisSnapshot
+                    ? <BoardResultCard key={idea.id} idea={idea} onDelete={onDeleteIdea} />
+                    : <IdeaCard key={idea.id} idea={idea} onDelete={onDeleteIdea} onEdit={onEditIdea} onAddComment={onAddComment} />
+                )}
                 <button onClick={() => setShowModal(true)}
                   className="rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 min-h-[140px] flex flex-col items-center justify-center gap-2 text-gray-400 hover:text-blue-500 transition-all group">
                   <div className="w-9 h-9 rounded-full border-2 border-current flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -472,7 +476,13 @@ const Board: React.FC<BoardProps> = ({
         </div>
       )}
 
-      {showModal && <AddIdeaModal onClose={() => setShowModal(false)} onAdd={onAddIdea} />}
+      {showModal && (
+        <AddIdeaModal
+          onClose={() => setShowModal(false)}
+          onAdd={onAddIdea}
+          defaultCategory={selectedCategory === "all" ? "brainstorm" : selectedCategory}
+        />
+      )}
     </div>
   );
 };

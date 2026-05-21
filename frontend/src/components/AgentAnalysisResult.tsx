@@ -11,22 +11,24 @@ import {
   SearchSource,
   IDEA_BADGE_COLORS,
   AGENT_OPTIONS,
+  AnalysisSnapshot,
 } from "../types";
 
 interface Props {
   result: AgentAnalysisResult;
-  onAddIdea?: (title: string, content: string) => void;
+  onAddIdea?: (title: string, content: string, snapshot?: AnalysisSnapshot) => void;
 }
 
 // 드래그 가능한 카드 래퍼
 const DraggableCard: React.FC<{
   title: string;
   content: string;
-  onAdd?: (title: string, content: string) => void;
+  snapshot?: AnalysisSnapshot;
+  onAdd?: (title: string, content: string, snapshot?: AnalysisSnapshot) => void;
   children: React.ReactNode;
-}> = ({ title, content, onAdd, children }) => {
+}> = ({ title, content, snapshot, onAdd, children }) => {
   const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData("application/agent-idea", JSON.stringify({ title, content }));
+    e.dataTransfer.setData("application/agent-idea", JSON.stringify({ title, content, snapshot }));
     e.dataTransfer.effectAllowed = "copy";
   };
   return (
@@ -47,7 +49,7 @@ const DraggableCard: React.FC<{
       {onAdd && (
         <button
           draggable={false}
-          onClick={(e) => { e.stopPropagation(); onAdd(title, content); }}
+          onClick={(e) => { e.stopPropagation(); onAdd(title, content, snapshot); }}
           className="absolute -right-1 -top-1 opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center shadow-sm hover:bg-indigo-600 z-10"
           title="보드에 바로 추가"
         >
@@ -96,7 +98,7 @@ const SrcLink: React.FC<{ source: SearchSource; label?: string }> = ({ source, l
 );
 
 // 관점 제시형 UI
-const PerspectiveView: React.FC<{ result: PerspectiveAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string) => void }> = ({ result, sources, onAddIdea }) => {
+const PerspectiveView: React.FC<{ result: PerspectiveAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void }> = ({ result, sources, onAddIdea }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "관점 제시형";
   return (
     <div className="space-y-3">
@@ -129,7 +131,7 @@ const PerspectiveView: React.FC<{ result: PerspectiveAnalysis; sources?: SearchS
           {result.perspectives.map((p, i) => {
             const src = sources && sources.length > 0 ? sources[i % sources.length] : null;
             return (
-              <DraggableCard key={i} title={p.title} content={p.description} onAdd={onAddIdea}>
+              <DraggableCard key={i} title={p.title} content={p.description} snapshot={{ agentType: 'suggestion', itemData: { ...p, index: i } }} onAdd={onAddIdea}>
                 <div className="rounded-xl p-3" style={{ backgroundColor: "#F0EFFD" }}>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="px-2 py-0.5 rounded-full text-xs font-semibold"
@@ -151,7 +153,7 @@ const PerspectiveView: React.FC<{ result: PerspectiveAnalysis; sources?: SearchS
 };
 
 // 관점 탐색형 UI
-const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string) => void }> = ({ result, sources, onAddIdea }) => {
+const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void }> = ({ result, sources, onAddIdea }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "관점 탐색형";
   return (
     <div className="space-y-3">
@@ -184,7 +186,7 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
           {result.questions.map((q, i) => {
             const src = sources && sources.length > 0 ? sources[i % sources.length] : null;
             return (
-              <DraggableCard key={i} title={`Q${i + 1}. ${q.text.slice(0, 40)}`} content={q.text} onAdd={onAddIdea}>
+              <DraggableCard key={i} title={`Q${i + 1}. ${q.text.slice(0, 40)}`} content={q.text} snapshot={{ agentType: 'question', itemData: { ...q, index: i } }} onAdd={onAddIdea}>
                 <div className="rounded-xl p-3" style={{ backgroundColor: "#F0EFFD" }}>
                   <div className="flex items-start gap-2">
                     <span className="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0 mt-0.5"
@@ -205,7 +207,7 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
 };
 
 // 효과 예측형 UI - note를 링크로
-const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string) => void }> = ({ result, sources, onAddIdea }) => {
+const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void }> = ({ result, sources, onAddIdea }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "효과 예측형";
   return (
     <div className="space-y-4">
@@ -233,7 +235,7 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
                   ? parseSourceRef(effect.note, sources || [])
                   : { cleanText: "", source: null };
                 return (
-                  <DraggableCard key={j} title={effect.title} content={`${effect.description}${noteText ? `\n\n${noteText}` : ""}`} onAdd={onAddIdea}>
+                  <DraggableCard key={j} title={effect.title} content={`${effect.description}${noteText ? `\n\n${noteText}` : ""}`} snapshot={{ agentType: 'emphasis', itemData: { ideaName: idea.name, ideaIndex: i, effect } }} onAdd={onAddIdea}>
                     <div className="bg-gray-50 rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-600 font-medium">
@@ -314,7 +316,7 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
 };
 
 // 속성 분석형 UI - evidence를 링크로
-const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string) => void }> = ({ result, sources, onAddIdea }) => {
+const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void }> = ({ result, sources, onAddIdea }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "속성 분석형";
   return (
     <div className="space-y-3">
@@ -332,7 +334,7 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
             idea.cons.length > 0 ? `단점: ${idea.cons.map(c => c.point).join(", ")}` : "",
           ].filter(Boolean).join("\n");
           return (
-            <DraggableCard key={idea.id} title={idea.name} content={ideaSummary} onAdd={onAddIdea}>
+            <DraggableCard key={idea.id} title={idea.name} content={ideaSummary} snapshot={{ agentType: 'attribute', itemData: { ...idea, index: idx } }} onAdd={onAddIdea}>
             <div className="mb-4">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-bold text-gray-500">{label}</span>
@@ -448,7 +450,7 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
 };
 
 // 결과 강조형 UI
-const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[] }> = ({ result, sources }) => {
+const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void }> = ({ result, sources, onAddIdea }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "결과 강조형";
   return (
     <div className="space-y-4">
@@ -473,7 +475,8 @@ const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[] }> =
           {result.ideas.map((idea, i) => {
             const src = sources && sources.length > 0 ? sources[i % sources.length] : null;
             return (
-              <div key={i}>
+              <DraggableCard key={i} title={idea.name} content={idea.name} snapshot={{ agentType: 'guide', itemData: { ...idea, index: i, score: (idea as any).score } }} onAdd={onAddIdea}>
+              <div>
                 <div className="flex items-center gap-2 mb-2">
                   <p className="text-xs font-bold text-gray-700">
                     {String.fromCharCode(65 + i)} {idea.name}
@@ -516,6 +519,7 @@ const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[] }> =
                   </div>
                 </div>
               </div>
+              </DraggableCard>
             );
           })}
         </div>
@@ -570,11 +574,11 @@ const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[] }>
         </div>
       </div>
 
-      <div className="flex gap-3 mb-4">
+      <div className="grid gap-3 mb-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))" }}>
         {result.ideas.map((idea, i) => {
           const badge = IDEA_BADGE_COLORS[i % Object.keys(IDEA_BADGE_COLORS).length];
           return (
-            <div key={i} className="flex-1 bg-gray-50 rounded-lg p-3">
+            <div key={i} className="bg-gray-50 rounded-lg p-3">
               <div className="flex items-center gap-1.5 mb-2">
                 <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
                   style={{ backgroundColor: badge.bg, color: badge.text }}>
@@ -672,7 +676,7 @@ const AgentAnalysisResultComponent: React.FC<Props> = ({ result, onAddIdea }) =>
     case "emphasis":
       return <EmphasisView result={result as EmphasisAnalysis} sources={(result as EmphasisAnalysis).searchSources} onAddIdea={onAddIdea} />;
     case "guide":
-      return <GuideView result={result as GuideAnalysis} sources={(result as GuideAnalysis).searchSources} />;
+      return <GuideView result={result as GuideAnalysis} sources={(result as GuideAnalysis).searchSources} onAddIdea={onAddIdea} />;
     case "advise":
       return <AdviseView result={result as AdviseAnalysis} sources={(result as AdviseAnalysis).searchSources} />;
     default:

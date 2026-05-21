@@ -148,8 +148,8 @@ function App() {
       setIdeas((prev) => prev.filter((i) => i.id !== ideaId));
     });
 
-    socket.on("idea-updated", ({ ideaId, title, content, category }: { ideaId: string; title: string; content: string; category?: IdeaCategory }) => {
-      setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, title, content, ...(category ? { category } : {}) } : i));
+    socket.on("idea-updated", ({ ideaId, title, content, category, color }: { ideaId: string; title: string; content: string; category?: IdeaCategory; color?: string }) => {
+      setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, title, content, ...(category ? { category } : {}), ...(color ? { color } : {}) } : i));
     });
 
     socket.on("comment-added", ({ ideaId, comment }: { ideaId: string; comment: IdeaComment }) => {
@@ -236,7 +236,7 @@ function App() {
     };
   }, [joined, showError]);
 
-  const handleAddIdea = useCallback((title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[]) => {
+  const handleAddIdea = useCallback((title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[], snapshot?: import("./types").AnalysisSnapshot) => {
     const socket = getSocket();
     const idea: Idea = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -245,6 +245,7 @@ function App() {
       createdAt: new Date().toISOString(),
       category,
       attachments,
+      ...(snapshot ? { analysisSnapshot: snapshot } : {}),
     };
     setIdeas((prev) => [...prev, idea]); // 낙관적 업데이트 (서버 응답 전에 즉시 반영)
     socket.emit("idea-added", idea);
@@ -254,9 +255,9 @@ function App() {
     getSocket().emit("idea-deleted", { ideaId });
   }, []);
 
-  const handleEditIdea = useCallback((ideaId: string, title: string, content: string, category: IdeaCategory) => {
-    setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, title, content, category } : i));
-    getSocket().emit("idea-updated", { ideaId, title, content, category });
+  const handleEditIdea = useCallback((ideaId: string, title: string, content: string, category: IdeaCategory, color: string) => {
+    setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, title, content, category, color } : i));
+    getSocket().emit("idea-updated", { ideaId, title, content, category, color });
   }, []);
 
   const handleAddComment = useCallback((ideaId: string, text: string) => {

@@ -4,13 +4,14 @@ import { CARD_COLORS, IDEA_CATEGORIES, IdeaCategory, IdeaAttachment } from "../t
 interface AddIdeaModalProps {
   onClose: () => void;
   onAdd: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[]) => void;
+  defaultCategory?: IdeaCategory;
 }
 
-const AddIdeaModal: React.FC<AddIdeaModalProps> = ({ onClose, onAdd }) => {
+const AddIdeaModal: React.FC<AddIdeaModalProps> = ({ onClose, onAdd, defaultCategory }) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [selectedColor, setSelectedColor] = useState(CARD_COLORS[0]);
-  const [selectedCategory, setSelectedCategory] = useState<IdeaCategory>("brainstorm");
+  const [selectedCategory, setSelectedCategory] = useState<IdeaCategory>(defaultCategory ?? "brainstorm");
   const [attachments, setAttachments] = useState<IdeaAttachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);

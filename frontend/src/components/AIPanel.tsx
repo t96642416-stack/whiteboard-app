@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
-import { AgentType, AnalysisResult as AnalysisResultType, AgentAnalysisResult, ChatMessage, AGENT_OPTIONS, AnalysisFile, IdeaCategory, IDEA_CATEGORIES, AnalysisHistoryItem, IdeaAttachment, CARD_COLORS } from "../types";
+import { AgentType, AnalysisResult as AnalysisResultType, AgentAnalysisResult, ChatMessage, AGENT_OPTIONS, AnalysisFile, IdeaCategory, IDEA_CATEGORIES, AnalysisHistoryItem, IdeaAttachment, CARD_COLORS, AnalysisSnapshot } from "../types";
 import AnalysisResult from "./AnalysisResult";
 import AgentAnalysisResultComponent from "./AgentAnalysisResult";
 import { useMeetingRecognition } from "../hooks/useVoiceRecognition";
@@ -20,7 +20,7 @@ interface AIPanelProps {
   isAIResponding: boolean;
   onClearChat?: () => void;
   selectedCategory?: IdeaCategory | "all";
-  onAddIdea?: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[]) => void;
+  onAddIdea?: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[], snapshot?: AnalysisSnapshot) => void;
 }
 
 const AIPanel: React.FC<AIPanelProps> = ({
@@ -531,7 +531,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                   </div>
                 </div>
                 {viewingHistoryItem.agentResult
-                  ? <AgentAnalysisResultComponent result={viewingHistoryItem.agentResult} onAddIdea={onAddIdea ? (t, c) => onAddIdea(t, c, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "ai", []) : undefined} />
+                  ? <AgentAnalysisResultComponent result={viewingHistoryItem.agentResult} onAddIdea={onAddIdea ? (t, c, snap?) => onAddIdea(t, c, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "ai", [], snap) : undefined} />
                   : viewingHistoryItem.result
                     ? <AnalysisResult result={viewingHistoryItem.result} />
                     : null}
@@ -554,7 +554,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                   </div>
                 )}
                 {agentAnalysisResult
-                  ? <AgentAnalysisResultComponent result={agentAnalysisResult} onAddIdea={onAddIdea ? (t, c) => onAddIdea(t, c, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "ai", []) : undefined} />
+                  ? <AgentAnalysisResultComponent result={agentAnalysisResult} onAddIdea={onAddIdea ? (t, c, snap?) => onAddIdea(t, c, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "ai", [], snap) : undefined} />
                   : analysisResult
                     ? <AnalysisResult result={analysisResult} />
                     : null}

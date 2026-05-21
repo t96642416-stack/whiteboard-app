@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Idea, IDEA_CATEGORIES, IdeaCategory, IdeaAttachment } from "../types";
+import { Idea, IDEA_CATEGORIES, IdeaCategory, IdeaAttachment, CARD_COLORS } from "../types";
 
 interface IdeaCardProps {
   idea: Idea;
   onDelete: (id: string) => void;
-  onEdit: (id: string, title: string, content: string, category: IdeaCategory) => void;
+  onEdit: (id: string, title: string, content: string, category: IdeaCategory, color: string) => void;
   onAddComment: (ideaId: string, text: string) => void;
 }
 
@@ -13,6 +13,7 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
   const [editTitle, setEditTitle] = useState(idea.title);
   const [editContent, setEditContent] = useState(idea.content);
   const [editCategory, setEditCategory] = useState<IdeaCategory>(idea.category ?? "brainstorm");
+  const [editColor, setEditColor] = useState(idea.color);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const commentInputRef = useRef<HTMLInputElement>(null);
@@ -23,13 +24,15 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
       setEditTitle(idea.title);
       setEditContent(idea.content);
       setEditCategory(idea.category ?? "brainstorm");
+      setEditColor(idea.color);
     }
-  }, [idea.title, idea.content, idea.category, isEditing]);
+  }, [idea.title, idea.content, idea.category, idea.color, isEditing]);
 
   const handleStartEdit = () => {
     setEditTitle(idea.title);
     setEditContent(idea.content);
     setEditCategory(idea.category ?? "brainstorm");
+    setEditColor(idea.color);
     setIsEditing(true);
     setTimeout(() => titleRef.current?.focus(), 0);
   };
@@ -37,7 +40,7 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
   const handleSave = () => {
     const trimmedTitle = editTitle.trim();
     if (!trimmedTitle) return;
-    onEdit(idea.id, trimmedTitle, editContent.trim(), editCategory);
+    onEdit(idea.id, trimmedTitle, editContent.trim(), editCategory, editColor);
     setIsEditing(false);
   };
 
@@ -83,7 +86,7 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
     <div
       className="relative rounded-lg p-4 shadow-md min-h-[140px] flex flex-col group"
       style={{
-        backgroundColor: idea.color,
+        backgroundColor: isEditing ? editColor : idea.color,
         border: isEditing ? "2px solid #3b82f6" : "1px solid rgba(0,0,0,0.06)",
         boxShadow: isEditing
           ? "0 0 0 3px rgba(59,130,246,0.15), 2px 3px 8px rgba(0,0,0,0.12)"
@@ -113,6 +116,23 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* 색상 선택 */}
+          <div className="flex items-center gap-1.5 mb-2">
+            {CARD_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setEditColor(c)}
+                className="w-5 h-5 rounded-full border-2 transition-all flex-shrink-0"
+                style={{
+                  backgroundColor: c,
+                  borderColor: editColor === c ? "#3b82f6" : "rgba(0,0,0,0.15)",
+                  transform: editColor === c ? "scale(1.25)" : "scale(1)",
+                }}
+              />
+            ))}
           </div>
 
           {/* 제목 입력 */}

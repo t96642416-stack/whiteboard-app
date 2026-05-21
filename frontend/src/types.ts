@@ -22,6 +22,11 @@ export interface IdeaComment {
   createdAt: string;
 }
 
+export interface AnalysisSnapshot {
+  agentType: string;  // 'suggestion' | 'question' | 'emphasis' | 'attribute' | 'guide' | 'advise'
+  itemData: any;      // 각 아이템 원본 데이터
+}
+
 export interface Idea {
   id: string;
   title: string;
@@ -32,6 +37,7 @@ export interface Idea {
   category?: IdeaCategory;
   attachments?: IdeaAttachment[];
   comments?: IdeaComment[];
+  analysisSnapshot?: AnalysisSnapshot;  // AI 결과 카드용 스냅샷
 }
 
 export interface ProCon {
