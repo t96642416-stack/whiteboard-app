@@ -267,13 +267,6 @@ const Board: React.FC<BoardProps> = ({
               )}
             </div>
           </div>
-          <button onClick={() => setShowModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold shadow-sm transition-all flex-shrink-0">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            아이디어 추가
-          </button>
         </div>
       </div>
 
@@ -389,15 +382,21 @@ const Board: React.FC<BoardProps> = ({
                 <span className="text-3xl">💡</span>
               </div>
               <p className="text-gray-500 font-medium mb-1">아직 아이디어가 없어요</p>
-              <p className="text-gray-400 text-sm">오른쪽 상단 버튼으로 추가해보세요!</p>
+              <p className="text-gray-400 text-sm">왼쪽 하단 버튼으로 추가해보세요!</p>
             </div>
           )}
 
-          {/* 줌 컨트롤 */}
-          <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2">
-            <div className="text-xs text-gray-400 bg-white bg-opacity-90 rounded-xl px-2.5 py-1.5 shadow-sm border border-gray-100">
-              {userName} · {ideas.length}개
-            </div>
+          {/* ── 좌하단: 아이디어 추가 + 줌 컨트롤 ── */}
+          <div className="absolute bottom-4 left-4 z-20 flex items-center gap-2">
+            {/* 아이디어 추가 버튼 */}
+            <button onClick={() => setShowModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-semibold shadow-md transition-all">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              아이디어 추가
+            </button>
+            {/* 줌 컨트롤 */}
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 px-1 py-1 flex items-center gap-0.5">
               <button onClick={() => setZoom(z => Math.max(0.2, z / 1.25))}
                 className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg text-lg font-bold leading-none transition-colors">−</button>
@@ -407,6 +406,10 @@ const Board: React.FC<BoardProps> = ({
               </button>
               <button onClick={() => setZoom(z => Math.min(3, z * 1.25))}
                 className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg text-lg font-bold leading-none transition-colors">+</button>
+            </div>
+            {/* 유저·카드 수 */}
+            <div className="text-xs text-gray-400 bg-white bg-opacity-90 rounded-xl px-2.5 py-1.5 shadow-sm border border-gray-100">
+              {userName} · {ideas.length}개
             </div>
           </div>
         </div>
