@@ -228,6 +228,16 @@ export interface AnalysisHistoryItem {
   agentResult: AgentAnalysisResult | null;
 }
 
+export interface BoardSection {
+  id: string;
+  title: string;
+  color: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export const CARD_COLORS = [
   "#fef9c3", // 노란
   "#fce7f3", // 분홍

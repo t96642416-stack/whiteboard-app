@@ -138,26 +138,32 @@ io.on("connection", (socket) => {
       files,
       categoryFilter,
       useSearch,
+      ideaIds,
     }: {
       agentType: string | null;
       userMessage?: string;
       files?: AnalysisFile[];
       categoryFilter?: string | null;
       useSearch?: boolean;
+      ideaIds?: string[];
     }) => {
       if (!currentRoom) return;
 
       const allIdeas = roomIdeas[currentRoom] || [];
 
-      // 카테고리 필터 적용
-      const ideas = categoryFilter
-        ? allIdeas.filter((i: any) => (i.category ?? "brainstorm") === categoryFilter)
-        : allIdeas;
+      // ideaIds 우선, 없으면 카테고리 필터, 없으면 전체
+      const ideas = ideaIds
+        ? allIdeas.filter((i: any) => ideaIds.includes(i.id))
+        : categoryFilter
+          ? allIdeas.filter((i: any) => (i.category ?? "brainstorm") === categoryFilter)
+          : allIdeas;
 
       if (ideas.length === 0) {
-        const msg = categoryFilter
-          ? `'${categoryFilter}' 카테고리에 분석할 아이디어가 없습니다.`
-          : "분석할 아이디어가 없습니다. 먼저 아이디어를 추가해주세요.";
+        const msg = ideaIds
+          ? "선택된 섹션에 분석할 아이디어가 없습니다."
+          : categoryFilter
+            ? `'${categoryFilter}' 카테고리에 분석할 아이디어가 없습니다.`
+            : "분석할 아이디어가 없습니다. 먼저 아이디어를 추가해주세요.";
         socket.emit("analysis-error", { message: msg });
         return;
       }

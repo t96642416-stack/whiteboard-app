@@ -290,6 +290,18 @@ function App() {
     });
   }, [selectedCategory]);
 
+  // 섹션 분석 요청 - 특정 아이디어 ID만 필터링
+  const handleSectionAnalysis = useCallback((sectionIdeas: Idea[], agentType: AgentType) => {
+    if (sectionIdeas.length === 0) return;
+    getSocket().emit("analysis-requested", {
+      agentType,
+      userMessage: "",
+      files: [],
+      ideaIds: sectionIdeas.map(i => i.id),
+      useSearch: false,
+    });
+  }, []);
+
   const handleSendChat = useCallback((message: string, imageUrl?: string) => {
     getSocket().emit("chat-message", { message, imageUrl, userColor });
   }, [userColor]);
@@ -344,6 +356,7 @@ function App() {
           onAddComment={handleAddComment}
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
+          onSectionAnalysis={handleSectionAnalysis}
         />
       </div>
 
