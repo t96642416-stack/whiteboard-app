@@ -4,7 +4,7 @@ import { Server } from "socket.io";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
-import { analyzeIdeas, chatWithAI, clusterIdeas, IdeaInput, AnalysisFile } from "./claude";
+import { analyzeIdeas, chatWithAI, IdeaInput, AnalysisFile } from "./claude";
 
 dotenv.config();
 
@@ -270,23 +270,6 @@ io.on("connection", (socket) => {
       }
     }
     socket.broadcast.to(currentRoom).emit("comment-added", { ideaId, comment });
-  });
-
-  // 유형화 요청
-  socket.on("cluster-requested", async () => {
-    if (!currentRoom) return;
-    const ideas = roomIdeas[currentRoom] || [];
-    if (ideas.length < 2) {
-      socket.emit("cluster-error", { message: "아이디어가 2개 이상 있어야 유형화할 수 있어요." });
-      return;
-    }
-    try {
-      const result = await clusterIdeas(ideas);
-      io.to(currentRoom).emit("cluster-result", result);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "유형화 중 오류가 발생했습니다.";
-      socket.emit("cluster-error", { message: msg });
-    }
   });
 
   // 아이디어 재동기화 (백엔드 재시작 후 프론트엔드에서 전송)
