@@ -60,13 +60,17 @@ const Board: React.FC<BoardProps> = ({
 
   // 드래그 상태 (ref → 렌더 최소화)
   const dragState = useRef<{
-    type: "canvas" | "card" | "image";
+    type: "canvas" | "card" | "image" | "section-resize";
     cardId?: string;
     imageId?: string;
+    sectionId?: string;
+    resizeDir?: string; // "nw"|"n"|"ne"|"e"|"se"|"s"|"sw"|"w"
     startMouseX: number;
     startMouseY: number;
-    startValX: number;
-    startValY: number;
+    startValX: number;  // section x
+    startValY: number;  // section y
+    startWidth?: number;
+    startHeight?: number;
     moved: boolean;
   } | null>(null);
 
@@ -277,6 +281,24 @@ const Board: React.FC<BoardProps> = ({
     };
   }, []);
 
+  // 섹션 리사이즈
+  const startSectionResize = useCallback((e: React.PointerEvent, section: BoardSection, dir: string) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragState.current = {
+      type: "section-resize",
+      sectionId: section.id,
+      resizeDir: dir,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startValX: section.x,
+      startValY: section.y,
+      startWidth: section.width,
+      startHeight: section.height,
+      moved: false,
+    };
+  }, []);
+
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     // 선택 박스 그리기
     if (selectBoxStartRef.current) {
@@ -333,6 +355,21 @@ const Board: React.FC<BoardProps> = ({
           ? { ...img, x: dragState.current!.startValX + dx / zoom, y: dragState.current!.startValY + dy / zoom }
           : img
       ));
+    } else if (dragState.current.type === "section-resize" && dragState.current.sectionId) {
+      const d = dragState.current;
+      const wdx = dx / zoom;
+      const wdy = dy / zoom;
+      const dir = d.resizeDir!;
+      const MIN_W = 80, MIN_H = 60;
+      setSections(prev => prev.map(s => {
+        if (s.id !== d.sectionId) return s;
+        let { x, y, width, height } = { x: d.startValX, y: d.startValY, width: d.startWidth!, height: d.startHeight! };
+        if (dir.includes("e")) width  = Math.max(MIN_W, width  + wdx);
+        if (dir.includes("s")) height = Math.max(MIN_H, height + wdy);
+        if (dir.includes("w")) { const nw = Math.max(MIN_W, width - wdx); x += width - nw; width = nw; }
+        if (dir.includes("n")) { const nh = Math.max(MIN_H, height - wdy); y += height - nh; height = nh; }
+        return { ...s, x, y, width, height };
+      }));
     }
   }, [zoom]);
 
@@ -616,7 +653,7 @@ const Board: React.FC<BoardProps> = ({
               const hex = section.color;
 
               return (
-                <div key={section.id} className="absolute"
+                <div key={section.id} className="absolute group/section"
                   style={{
                     left: section.x, top: section.y,
                     width: section.width, height: section.height,
@@ -742,6 +779,25 @@ const Board: React.FC<BoardProps> = ({
                       </svg>
                     </button>
                   </div>
+
+                  {/* ── 리사이즈 핸들 ── */}
+                  {[
+                    { dir: "nw", style: { top: -5, left: -5, cursor: "nw-resize" } },
+                    { dir: "n",  style: { top: -5, left: "50%", transform: "translateX(-50%)", cursor: "n-resize" } },
+                    { dir: "ne", style: { top: -5, right: -5, cursor: "ne-resize" } },
+                    { dir: "e",  style: { top: "50%", right: -5, transform: "translateY(-50%)", cursor: "e-resize" } },
+                    { dir: "se", style: { bottom: -5, right: -5, cursor: "se-resize" } },
+                    { dir: "s",  style: { bottom: -5, left: "50%", transform: "translateX(-50%)", cursor: "s-resize" } },
+                    { dir: "sw", style: { bottom: -5, left: -5, cursor: "sw-resize" } },
+                    { dir: "w",  style: { top: "50%", left: -5, transform: "translateY(-50%)", cursor: "w-resize" } },
+                  ].map(({ dir, style }) => (
+                    <div
+                      key={dir}
+                      className="absolute w-2.5 h-2.5 rounded-sm border-2 bg-white opacity-0 group-hover/section:opacity-100 transition-opacity hover:scale-125"
+                      style={{ ...style, borderColor: hex, zIndex: 10 } as React.CSSProperties}
+                      onPointerDown={e => startSectionResize(e, section, dir)}
+                    />
+                  ))}
                 </div>
               );
             })}
