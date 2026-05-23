@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>디자인 목업 미리보기</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif; background: #f0ede8; }
+  .dot-bg {
+    background-color: #f0ede8;
+    background-image: radial-gradient(circle, #c9c5bc 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+  .bubble { border-radius: 50%; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 11px; font-weight: 600; cursor: default; transition: transform 0.2s; }
+  .bubble:hover { transform: scale(1.08); }
+  .analysis-card { animation: slideIn 0.3s ease; }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+  <!-- 상단 헤더 -->
+  <div class="bg-white border-b border-gray-200 px-5 py-2.5 flex items-center gap-4 flex-shrink-0 shadow-sm">
+    <div class="flex items-center gap-2">
+      <div class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+      <span class="text-xs font-semibold text-gray-600">5명 접속중</span>
+      <div class="flex gap-1 ml-1">
+        <div class="w-7 h-7 rounded-full bg-purple-400 flex items-center justify-center text-white text-xs font-bold border-2 border-white shadow-sm">의</div>
+        <div class="w-7 h-7 rounded-full bg-orange-400 flex items-center justify-center text-white text-xs font-bold border-2 border-white shadow-sm -ml-1">효</div>
+        <div class="w-7 h-7 rounded-full bg-blue-400 flex items-center justify-center text-white text-xs font-bold border-2 border-white shadow-sm -ml-1">수</div>
+        <div class="w-7 h-7 rounded-full bg-pink-400 flex items-center justify-center text-white text-xs font-bold border-2 border-white shadow-sm -ml-1">배</div>
+        <div class="w-7 h-7 rounded-full bg-teal-400 flex items-center justify-center text-white text-xs font-bold border-2 border-white shadow-sm -ml-1">정</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 text-gray-400">
+      <span class="text-sm">📌</span>
+      <span class="text-sm text-gray-600 font-medium">회의 주제를 입력해주세요</span>
+    </div>
+    <div class="ml-auto flex items-center gap-1 border border-gray-200 rounded-full px-3 py-1 bg-gray-50">
+      <div class="w-1.5 h-1.5 rounded-full bg-purple-400"></div>
+      <span class="text-xs text-gray-500 font-medium">브레인스토밍</span>
+    </div>
+    <!-- 탭 -->
+    <div class="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+      <button class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white shadow-sm text-gray-800">AI 대화</button>
+      <button class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-700">채팅</button>
+      <button class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-700">회의</button>
+    </div>
+  </div>
+
+  <!-- 메인 콘텐츠 -->
+  <div class="flex flex-1 overflow-hidden">
+
+    <!-- 보드 (가운데) -->
+    <div class="flex-1 dot-bg relative overflow-hidden">
+
+      <!-- 아이디어 카드들 -->
+      <div style="position:absolute; left:40px; top:40px; width:200px;">
+        <div class="bg-yellow-100 rounded-xl p-3 shadow-md border border-black border-opacity-5">
+          <div class="flex items-center gap-1 mb-1.5">
+            <span class="px-1.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">🧠 브레인스토밍</span>
+          </div>
+          <p class="text-xs font-bold text-gray-800 mb-1">먹는 사람을 위한 식사존 분리 및 냄새 관리</p>
+          <p class="text-xs text-gray-500 leading-relaxed">열람실 금식이지만 냄새도 문제다</p>
+          <div class="mt-2 flex items-center gap-1">
+            <div class="w-4 h-4 rounded-full bg-gray-300 flex items-center justify-center text-xs">의</div>
+            <span class="text-xs text-gray-400">의진</span>
+            <span class="text-xs text-gray-300 ml-auto">오전 11:24</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="position:absolute; left:260px; top:40px; width:200px;">
+        <div class="bg-pink-100 rounded-xl p-3 shadow-md border border-black border-opacity-5">
+          <div class="flex items-center gap-1 mb-1.5">
+            <span class="px-1.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">🧠 브레인스토밍</span>
+          </div>
+          <p class="text-xs font-bold text-gray-800 mb-1">따뜻하게 소통할 수 있는 공간이 없어요</p>
+          <p class="text-xs text-gray-500 leading-relaxed">친구끼리 함께 쓸 공간이 없다</p>
+          <div class="mt-2 flex items-center gap-1">
+            <div class="w-4 h-4 rounded-full bg-orange-300 flex items-center justify-center text-xs">효</div>
+            <span class="text-xs text-gray-400">효진</span>
+            <span class="text-xs text-gray-300 ml-auto">오전 11:24</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="position:absolute; left:480px; top:40px; width:200px;">
+        <div class="bg-blue-100 rounded-xl p-3 shadow-md border border-black border-opacity-5">
+          <div class="flex items-center gap-1 mb-1.5">
+            <span class="px-1.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">🧠 브레인스토밍</span>
+          </div>
+          <p class="text-xs font-bold text-gray-800 mb-1">스터디 공간으로 리모델링</p>
+          <p class="text-xs text-gray-500 leading-relaxed">공간을 심플하게 개편하고 코드관리 도입</p>
+          <div class="mt-2 flex items-center gap-1">
+            <div class="w-4 h-4 rounded-full bg-blue-300 flex items-center justify-center text-xs">수</div>
+            <span class="text-xs text-gray-400">수현</span>
+            <span class="text-xs text-gray-300 ml-auto">오전 11:24</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 분석 결과 카드 (보드 위에 직접 배치) -->
+      <div style="position:absolute; left:40px; top:290px; width:640px;" class="analysis-card">
+        <div class="bg-white rounded-2xl shadow-lg border border-indigo-100 overflow-hidden">
+          <!-- 헤더 -->
+          <div class="flex items-center gap-2 px-4 py-3 border-b border-gray-100" style="background: #F5F4FF;">
+            <div class="w-6 h-6 rounded-lg bg-indigo-500 flex items-center justify-center">
+              <span class="text-white text-xs font-bold">AI</span>
+            </div>
+            <span class="text-sm font-bold text-indigo-700">관점 탐색형 분석 결과</span>
+            <span class="text-xs text-gray-400 ml-auto">오전 11:24</span>
+            <button class="text-gray-400 hover:text-gray-600 text-xs">✕</button>
+          </div>
+          <!-- 관점 카드들 -->
+          <div class="p-4 grid grid-cols-3 gap-3">
+            <div class="rounded-xl p-3" style="background:#F0EFFD;">
+              <div class="flex items-center gap-1.5 mb-1.5">
+                <span class="px-2 py-0.5 rounded-full text-xs font-bold" style="background:#4F48ED; color:white;">관점 1</span>
+              </div>
+              <p class="text-xs font-bold text-gray-800 mb-1">사용 목적이 충돌하고 있습니다</p>
+              <p class="text-xs text-gray-500 leading-relaxed">집중 공부, 대화, 낮잠, 식사를 원하는 사람이 같은 공간에 있어요.</p>
+            </div>
+            <div class="rounded-xl p-3" style="background:#F0EFFD;">
+              <div class="flex items-center gap-1.5 mb-1.5">
+                <span class="px-2 py-0.5 rounded-full text-xs font-bold" style="background:#4F48ED; color:white;">관점 2</span>
+              </div>
+              <p class="text-xs font-bold text-gray-800 mb-1">운영 방식에 대한 논의가 없습니다</p>
+              <p class="text-xs text-gray-500 leading-relaxed">시설을 바꾸는 아이디어보다 운영정책, 규칙에 관한 논의가 필요해요.</p>
+            </div>
+            <div class="rounded-xl p-3" style="background:#F0EFFD;">
+              <div class="flex items-center gap-1.5 mb-1.5">
+                <span class="px-2 py-0.5 rounded-full text-xs font-bold" style="background:#4F48ED; color:white;">관점 3</span>
+              </div>
+              <p class="text-xs font-bold text-gray-800 mb-1">대상 사용자가 정의되지 않았습니다</p>
+              <p class="text-xs text-gray-500 leading-relaxed">누구의 불편함을 먼저 해결할지, 이용 대상에 대한 정의가 필요해요.</p>
+            </div>
+          </div>
+          <!-- 하단 버튼 -->
+          <div class="px-4 pb-3 flex gap-2">
+            <button class="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-xs font-semibold transition-all">
+              + 아이디어 추가
+            </button>
+            <button class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-xs font-semibold transition-all">
+              📋 섹션 추가
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 하단 줌 컨트롤 -->
+      <div class="absolute bottom-4 left-4 flex items-center gap-2">
+        <div class="bg-white rounded-2xl shadow-md border border-gray-100 px-1 py-1 flex items-center gap-0.5">
+          <button class="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-lg text-lg font-bold">−</button>
+          <span class="text-xs text-gray-600 font-mono w-12 text-center">100%</span>
+          <button class="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-lg text-lg font-bold">+</button>
+        </div>
+      </div>
+      <!-- 하단 오른쪽 아이디어 추가 -->
+      <div class="absolute bottom-4 right-4">
+        <button class="flex items-center gap-1.5 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-semibold shadow-lg">
+          + 아이디어 추가
+        </button>
+      </div>
+    </div>
+
+    <!-- 구분선 (리사이즈 핸들) -->
+    <div class="w-1 bg-gray-200 hover:bg-indigo-300 cursor-col-resize transition-colors flex-shrink-0"></div>
+
+    <!-- 오른쪽 AI 패널 -->
+    <div class="bg-white flex flex-col overflow-hidden" style="width:420px; flex-shrink:0;">
+      <!-- AI 패널 헤더 -->
+      <div class="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
+        <div class="w-7 h-7 rounded-xl bg-indigo-500 flex items-center justify-center">
+          <span class="text-white text-xs font-bold">AI</span>
+        </div>
+        <span class="text-sm font-bold text-gray-800">AI 대화</span>
+        <span class="ml-auto text-xs text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-full">✓ 관점 탐색형 분석완료</span>
+      </div>
+
+      <!-- 분석 결과 스크롤 영역 -->
+      <div class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+
+        <!-- 버블 차트 (현재 집중 관점) -->
+        <div class="bg-gray-50 rounded-2xl p-4">
+          <p class="text-xs font-bold text-gray-700 mb-3">현재 집중 관점</p>
+          <!-- SVG 버블 차트 -->
+          <div class="relative" style="height: 200px;">
+            <svg width="100%" height="200" viewBox="0 0 380 200">
+              <!-- 연결선 -->
+              <line x1="190" y1="100" x2="120" y2="60" stroke="#e5e7eb" stroke-width="1.5"/>
+              <line x1="190" y1="100" x2="280" y2="55" stroke="#e5e7eb" stroke-width="1.5"/>
+              <line x1="190" y1="100" x2="310" y2="120" stroke="#e5e7eb" stroke-width="1.5"/>
+              <line x1="190" y1="100" x2="250" y2="165" stroke="#e5e7eb" stroke-width="1.5"/>
+              <line x1="190" y1="100" x2="80" y2="140" stroke="#e5e7eb" stroke-width="1.5"/>
+              <line x1="190" y1="100" x2="60" y2="80" stroke="#e5e7eb" stroke-width="1.5"/>
+
+              <!-- 버블들 (크기 = 언급 빈도) -->
+              <!-- 시설 노후화 (자주) -->
+              <circle cx="190" cy="100" r="42" fill="#c4b5fd" fill-opacity="0.7" stroke="#8b5cf6" stroke-width="1.5"/>
+              <text x="190" y="96" text-anchor="middle" font-size="11" font-weight="700" fill="#5b21b6">시설</text>
+              <text x="190" y="109" text-anchor="middle" font-size="11" font-weight="700" fill="#5b21b6">노후화</text>
+
+              <!-- 소음 문제 (자주) -->
+              <circle cx="305" cy="115" r="36" fill="#a5f3fc" fill-opacity="0.7" stroke="#06b6d4" stroke-width="1.5"/>
+              <text x="305" y="111" text-anchor="middle" font-size="11" font-weight="700" fill="#0e7490">소음</text>
+              <text x="305" y="124" text-anchor="middle" font-size="11" font-weight="700" fill="#0e7490">문제</text>
+
+              <!-- 공간 부족 (가끔) -->
+              <circle cx="250" cy="168" r="26" fill="#bbf7d0" fill-opacity="0.7" stroke="#22c55e" stroke-width="1.5"/>
+              <text x="250" y="164" text-anchor="middle" font-size="10" font-weight="600" fill="#166534">공간</text>
+              <text x="250" y="176" text-anchor="middle" font-size="10" font-weight="600" fill="#166534">부족</text>
+
+              <!-- 취식 불편 (가끔) -->
+              <circle cx="280" cy="52" r="24" fill="#fde68a" fill-opacity="0.7" stroke="#f59e0b" stroke-width="1.5"/>
+              <text x="280" y="48" text-anchor="middle" font-size="10" font-weight="600" fill="#92400e">취식</text>
+              <text x="280" y="60" text-anchor="middle" font-size="10" font-weight="600" fill="#92400e">불편</text>
+
+              <!-- 사용 목적 (미언급) -->
+              <circle cx="60" cy="78" r="20" fill="#f3f4f6" fill-opacity="0.8" stroke="#d1d5db" stroke-width="1.5"/>
+              <text x="60" y="74" text-anchor="middle" font-size="9" fill="#6b7280">사용</text>
+              <text x="60" y="85" text-anchor="middle" font-size="9" fill="#6b7280">목적</text>
+
+              <!-- 이용 대상 (미언급) -->
+              <circle cx="120" cy="55" r="18" fill="#f3f4f6" fill-opacity="0.8" stroke="#d1d5db" stroke-width="1.5"/>
+              <text x="120" y="51" text-anchor="middle" font-size="9" fill="#6b7280">이용</text>
+              <text x="120" y="62" text-anchor="middle" font-size="9" fill="#6b7280">대상</text>
+
+              <!-- 운영 방식 (미언급) -->
+              <circle cx="78" cy="148" r="18" fill="#f3f4f6" fill-opacity="0.8" stroke="#d1d5db" stroke-width="1.5"/>
+              <text x="78" y="144" text-anchor="middle" font-size="9" fill="#6b7280">운영</text>
+              <text x="78" y="155" text-anchor="middle" font-size="9" fill="#6b7280">방식</text>
+            </svg>
+          </div>
+          <!-- 범례 -->
+          <div class="flex items-center gap-4 mt-1">
+            <div class="flex items-center gap-1.5">
+              <div class="w-2.5 h-2.5 rounded-full bg-purple-300"></div>
+              <span class="text-xs text-gray-500">자주 언급</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <div class="w-2.5 h-2.5 rounded-full bg-green-200"></div>
+              <span class="text-xs text-gray-500">가끔 언급</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <div class="w-2.5 h-2.5 rounded-full bg-gray-200"></div>
+              <span class="text-xs text-gray-500">미언급</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 이런 부분이 빠졌어요 -->
+        <div class="bg-gray-50 rounded-xl px-3 py-2.5">
+          <p class="text-xs text-gray-500">이런 부분에 대한 논의가 빠졌어요.</p>
+        </div>
+
+        <!-- 관점 카드 1 -->
+        <div class="rounded-xl p-3" style="background:#F0EFFD;">
+          <div class="flex items-center gap-1.5 mb-1.5">
+            <span class="px-2 py-0.5 rounded-full text-xs font-bold" style="background:#4F48ED; color:white;">관점 1</span>
+          </div>
+          <p class="text-xs font-bold text-gray-800 mb-1">사용 목적이 충돌하고 있습니다</p>
+          <p class="text-xs text-gray-500 leading-relaxed">집중 공부, 대화, 낮잠, 식사를 원하는 사람이 같은 공간에 있어요.</p>
+        </div>
+
+        <!-- 관점 카드 2 -->
+        <div class="rounded-xl p-3" style="background:#F0EFFD;">
+          <div class="flex items-center gap-1.5 mb-1.5">
+            <span class="px-2 py-0.5 rounded-full text-xs font-bold" style="background:#4F48ED; color:white;">관점 2</span>
+          </div>
+          <p class="text-xs font-bold text-gray-800 mb-1">운영 방식에 대한 논의가 없습니다</p>
+          <p class="text-xs text-gray-500 leading-relaxed">시설보다 운영정책, 규칙에 관한 논의가 먼저 필요해요.</p>
+        </div>
+
+        <!-- 관점 카드 3 -->
+        <div class="rounded-xl p-3" style="background:#F0EFFD;">
+          <div class="flex items-center gap-1.5 mb-1.5">
+            <span class="px-2 py-0.5 rounded-full text-xs font-bold" style="background:#4F48ED; color:white;">관점 3</span>
+          </div>
+          <p class="text-xs font-bold text-gray-800 mb-1">대상 사용자가 정의되지 않았습니다</p>
+          <p class="text-xs text-gray-500 leading-relaxed">누구의 불편함을 먼저 해결할지 정의가 필요해요.</p>
+        </div>
+
+      </div>
+
+      <!-- 하단 입력창 -->
+      <div class="border-t border-gray-100 p-3">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="flex items-center gap-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-semibold">
+            🔍 관점 탐색형 <button class="ml-1 text-indigo-400 hover:text-indigo-600">×</button>
+          </span>
+          <span class="text-xs text-gray-400">관점 탐색형 선택</span>
+        </div>
+        <div class="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-200">
+          <input class="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder-gray-400"
+            placeholder="AI에게 질문하거나 지시해보세요..." />
+          <button class="w-7 h-7 rounded-lg bg-indigo-500 flex items-center justify-center">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

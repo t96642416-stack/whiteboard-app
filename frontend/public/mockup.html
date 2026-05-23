@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>디자인 목업</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0ede8; height: 100vh; display: flex; flex-direction: column; overflow: hidden; font-size: 13px; }
+.header { background: white; border-bottom: 1px solid #e5e7eb; padding: 10px 20px; display: flex; align-items: center; gap: 16px; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; }
+.avatars { display: flex; margin-left: 4px; }
+.avatar { width: 26px; height: 26px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white; margin-left: -6px; }
+.avatar:first-child { margin-left: 0; }
+.tab-group { display: flex; background: #f3f4f6; border-radius: 10px; padding: 3px; margin-left: auto; gap: 2px; }
+.tab { padding: 5px 12px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: #6b7280; }
+.tab.active { background: white; color: #111827; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.main { display: flex; flex: 1; overflow: hidden; }
+.board { flex: 1; position: relative; overflow: hidden; background-color: #f0ede8; background-image: radial-gradient(circle, #c9c5bc 1px, transparent 1px); background-size: 28px 28px; }
+.idea-card { position: absolute; width: 190px; border-radius: 12px; padding: 12px; box-shadow: 2px 3px 8px rgba(0,0,0,0.12); border: 1px solid rgba(0,0,0,0.06); }
+.cat-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; background: #dbeafe; color: #1e40af; margin-bottom: 6px; }
+.card-title { font-size: 12px; font-weight: 700; color: #1f2937; margin-bottom: 4px; line-height: 1.4; }
+.card-body { font-size: 11px; color: #6b7280; line-height: 1.4; }
+.card-footer { display: flex; align-items: center; gap: 5px; margin-top: 8px; }
+.mini-av { width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: white; }
+.result-frame { position: absolute; background: white; border-radius: 16px; box-shadow: 0 8px 24px rgba(79,72,237,0.12); border: 1px solid rgba(79,72,237,0.15); overflow: hidden; width: 620px; left: 44px; top: 280px; }
+.result-header { background: #f5f4ff; padding: 10px 16px; border-bottom: 1px solid #ede9fe; display: flex; align-items: center; gap: 8px; }
+.ai-ico { width: 24px; height: 24px; border-radius: 8px; background: #4f46e5; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: 700; }
+.result-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; padding: 14px; }
+.persp { background: #f0effd; border-radius: 12px; padding: 12px; }
+.p-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #4f46e5; color: white; font-size: 10px; font-weight: 700; margin-bottom: 8px; }
+.p-title { font-size: 12px; font-weight: 700; color: #1f2937; margin-bottom: 4px; line-height: 1.4; }
+.p-desc { font-size: 11px; color: #6b7280; line-height: 1.5; }
+.result-btns { padding: 0 14px 12px; display: flex; gap: 8px; }
+.btn1 { padding: 7px 14px; background: #4f46e5; color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.btn2 { padding: 7px 14px; background: #f3f4f6; color: #374151; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.zoom-ctrl { position: absolute; bottom: 16px; left: 16px; display: flex; align-items: center; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; padding: 3px; }
+.zb { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: none; background: transparent; cursor: pointer; border-radius: 7px; font-size: 16px; color: #6b7280; font-weight: 700; }
+.zv { font-size: 11px; color: #374151; font-family: monospace; width: 44px; text-align: center; }
+.add-btn { position: absolute; bottom: 16px; right: 16px; padding: 10px 18px; background: #3b82f6; color: white; border: none; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(59,130,246,0.35); }
+.divider { width: 4px; background: #e5e7eb; cursor: col-resize; flex-shrink: 0; }
+.ai-panel { width: 420px; flex-shrink: 0; background: white; display: flex; flex-direction: column; overflow: hidden; }
+.ph { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #f0f0f0; }
+.ph-icon { width: 28px; height: 28px; border-radius: 10px; background: #4f46e5; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 700; }
+.done { margin-left: auto; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+.pscroll { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.pscroll::-webkit-scrollbar { width: 4px; }
+.pscroll::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
+.bubble-box { background: #f9fafb; border-radius: 16px; padding: 14px; }
+.legend { display: flex; gap: 14px; margin-top: 8px; }
+.li { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #6b7280; }
+.ld { width: 9px; height: 9px; border-radius: 50%; }
+.pc { background: #f0effd; border-radius: 12px; padding: 12px; }
+.pnum { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #4f46e5; color: white; font-size: 10px; font-weight: 700; margin-bottom: 7px; }
+.pi { border-top: 1px solid #f0f0f0; padding: 12px 14px; flex-shrink: 0; }
+.tag-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.ag-tag { display: flex; align-items: center; gap: 4px; padding: 3px 10px; background: #ede9fe; color: #5b21b6; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.ag-tag button { background: none; border: none; cursor: pointer; color: #7c3aed; }
+.ir { display: flex; align-items: center; gap: 8px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 8px 12px; }
+.ir input { flex: 1; background: transparent; border: none; outline: none; font-size: 13px; color: #374151; }
+.ir input::placeholder { color: #9ca3af; }
+.sb { width: 28px; height: 28px; background: #4f46e5; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="dot"></div>
+  <span style="font-size:12px;font-weight:600;color:#4b5563;">5명 접속중</span>
+  <div class="avatars">
+    <div class="avatar" style="background:#a78bfa;">의</div>
+    <div class="avatar" style="background:#fb923c;">효</div>
+    <div class="avatar" style="background:#60a5fa;">수</div>
+    <div class="avatar" style="background:#f472b6;">배</div>
+    <div class="avatar" style="background:#34d399;">정</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;margin-left:16px;">
+    <span style="color:#9ca3af;">📌</span>
+    <span style="color:#6b7280;">회의 주제를 입력해주세요</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:5px;padding:3px 10px;border:1px solid #e5e7eb;border-radius:999px;background:#f9fafb;font-size:11px;color:#6b7280;margin-left:auto;">
+    <div style="width:6px;height:6px;border-radius:50%;background:#a78bfa;"></div>브레인스토밍
+  </div>
+  <div class="tab-group">
+    <button class="tab active">AI 대화</button>
+    <button class="tab">채팅</button>
+    <button class="tab">회의</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="board">
+    <div class="idea-card" style="left:44px;top:44px;background:#fef9c3;">
+      <div class="cat-badge">🧠 브레인스토밍</div>
+      <div class="card-title">먹는 사람을 위한 식사존 분리 및 냄새 관리</div>
+      <div class="card-body">열람실 금식이지만 냄새도 문제다</div>
+      <div class="card-footer">
+        <div class="mini-av" style="background:#9ca3af;">의</div>
+        <span style="font-size:10px;color:#6b7280;">의진</span>
+        <span style="font-size:10px;color:#9ca3af;margin-left:auto;">오전 11:24</span>
+      </div>
+    </div>
+    <div class="idea-card" style="left:254px;top:44px;background:#fce7f3;">
+      <div class="cat-badge">🧠 브레인스토밍</div>
+      <div class="card-title">따뜻하게 소통할 수 있는 공간이 없어요</div>
+      <div class="card-body">친구끼리 대화할 수 있는 공간이 없다</div>
+      <div class="card-footer">
+        <div class="mini-av" style="background:#fb923c;">효</div>
+        <span style="font-size:10px;color:#6b7280;">효진</span>
+        <span style="font-size:10px;color:#9ca3af;margin-left:auto;">오전 11:24</span>
+      </div>
+    </div>
+    <div class="idea-card" style="left:464px;top:44px;background:#dbeafe;">
+      <div class="cat-badge">🧠 브레인스토밍</div>
+      <div class="card-title">스터디 공간으로 리모델링 공사하면?</div>
+      <div class="card-body">공간을 심플하게 개편하고 코드관리 도입</div>
+      <div class="card-footer">
+        <div class="mini-av" style="background:#60a5fa;">수</div>
+        <span style="font-size:10px;color:#6b7280;">수현</span>
+        <span style="font-size:10px;color:#9ca3af;margin-left:auto;">오전 11:24</span>
+      </div>
+    </div>
+
+    <div class="result-frame">
+      <div class="result-header">
+        <div class="ai-ico">AI</div>
+        <span style="font-size:13px;font-weight:700;color:#4338ca;">관점 탐색형 분석 결과</span>
+        <span style="font-size:11px;color:#9ca3af;margin-left:auto;">오전 11:24</span>
+        <button style="background:none;border:none;cursor:pointer;color:#9ca3af;margin-left:8px;">✕</button>
+      </div>
+      <div class="result-grid">
+        <div class="persp">
+          <div class="p-badge">관점 1</div>
+          <div class="p-title">사용 목적이 충돌하고 있습니다</div>
+          <div class="p-desc">집중 공부, 대화, 낮잠, 식사를 원하는 사람이 같은 공간에 있어요.</div>
+        </div>
+        <div class="persp">
+          <div class="p-badge">관점 2</div>
+          <div class="p-title">운영 방식에 대한 논의가 없습니다</div>
+          <div class="p-desc">시설보다 운영정책, 규칙에 관한 논의가 먼저 필요해요.</div>
+        </div>
+        <div class="persp">
+          <div class="p-badge">관점 3</div>
+          <div class="p-title">대상 사용자가 정의되지 않았습니다</div>
+          <div class="p-desc">누구의 불편함을 먼저 해결할지에 대한 정의가 필요해요.</div>
+        </div>
+      </div>
+      <div class="result-btns">
+        <button class="btn1">+ 아이디어 추가</button>
+        <button class="btn2">📋 섹션 추가</button>
+      </div>
+    </div>
+
+    <div class="zoom-ctrl">
+      <button class="zb">−</button>
+      <span class="zv">100%</span>
+      <button class="zb">+</button>
+    </div>
+    <button class="add-btn">+ 아이디어 추가</button>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="ai-panel">
+    <div class="ph">
+      <div class="ph-icon">AI</div>
+      <span style="font-size:14px;font-weight:700;color:#111827;">AI 대화</span>
+      <span class="done">✓ 관점 탐색형 분석완료</span>
+    </div>
+    <div class="pscroll">
+      <div class="bubble-box">
+        <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:10px;">현재 집중 관점</div>
+        <svg width="100%" height="200" viewBox="0 0 380 200" preserveAspectRatio="xMidYMid meet">
+          <line x1="190" y1="100" x2="118" y2="58" stroke="#e5e7eb" stroke-width="1.5"/>
+          <line x1="190" y1="100" x2="278" y2="52" stroke="#e5e7eb" stroke-width="1.5"/>
+          <line x1="190" y1="100" x2="310" y2="118" stroke="#e5e7eb" stroke-width="1.5"/>
+          <line x1="190" y1="100" x2="252" y2="166" stroke="#e5e7eb" stroke-width="1.5"/>
+          <line x1="190" y1="100" x2="78" y2="148" stroke="#e5e7eb" stroke-width="1.5"/>
+          <line x1="190" y1="100" x2="62" y2="80" stroke="#e5e7eb" stroke-width="1.5"/>
+          <circle cx="190" cy="100" r="44" fill="#c4b5fd" fill-opacity="0.75" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="190" y="96" text-anchor="middle" font-size="11" font-weight="700" fill="#5b21b6">시설</text>
+          <text x="190" y="109" text-anchor="middle" font-size="11" font-weight="700" fill="#5b21b6">노후화</text>
+          <circle cx="308" cy="116" r="36" fill="#a5f3fc" fill-opacity="0.75" stroke="#06b6d4" stroke-width="1.5"/>
+          <text x="308" y="112" text-anchor="middle" font-size="11" font-weight="700" fill="#0e7490">소음</text>
+          <text x="308" y="125" text-anchor="middle" font-size="11" font-weight="700" fill="#0e7490">문제</text>
+          <circle cx="252" cy="166" r="25" fill="#bbf7d0" fill-opacity="0.75" stroke="#22c55e" stroke-width="1.5"/>
+          <text x="252" y="163" text-anchor="middle" font-size="10" font-weight="600" fill="#166534">공간</text>
+          <text x="252" y="175" text-anchor="middle" font-size="10" font-weight="600" fill="#166534">부족</text>
+          <circle cx="278" cy="50" r="24" fill="#fde68a" fill-opacity="0.75" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="278" y="46" text-anchor="middle" font-size="10" font-weight="600" fill="#92400e">취식</text>
+          <text x="278" y="58" text-anchor="middle" font-size="10" font-weight="600" fill="#92400e">불편</text>
+          <circle cx="62" cy="80" r="20" fill="#f3f4f6" fill-opacity="0.9" stroke="#d1d5db" stroke-width="1.5"/>
+          <text x="62" y="76" text-anchor="middle" font-size="9" fill="#9ca3af">사용</text>
+          <text x="62" y="87" text-anchor="middle" font-size="9" fill="#9ca3af">목적</text>
+          <circle cx="118" cy="56" r="18" fill="#f3f4f6" fill-opacity="0.9" stroke="#d1d5db" stroke-width="1.5"/>
+          <text x="118" y="53" text-anchor="middle" font-size="9" fill="#9ca3af">이용</text>
+          <text x="118" y="63" text-anchor="middle" font-size="9" fill="#9ca3af">대상</text>
+          <circle cx="78" cy="148" r="18" fill="#f3f4f6" fill-opacity="0.9" stroke="#d1d5db" stroke-width="1.5"/>
+          <text x="78" y="144" text-anchor="middle" font-size="9" fill="#9ca3af">운영</text>
+          <text x="78" y="155" text-anchor="middle" font-size="9" fill="#9ca3af">방식</text>
+        </svg>
+        <div class="legend">
+          <div class="li"><div class="ld" style="background:#c4b5fd;"></div>자주 언급</div>
+          <div class="li"><div class="ld" style="background:#bbf7d0;"></div>가끔 언급</div>
+          <div class="li"><div class="ld" style="background:#e5e7eb;"></div>미언급</div>
+        </div>
+      </div>
+      <div style="background:#f9fafb;border-radius:10px;padding:10px 12px;font-size:11px;color:#6b7280;">이런 부분에 대한 논의가 빠졌어요.</div>
+      <div class="pc"><div class="pnum">관점 1</div><div style="font-size:12px;font-weight:700;color:#1f2937;margin-bottom:4px;">사용 목적이 충돌하고 있습니다</div><div style="font-size:11px;color:#6b7280;line-height:1.5;">집중 공부, 대화, 낮잠, 식사를 원하는 사람이 같은 공간에 있어요.</div></div>
+      <div class="pc"><div class="pnum">관점 2</div><div style="font-size:12px;font-weight:700;color:#1f2937;margin-bottom:4px;">운영 방식에 대한 논의가 없습니다</div><div style="font-size:11px;color:#6b7280;line-height:1.5;">시설보다 운영정책, 규칙에 관한 논의가 먼저 필요해요.</div></div>
+      <div class="pc"><div class="pnum">관점 3</div><div style="font-size:12px;font-weight:700;color:#1f2937;margin-bottom:4px;">대상 사용자가 정의되지 않았습니다</div><div style="font-size:11px;color:#6b7280;line-height:1.5;">누구의 불편함을 먼저 해결할지에 대한 정의가 필요해요.</div></div>
+    </div>
+    <div class="pi">
+      <div class="tag-row">
+        <div class="ag-tag">🔍 관점 탐색형<button>×</button></div>
+        <span style="font-size:11px;color:#9ca3af;">관점 탐색형 선택</span>
+      </div>
+      <div class="ir">
+        <input type="text" placeholder="AI에게 질문하거나 지시해보세요..." />
+        <button class="sb">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

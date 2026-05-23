@@ -15,5 +15,11 @@
       "cwd": "/Users/parksuhyun/project/frontend",
       "port": 5173
     }
+  ,{
+      "name": "Mockup",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-l", "5200", "/Users/parksuhyun/project"],
+      "port": 5200
+    }
   ]
 }

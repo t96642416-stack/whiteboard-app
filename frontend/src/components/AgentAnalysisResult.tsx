@@ -19,11 +19,31 @@ interface Props {
   onAddIdea?: (title: string, content: string, snapshot?: AnalysisSnapshot) => void;
 }
 
-// AI 이미지 (로딩 스켈레톤 + 에러 처리 포함)
-const IdeaImage: React.FC<{ url: string; alt: string; blue?: boolean }> = ({ url, alt, blue }) => {
+// AI 이미지 (순차 로드 + 자동 재시도)
+const IdeaImage: React.FC<{ url: string; alt: string; blue?: boolean; delay?: number }> = ({ url, alt, blue, delay = 0 }) => {
   const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState(false);
-  if (error) return null;
+  const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const retryRef = React.useRef(0);
+
+  // delay 이후에 로드 시작 (동시 요청 방지)
+  React.useEffect(() => {
+    const t = setTimeout(() => setSrc(url), delay);
+    return () => clearTimeout(t);
+  }, [url, delay]);
+
+  const handleError = () => {
+    if (retryRef.current < 3) {
+      retryRef.current += 1;
+      // 재시도: seed 값을 바꿔서 새 요청
+      const newUrl = url.replace(/seed=\d+/, `seed=${Math.floor(Math.random() * 99999)}`);
+      setTimeout(() => setSrc(newUrl), 2000 * retryRef.current);
+    } else {
+      setFailed(true);
+    }
+  };
+
+  if (failed) return null;
   return (
     <div className="flex-shrink-0 w-32 flex flex-col gap-1">
       <div
@@ -31,18 +51,21 @@ const IdeaImage: React.FC<{ url: string; alt: string; blue?: boolean }> = ({ url
         style={{ minHeight: 120 }}
       >
         {!loaded && (
-          <div className="absolute inset-0 bg-gray-100 animate-pulse flex items-center justify-center rounded-xl">
+          <div className="absolute inset-0 bg-gray-100 animate-pulse flex items-center justify-center rounded-xl flex-col gap-1">
             <span className="text-xl">🎨</span>
+            <span className="text-xs text-gray-400">생성 중...</span>
           </div>
         )}
-        <img
-          src={url}
-          alt={`${alt} 적용 예시`}
-          className="w-full h-full object-cover"
-          style={{ minHeight: 120, display: loaded ? "block" : "none" }}
-          onLoad={() => setLoaded(true)}
-          onError={() => setError(true)}
-        />
+        {src && (
+          <img
+            src={src}
+            alt={`${alt} 적용 예시`}
+            className="w-full h-full object-cover"
+            style={{ minHeight: 120, display: loaded ? "block" : "none" }}
+            onLoad={() => setLoaded(true)}
+            onError={handleError}
+          />
+        )}
       </div>
       {loaded && <p className={`text-xs text-center leading-tight ${blue ? "text-blue-400" : "text-gray-400"}`}>🤖 적용 예상 모습</p>}
     </div>
@@ -313,7 +336,7 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
 
               {/* 오른쪽: AI 생성 이미지 */}
               {idea.imageUrl && (
-                <IdeaImage url={idea.imageUrl} alt={idea.name} />
+                <IdeaImage url={idea.imageUrl} alt={idea.name} delay={i * 1500} />
               )}
             </div>
           </div>
@@ -448,7 +471,7 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                 </div>
                 {/* 오른쪽: AI 생성 이미지 */}
                 {idea.imageUrl && (
-                  <IdeaImage url={idea.imageUrl} alt={idea.name} blue />
+                  <IdeaImage url={idea.imageUrl} alt={idea.name} blue delay={idx * 1500} />
                 )}
               </div>
             </div>
