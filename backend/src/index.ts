@@ -187,25 +187,18 @@ io.on("connection", (socket) => {
         });
         console.log(`분석 완료 (방: ${currentRoom})`);
 
-        // 효과예측형·속성분석형: 이미지를 생성되는 대로 하나씩 스트리밍
+        // 효과예측형·속성분석형: 이미지 URL 즉시 전송 (브라우저가 직접 로드)
         if (
           (agentType === "emphasis" || agentType === "attribute") &&
           result.ideas &&
           Array.isArray(result.ideas)
         ) {
-          const ideaList = result.ideas as any[];
-          ideaList.forEach(async (idea: any, idx: number) => {
-            try {
-              const matchingIdea = ideas.find(i => i.title === idea.name);
-              const imageUrl = await generateIdeaImage(idea.name, matchingIdea?.content || idea.name);
-              if (imageUrl) {
-                io.to(currentRoom).emit("analysis-image", { index: idx, imageUrl, agentType });
-                console.log(`🎨 이미지 전송 완료: ${idea.name}`);
-              }
-            } catch (e) {
-              console.error(`이미지 생성 실패: ${idea.name}`, e);
-            }
+          (result.ideas as any[]).forEach((idea: any, idx: number) => {
+            const matchingIdea = ideas.find(i => i.title === idea.name);
+            const imageUrl = generateIdeaImage(idea.name, matchingIdea?.content || idea.name);
+            io.to(currentRoom).emit("analysis-image", { index: idx, imageUrl, agentType });
           });
+          console.log(`🎨 이미지 URL ${(result.ideas as any[]).length}개 전송 완료`);
         }
       } catch (error) {
         // 실제 에러 메시지를 그대로 전달 (API 키 오류, 모델 오류 등 디버깅용)

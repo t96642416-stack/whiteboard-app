@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   AgentAnalysisResult,
   PerspectiveAnalysis,
@@ -18,6 +18,36 @@ interface Props {
   result: AgentAnalysisResult;
   onAddIdea?: (title: string, content: string, snapshot?: AnalysisSnapshot) => void;
 }
+
+// AI 이미지 (로딩 스켈레톤 + 에러 처리 포함)
+const IdeaImage: React.FC<{ url: string; alt: string; blue?: boolean }> = ({ url, alt, blue }) => {
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+  if (error) return null;
+  return (
+    <div className="flex-shrink-0 w-32 flex flex-col gap-1">
+      <div
+        className={`rounded-xl overflow-hidden shadow-sm relative ${blue ? "border-2 border-blue-200" : "border border-gray-100"}`}
+        style={{ minHeight: 120 }}
+      >
+        {!loaded && (
+          <div className="absolute inset-0 bg-gray-100 animate-pulse flex items-center justify-center rounded-xl">
+            <span className="text-xl">🎨</span>
+          </div>
+        )}
+        <img
+          src={url}
+          alt={`${alt} 적용 예시`}
+          className="w-full h-full object-cover"
+          style={{ minHeight: 120, display: loaded ? "block" : "none" }}
+          onLoad={() => setLoaded(true)}
+          onError={() => setError(true)}
+        />
+      </div>
+      {loaded && <p className={`text-xs text-center leading-tight ${blue ? "text-blue-400" : "text-gray-400"}`}>🤖 적용 예상 모습</p>}
+    </div>
+  );
+};
 
 // 드래그 가능한 카드 래퍼
 const DraggableCard: React.FC<{
@@ -283,17 +313,7 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
 
               {/* 오른쪽: AI 생성 이미지 */}
               {idea.imageUrl && (
-                <div className="flex-shrink-0 w-32 flex flex-col gap-1">
-                  <div className="rounded-xl overflow-hidden border border-gray-100 shadow-sm h-full" style={{ minHeight: 120 }}>
-                    <img
-                      src={idea.imageUrl}
-                      alt={`${idea.name} 적용 예시`}
-                      className="w-full h-full object-cover"
-                      style={{ minHeight: 120 }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-400 text-center leading-tight">🤖 적용 예상 모습</p>
-                </div>
+                <IdeaImage url={idea.imageUrl} alt={idea.name} />
               )}
             </div>
           </div>
@@ -428,17 +448,7 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                 </div>
                 {/* 오른쪽: AI 생성 이미지 */}
                 {idea.imageUrl && (
-                  <div className="flex-shrink-0 w-32 flex flex-col gap-1">
-                    <div className="rounded-xl overflow-hidden border-2 border-blue-200 shadow-sm" style={{ minHeight: 120 }}>
-                      <img
-                        src={idea.imageUrl}
-                        alt={`${idea.name} 적용 예시`}
-                        className="w-full h-full object-cover"
-                        style={{ minHeight: 120 }}
-                      />
-                    </div>
-                    <p className="text-xs text-blue-400 text-center leading-tight">🤖 적용 예상 모습</p>
-                  </div>
+                  <IdeaImage url={idea.imageUrl} alt={idea.name} blue />
                 )}
               </div>
             </div>
