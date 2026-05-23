@@ -581,7 +581,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                 {/* 메인 카드 */}
                 <div
                   className="rounded-2xl"
-                  style={{ backgroundColor: "#EEEEFF", border: "1.5px solid #C8C6F6", padding: "20px 20px 20px 20px" }}
+                  style={{ backgroundColor: "#F6F6FF", border: "1.5px solid #C8C6F6", padding: "20px 20px 20px 20px" }}
                 >
                   {/* 인삿말 */}
                   <p className="font-bold text-gray-900 leading-relaxed mb-4" style={{ fontSize: 13 }}>
