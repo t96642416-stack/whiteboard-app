@@ -26,6 +26,8 @@ interface BoardProps {
   topic: string;
   onTopicChange: (topic: string) => void;
   onTopicFilesChange?: (files: AnalysisFile[]) => void;
+  pendingCanvasImage?: string | null;
+  onCanvasImageAdded?: () => void;
   onAddIdea: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[], snapshot?: import("../types").AnalysisSnapshot) => void;
   onDeleteIdea: (id: string) => void;
   onEditIdea: (id: string, title: string, content: string, category: IdeaCategory, color: string, attachments?: IdeaAttachment[]) => void;
@@ -41,6 +43,8 @@ const Board: React.FC<BoardProps> = ({
   topic,
   onTopicChange,
   onTopicFilesChange,
+  pendingCanvasImage,
+  onCanvasImageAdded,
   onAddIdea,
   onDeleteIdea,
   onEditIdea,
@@ -559,6 +563,31 @@ const Board: React.FC<BoardProps> = ({
     reader.readAsDataURL(file);
     e.target.value = "";
   };
+
+  // 외부에서 캔버스 이미지 추가 요청
+  useEffect(() => {
+    if (!pendingCanvasImage) return;
+    const imgEl = new window.Image();
+    imgEl.onload = () => {
+      const maxW = 600;
+      const scale = imgEl.naturalWidth > maxW ? maxW / imgEl.naturalWidth : 1;
+      const w = Math.round(imgEl.naturalWidth * scale);
+      const h = Math.round(imgEl.naturalHeight * scale);
+      const rect = canvasRef.current?.getBoundingClientRect();
+      const centerX = rect ? (rect.width / 2 - offset.x) / zoom : 200;
+      const centerY = rect ? (rect.height / 2 - offset.y) / zoom : 200;
+      setCanvasImages(prev => [...prev, {
+        id: `img-${Date.now()}`,
+        src: pendingCanvasImage,
+        x: centerX - w / 2,
+        y: centerY - h / 2,
+        width: w,
+        height: h,
+      }]);
+      onCanvasImageAdded?.();
+    };
+    imgEl.src = pendingCanvasImage;
+  }, [pendingCanvasImage]);
 
   const handleTopicBlur = () => { setEditingTopic(false); onTopicChange(localTopic); };
   const handleTopicKeyDown = (e: React.KeyboardEvent) => {

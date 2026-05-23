@@ -368,9 +368,12 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
               </span>
             </div>
 
-            {/* 텍스트 + 이미지 세로 배치 */}
-            <div className="space-y-2">
-              {/* 효과 목록 + 유사 사례 */}
+            {/* 이미지 (상단) */}
+            <IdeaImage alt={idea.name}
+              onApplyImage={onApplyImage ? (url) => onApplyImage(idea.name, url) : undefined} />
+
+            {/* 효과 목록 + 유사 사례 */}
+            <div className="space-y-2 mt-2">
               <div className="space-y-2">
                 {idea.effects.map((effect, j) => {
                   const { cleanText: noteText, source: src } = effect.note
@@ -421,9 +424,6 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
                 )}
               </div>
 
-              {/* 이미지 (전체 너비) */}
-              <IdeaImage alt={idea.name}
-                onApplyImage={onApplyImage ? (url) => onApplyImage(idea.name, url) : undefined} />
             </div>
           </div>
         ))}
@@ -496,8 +496,11 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                   아이디어 {label}
                 </span>
               </div>
-              {/* 텍스트 + 이미지 세로 배치 */}
-              <div className="space-y-2">
+              {/* 이미지 (상단) */}
+              <IdeaImage alt={idea.name} blue
+                onApplyImage={onApplyImage ? (url) => onApplyImage(idea.name, url) : undefined} />
+
+              <div className="space-y-2 mt-2">
                 <div className="grid grid-cols-2 gap-2">
                 {/* 장점 */}
                 <div className="rounded-lg p-3" style={{ backgroundColor: "#f0fdf4" }}>
@@ -568,9 +571,6 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                   </div>
                 </div>
               </div>
-                {/* 이미지 (전체 너비) */}
-                <IdeaImage alt={idea.name} blue
-                  onApplyImage={onApplyImage ? (url) => onApplyImage(idea.name, url) : undefined} />
               </div>
             </div>
             </DraggableCard>

@@ -86,6 +86,7 @@ function App() {
   const [users, setUsers] = useState<{ name: string; color: string }[]>([]);
   const [topic, setTopic] = useState("");
   const [topicFiles, setTopicFiles] = useState<AnalysisFile[]>([]);
+  const [pendingCanvasImage, setPendingCanvasImage] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [agentAnalysisResult, setAgentAnalysisResult] = useState<AgentAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -267,20 +268,8 @@ function App() {
   }, []);
 
   // AI 분석 이미지를 보드 카드에 적용
-  const handleApplyImage = useCallback((ideaName: string, imageUrl: string) => {
-    setIdeas((prev) => {
-      const idea = prev.find(i => i.title === ideaName);
-      if (!idea) return prev;
-      getSocket().emit("idea-updated", {
-        ideaId: idea.id,
-        title: idea.title,
-        content: idea.content,
-        category: idea.category,
-        color: idea.color,
-        aiImageUrl: imageUrl,
-      });
-      return prev.map(i => i.id === idea.id ? { ...i, aiImageUrl: imageUrl } : i);
-    });
+  const handleApplyImage = useCallback((_ideaName: string, imageUrl: string) => {
+    setPendingCanvasImage(imageUrl);
   }, []);
 
   const handleAddComment = useCallback((ideaId: string, text: string) => {
@@ -376,6 +365,8 @@ function App() {
           topic={topic}
           onTopicChange={handleTopicChange}
           onTopicFilesChange={setTopicFiles}
+          pendingCanvasImage={pendingCanvasImage}
+          onCanvasImageAdded={() => setPendingCanvasImage(null)}
           onAddIdea={handleAddIdea}
           onDeleteIdea={handleDeleteIdea}
           onEditIdea={handleEditIdea}
