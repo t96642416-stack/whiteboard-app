@@ -628,17 +628,6 @@ const Board: React.FC<BoardProps> = ({
               </div>
             </div>
             <div className="flex items-center gap-1.5 flex-wrap">
-              {editingTopic ? (
-                <input autoFocus type="text" value={localTopic}
-                  onChange={e => setLocalTopic(e.target.value)}
-                  onBlur={handleTopicBlur} onKeyDown={handleTopicKeyDown}
-                  className="px-2 py-0.5 text-sm border border-blue-400 rounded focus:outline-none text-gray-800 w-64" />
-              ) : (
-                <button onClick={() => setEditingTopic(true)}
-                  className={`text-sm transition-colors ${localTopic ? "text-gray-700 font-medium hover:text-blue-600" : "text-gray-400 hover:text-blue-500"}`}>
-                  {localTopic || "회의 주제를 입력하세요..."}
-                </button>
-              )}
               {/* 파일 첨부 버튼 */}
               <input ref={topicFileInputRef} type="file" multiple accept=".txt,.md,.csv,.json,.pdf,image/*" className="hidden" onChange={handleTopicFileChange} />
               <button
@@ -663,6 +652,19 @@ const Board: React.FC<BoardProps> = ({
                   </button>
                 </span>
               ))}
+              {/* 구분선 */}
+              <span className="text-gray-200">|</span>
+              {editingTopic ? (
+                <input autoFocus type="text" value={localTopic}
+                  onChange={e => setLocalTopic(e.target.value)}
+                  onBlur={handleTopicBlur} onKeyDown={handleTopicKeyDown}
+                  className="px-2 py-0.5 text-sm border border-blue-400 rounded focus:outline-none text-gray-800 w-64" />
+              ) : (
+                <button onClick={() => setEditingTopic(true)}
+                  className={`text-sm transition-colors ${localTopic ? "text-gray-700 font-medium hover:text-blue-600" : "text-gray-400 hover:text-blue-500"}`}>
+                  {localTopic || "회의 주제를 입력하세요..."}
+                </button>
+              )}
             </div>
           </div>
         </div>
