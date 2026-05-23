@@ -325,9 +325,9 @@ export function generateIdeaImage(ideaName: string, ideaContent: string, topic?:
   const contextPart = topic
     ? `${topic} space with "${ideaName}" concept applied`
     : `"${ideaName}" concept applied`;
-  const prompt = `realistic professional interior photo showing ${contextPart}: ${ideaContent}, modern design, natural lighting, people naturally using the space, photorealistic, no text, no labels`;
+  const prompt = `professional interior photo, ${contextPart}: ${ideaContent}, modern, natural lighting, people using the space, photorealistic, no text`;
   const seed = Math.floor(Math.random() * 9999);
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=600&height=400&nologo=true&seed=${seed}&model=flux`;
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=352&nologo=true&seed=${seed}&model=turbo`;
 }
 
 export async function chatWithAI(
