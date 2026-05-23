@@ -327,7 +327,7 @@ export function generateIdeaImage(ideaName: string, ideaContent: string, topic?:
     : `"${ideaName}" concept applied`;
   const prompt = `professional interior photo, ${contextPart}: ${ideaContent}, modern, natural lighting, people using the space, photorealistic, no text`;
   const seed = Math.floor(Math.random() * 9999);
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=352&nologo=true&seed=${seed}&model=turbo`;
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=352&nologo=true&seed=${seed}&model=flux`;
 }
 
 export async function chatWithAI(
