@@ -23,7 +23,18 @@ interface AIPanelProps {
   onAddIdea?: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[], snapshot?: AnalysisSnapshot) => void;
   onApplyImage?: (ideaName: string, imageUrl: string) => void;
   onUpdateHistory?: (id: string, updated: AgentAnalysisResult) => void;
+  activeTab: "analysis" | "chat" | "meeting";
+  onTabChange: (tab: "analysis" | "chat" | "meeting") => void;
 }
+
+const AGENT_PILL = {
+  suggestion: { bg: "#FEF3C7", text: "#92400E" },
+  question:   { bg: "#EDE9FE", text: "#5B21B6" },
+  emphasis:   { bg: "#FED7AA", text: "#9A3412" },
+  attribute:  { bg: "#D1FAE5", text: "#065F46" },
+  guide:      { bg: "#FCE7F3", text: "#9D174D" },
+  advise:     { bg: "#DDD6FE", text: "#4C1D95" },
+};
 
 const AIPanel: React.FC<AIPanelProps> = ({
   analysisResult,
@@ -41,12 +52,13 @@ const AIPanel: React.FC<AIPanelProps> = ({
   onAddIdea,
   onApplyImage,
   onUpdateHistory,
+  activeTab,
+  onTabChange,
 }) => {
   const [inputText, setInputText] = useState("");
   const [aiInputText, setAiInputText] = useState("");
   const [useSearch, setUseSearch] = useState(false);
   const aiChatEndRef = useRef<HTMLDivElement>(null);
-  const [activeTab, setActiveTab] = useState<"analysis" | "chat" | "meeting">("analysis");
   const [showAgentList, setShowAgentList] = useState(false);
   const [showInitial, setShowInitial] = useState(false);
   const [showAnalysisHistory, setShowAnalysisHistory] = useState(false);
@@ -252,33 +264,34 @@ const AIPanel: React.FC<AIPanelProps> = ({
     const meetingText = transcriptLines.join("\n");
     const message = `다음은 팀 회의에서 나온 대화 내용입니다. 보드의 아이디어들과 연결해서 종합적으로 분석해주세요.\n\n[회의 내용]\n${meetingText}\n\n위 회의 내용을 바탕으로: 1) 어떤 아이디어가 더 지지받았는지, 2) 회의에서 나온 새로운 인사이트, 3) 다음 액션 플랜을 정리해주세요.`;
     onSendChat(message);
-    setActiveTab("chat");
+    onTabChange("chat");
   };
 
   const hasResult = !!(analysisResult || agentAnalysisResult);
   // 결과가 있고 초기화 요청 없을 때만 결과 표시
   const showResult = hasResult && !showInitial;
 
-  // 에이전트 목록 컴포넌트 (공용)
+  // 에이전트 목록 컴포넌트 (pill 스타일)
   const AgentListItems = ({ compact = false }: { compact?: boolean }) => (
-    <div className="space-y-1 mt-2">
-      {AGENT_OPTIONS.map((agent) => (
-        <button
-          key={agent.type}
-          onClick={() => handleAgentClick(agent.type)}
-          className={`w-full text-left rounded-xl hover:bg-purple-50 transition-colors group flex items-start gap-2.5 border border-transparent hover:border-purple-100 ${compact ? "px-2 py-2" : "px-3 py-2.5"}`}
-        >
-          <span className={`flex-shrink-0 mt-0.5 ${compact ? "text-base" : "text-lg"}`}>{agent.emoji}</span>
-          <div>
-            <div className={`font-semibold text-gray-800 group-hover:text-purple-700 leading-tight ${compact ? "text-xs" : "text-sm"}`}>
+    <div className="divide-y divide-gray-100">
+      {AGENT_OPTIONS.map((agent) => {
+        const pill = AGENT_PILL[agent.type as keyof typeof AGENT_PILL] ?? { bg: "#F3F4F6", text: "#374151" };
+        return (
+          <button
+            key={agent.type}
+            onClick={() => handleAgentClick(agent.type)}
+            className={`w-full text-left hover:bg-gray-50 transition-colors flex items-center gap-3 ${compact ? "px-3 py-2.5" : "px-5 py-3.5"}`}
+          >
+            <span
+              className="px-2.5 py-1 rounded-full text-xs font-semibold flex-shrink-0"
+              style={{ backgroundColor: pill.bg, color: pill.text }}
+            >
               {agent.name}
-            </div>
-            <div className={`text-gray-400 group-hover:text-purple-500 mt-0.5 leading-snug ${compact ? "text-xs" : "text-xs"}`}>
-              {agent.description}
-            </div>
-          </div>
-        </button>
-      ))}
+            </span>
+            <span className="text-xs text-gray-500">{agent.description}</span>
+          </button>
+        );
+      })}
     </div>
   );
 
@@ -381,107 +394,66 @@ const AIPanel: React.FC<AIPanelProps> = ({
         />
       </div>
 
-      {/* 헤더 */}
-      <div className="px-4 py-3 border-b border-gray-100">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="font-bold text-gray-800 text-sm flex items-center gap-2">
-            <span className="w-6 h-6 rounded bg-blue-100 flex items-center justify-center">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
-                <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </span>
-            AI 분석 패널
-          </h2>
-          {isAnalyzing ? (
-            <span className="text-xs text-orange-500 font-medium flex items-center gap-1.5">
-              <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              분석 중...
-            </span>
-          ) : showResult ? (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-green-600 font-medium flex items-center gap-1">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                {(AGENT_OPTIONS.find((a) => a.type === (agentAnalysisResult as any)?.agentType) ||
-                  AGENT_OPTIONS.find((a) => a.type === analysisHistory[0]?.agentType))?.name || "속성 분석형"} 결과 완료
-              </span>
-              <button
-                onClick={() => { setShowAnalysisHistory(true); setViewingHistoryItem(null); }}
-                className="text-xs text-gray-400 hover:text-purple-500 flex items-center gap-1 transition-colors"
-                title="분석 내역 보기"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                내역 {analysisHistory.length > 0 && <span className="bg-purple-100 text-purple-600 rounded-full px-1">{analysisHistory.length}</span>}
-              </button>
-            </div>
-          ) : analysisHistory.length > 0 ? (
-            <button
-              onClick={() => { setShowAnalysisHistory(true); setViewingHistoryItem(null); }}
-              className="text-xs text-gray-400 hover:text-purple-500 flex items-center gap-1 transition-colors"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              분석 내역 <span className="bg-purple-100 text-purple-600 rounded-full px-1">{analysisHistory.length}</span>
-            </button>
-          ) : null}
-        </div>
-
-        {/* 탭 */}
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-          <button
-            onClick={() => { setActiveTab("analysis"); setShowAnalysisHistory(false); setViewingHistoryItem(null); }}
-            className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all relative ${
-              activeTab === "analysis" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            분석 결과
-            {analysisHistory.length > 0 && activeTab !== "analysis" && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full text-white text-xs flex items-center justify-center">
-                {analysisHistory.length > 9 ? "9+" : analysisHistory.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab("chat")}
-            className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all relative ${
-              activeTab === "chat" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            채팅
-            {chatMessages.length > 0 && activeTab !== "chat" && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full text-white text-xs flex items-center justify-center">
-                {chatMessages.length > 9 ? "9+" : chatMessages.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab("meeting")}
-            className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all relative ${
-              activeTab === "meeting" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            🎤 회의
-            {isRecording && (
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-            )}
-          </button>
-        </div>
-      </div>
+      {/* 분석 탭 상태 표시 (헤더 없이, 탭 콘텐츠 위에 작게 표시) */}
 
       {/* 컨텐츠 */}
       <div className="flex-1 overflow-y-auto">
 
         {/* ── 분석 결과 탭 ── */}
         {activeTab === "analysis" && (
-          <div className="p-4 flex flex-col">
+          <div className="flex flex-col">
+            {/* A↑ 버튼 + 분석 상태 표시 */}
+            <div className="flex items-center justify-between px-4 pt-4 pb-2">
+              <div className="flex items-center gap-2">
+                {isAnalyzing ? (
+                  <span className="text-xs text-orange-500 font-medium flex items-center gap-1.5">
+                    <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    분석 중...
+                  </span>
+                ) : showResult ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      {(AGENT_OPTIONS.find((a) => a.type === (agentAnalysisResult as any)?.agentType) ||
+                        AGENT_OPTIONS.find((a) => a.type === analysisHistory[0]?.agentType))?.name || "속성 분석형"} 결과 완료
+                    </span>
+                    <button
+                      onClick={() => { setShowAnalysisHistory(true); setViewingHistoryItem(null); }}
+                      className="text-xs text-gray-400 hover:text-purple-500 flex items-center gap-1 transition-colors"
+                      title="분석 내역 보기"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      내역 {analysisHistory.length > 0 && <span className="bg-purple-100 text-purple-600 rounded-full px-1">{analysisHistory.length}</span>}
+                    </button>
+                  </div>
+                ) : analysisHistory.length > 0 ? (
+                  <button
+                    onClick={() => { setShowAnalysisHistory(true); setViewingHistoryItem(null); }}
+                    className="text-xs text-gray-400 hover:text-purple-500 flex items-center gap-1 transition-colors"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    분석 내역 <span className="bg-purple-100 text-purple-600 rounded-full px-1">{analysisHistory.length}</span>
+                  </button>
+                ) : null}
+              </div>
+              <button
+                className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-md"
+                style={{ background: "linear-gradient(135deg, #7C3AED, #4F46E5)" }}
+              >
+                A↑
+              </button>
+            </div>
 
+          <div className="p-4 flex flex-col">
             {/* ── 분석 내역 목록 ── */}
             {showAnalysisHistory && !viewingHistoryItem ? (
               <div>
@@ -569,9 +541,10 @@ const AIPanel: React.FC<AIPanelProps> = ({
                     : null}
               </>
             ) : !showAnalysisHistory ? (
-              /* 초기 상태 - AI 말풍선 그리팅 */
+              /* 초기 상태 - AI 말풍선 그리팅 + 에이전트 목록 */
               <div className="pt-2">
-                <div className="flex items-start gap-2.5">
+                {/* AI 말풍선 */}
+                <div className="flex items-start gap-2.5 px-4">
                   <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
                     <span className="text-base">🤖</span>
                   </div>
@@ -579,7 +552,6 @@ const AIPanel: React.FC<AIPanelProps> = ({
                     <p className="text-sm text-gray-800 font-medium leading-relaxed">
                       안녕하세요! 아이디어 분석을 도와드릴게요.
                     </p>
-                    {/* 현재 카테고리 필터 표시 */}
                     {selectedCategory !== "all" ? (() => {
                       const cat = IDEA_CATEGORIES.find((c) => c.id === selectedCategory);
                       return cat ? (
@@ -596,43 +568,46 @@ const AIPanel: React.FC<AIPanelProps> = ({
                         분석 방식을 선택해주세요 👇
                       </p>
                     )}
-                    {selectedCategory === "all" && <AgentListItems />}
                     {selectedCategory !== "all" && (
-                      <>
-                        <p className="text-sm text-gray-600 mt-2">분석 방식을 선택해주세요 👇</p>
-                        <AgentListItems />
-                      </>
+                      <p className="text-sm text-gray-600 mt-2">분석 방식을 선택해주세요 👇</p>
                     )}
-
-                    {/* 실시간 검색 토글 */}
-                    <div className="mt-3 pt-3 border-t border-purple-100">
-                      <button
-                        type="button"
-                        onClick={() => setUseSearch((v) => !v)}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 transition-all ${
-                          useSearch
-                            ? "border-green-400 bg-green-50"
-                            : "border-gray-200 bg-white hover:border-gray-300"
-                        }`}
-                      >
-                        <span className="text-base">🔍</span>
-                        <div className="flex-1 text-left">
-                          <div className={`text-xs font-semibold ${useSearch ? "text-green-700" : "text-gray-600"}`}>
-                            실시간 검색 기반 분석
-                            {useSearch && <span className="ml-1.5 text-xs bg-green-500 text-white px-1.5 py-0.5 rounded-full">ON</span>}
-                          </div>
-                          <div className="text-xs text-gray-400 mt-0.5">
-                            {useSearch ? "네이버 검색 자료를 참고해 더 정확하게 분석해요" : "켜면 네이버 실시간 검색 결과를 참고해요"}
-                          </div>
-                        </div>
-                        <div className={`w-10 h-5 rounded-full transition-all flex items-center px-0.5 ${useSearch ? "bg-green-500" : "bg-gray-200"}`}>
-                          <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-all ${useSearch ? "translate-x-5" : "translate-x-0"}`} />
-                        </div>
-                      </button>
-                    </div>
-
-                    <FileAttachSection />
                   </div>
+                </div>
+
+                {/* 에이전트 목록 (pill 스타일) */}
+                <div className="mt-3">
+                  <AgentListItems />
+                </div>
+
+                {/* 실시간 검색 토글 */}
+                <div className="px-4 mt-3 pt-3 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setUseSearch((v) => !v)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 transition-all ${
+                      useSearch
+                        ? "border-green-400 bg-green-50"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                    }`}
+                  >
+                    <span className="text-base">🔍</span>
+                    <div className="flex-1 text-left">
+                      <div className={`text-xs font-semibold ${useSearch ? "text-green-700" : "text-gray-600"}`}>
+                        실시간 검색 기반 분석
+                        {useSearch && <span className="ml-1.5 text-xs bg-green-500 text-white px-1.5 py-0.5 rounded-full">ON</span>}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {useSearch ? "네이버 검색 자료를 참고해 더 정확하게 분석해요" : "켜면 네이버 실시간 검색 결과를 참고해요"}
+                      </div>
+                    </div>
+                    <div className={`w-10 h-5 rounded-full transition-all flex items-center px-0.5 ${useSearch ? "bg-green-500" : "bg-gray-200"}`}>
+                      <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-all ${useSearch ? "translate-x-5" : "translate-x-0"}`} />
+                    </div>
+                  </button>
+                </div>
+
+                <div className="px-4">
+                  <FileAttachSection />
                 </div>
               </div>
             ) : null}
@@ -698,6 +673,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                 <div ref={aiChatEndRef} />
               </div>
             )}
+          </div>
           </div>
         )}
 
@@ -1017,32 +993,34 @@ const AIPanel: React.FC<AIPanelProps> = ({
         </div>
       )}
 
-      {/* 분석 탭 하단 - AI 채팅 입력창 (항상 표시) */}
+      {/* 분석 탭 하단 - AI 채팅 입력창 (피그마 디자인) */}
       {activeTab === "analysis" && (
-        <div className="border-t border-gray-100 px-3 pt-2 pb-2">
-          <div className="flex items-center gap-2">
-            <div className="flex-1 flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-full px-3 py-2 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100 transition-all">
-              <span className="text-sm flex-shrink-0">🤖</span>
-              <input
-                type="text"
-                value={aiInputText}
-                onChange={(e) => setAiInputText(e.target.value)}
-                onKeyDown={handleAIKeyDown}
-                placeholder="AI에게 질문하거나 지시해보세요..."
-                disabled={isAIResponding || isAnalyzing}
-                className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 focus:outline-none disabled:opacity-50"
-              />
-            </div>
+        <div className="border-t border-gray-100 px-3 py-3">
+          <div className="flex items-center gap-2 bg-gray-50 rounded-2xl px-3 py-2 border border-gray-200">
+            <button
+              onClick={() => setShowAgentList(v => !v)}
+              className="flex-shrink-0 px-3 py-1.5 bg-blue-500 text-white rounded-full text-xs font-semibold hover:bg-blue-600 transition-colors"
+            >
+              {showAgentList
+                ? "닫기"
+                : (AGENT_OPTIONS.find(a => a.type === (agentAnalysisResult as any)?.agentType)?.name ?? "AI 에이전트 선택")}
+            </button>
+            <input
+              type="text"
+              value={aiInputText}
+              onChange={(e) => setAiInputText(e.target.value)}
+              onKeyDown={handleAIKeyDown}
+              placeholder="AI에게 질문하거나 지시해보세요..."
+              disabled={isAIResponding || isAnalyzing}
+              className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400 text-gray-800 disabled:opacity-50"
+            />
             <button
               onClick={handleSendAIChat}
               disabled={!aiInputText.trim() || isAIResponding || isAnalyzing}
-              className="w-9 h-9 rounded-full bg-purple-500 hover:bg-purple-600 disabled:bg-gray-200
-                         flex items-center justify-center transition-all flex-shrink-0 shadow-sm"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white flex-shrink-0 disabled:opacity-50 transition-all"
+              style={{ background: "linear-gradient(135deg, #7C3AED, #4F46E5)" }}
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                stroke={!aiInputText.trim() || isAIResponding ? "#9ca3af" : "white"}
-                strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-              >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13" />
                 <polygon points="22 2 15 22 11 13 2 9 22 2" />
               </svg>

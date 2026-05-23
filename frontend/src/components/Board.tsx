@@ -36,9 +36,9 @@ interface BoardProps {
 
 const Board: React.FC<BoardProps> = ({
   ideas,
-  userName,
-  roomId,
-  users,
+  userName: _userName,
+  roomId: _roomId,
+  users: _users,
   topic,
   onTopicChange,
   onAddIdea,
@@ -46,7 +46,7 @@ const Board: React.FC<BoardProps> = ({
   onEditIdea,
   onAddComment,
   selectedCategory,
-  onCategoryChange,
+  onCategoryChange: _onCategoryChange,
   onSectionAnalysis,
 }) => {
   const [showModal, setShowModal] = useState(false);
@@ -338,9 +338,6 @@ const Board: React.FC<BoardProps> = ({
     ? ideas
     : ideas.filter(i => (i.category ?? "brainstorm") === selectedCategory);
 
-  const countByCategory = (catId: string) =>
-    catId === "all" ? ideas.length : ideas.filter(i => (i.category ?? "brainstorm") === catId).length;
-
   const handleTopicBlur = () => { setEditingTopic(false); onTopicChange(localTopic); };
   const handleTopicKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") { setEditingTopic(false); onTopicChange(localTopic); }
@@ -349,87 +346,6 @@ const Board: React.FC<BoardProps> = ({
 
   return (
     <div className="flex flex-col h-full">
-      {/* ── 상단 헤더 ── */}
-      <div className="px-5 py-3 border-b border-gray-200 bg-white flex-shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2.5 mb-1">
-              <h1 className="text-base font-bold text-blue-600 tracking-tight whitespace-nowrap">협업 화이트보드</h1>
-              <span className="text-gray-300">|</span>
-              <span className="text-xs text-gray-500 font-mono">{roomId}</span>
-              <div className="flex items-center gap-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-xs text-gray-500">{users.length}명 접속 중</span>
-              </div>
-              <div className="flex items-center gap-0.5">
-                {users.slice(0, 5).map(u => (
-                  <div key={u.name} title={u.name}
-                    className="w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold shadow-sm -ml-1 first:ml-0"
-                    style={{ backgroundColor: u.color, color: u.color === "#E5E7EB" ? "#374151" : "white" }}>
-                    {u.name.charAt(0).toUpperCase()}
-                  </div>
-                ))}
-                {users.length > 5 && <span className="text-xs text-gray-400 ml-1">+{users.length - 5}</span>}
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-gray-400">📌</span>
-              {editingTopic ? (
-                <input autoFocus type="text" value={localTopic}
-                  onChange={e => setLocalTopic(e.target.value)}
-                  onBlur={handleTopicBlur} onKeyDown={handleTopicKeyDown}
-                  className="px-2 py-0.5 text-sm border border-blue-400 rounded focus:outline-none text-gray-800 w-64" />
-              ) : (
-                <button onClick={() => setEditingTopic(true)}
-                  className={`text-sm transition-colors ${localTopic ? "text-gray-700 font-medium hover:text-blue-600" : "text-gray-400 hover:text-blue-500"}`}>
-                  {localTopic || "회의 주제를 입력하세요..."}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── 카테고리 필터 탭 (상단 고정) ── */}
-      <div className="px-5 py-2 bg-white border-b border-gray-100 flex-shrink-0">
-        <div className="flex items-center gap-1.5 overflow-x-auto">
-          <button
-            onClick={() => onCategoryChange("all")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${
-              selectedCategory === "all"
-                ? "bg-gray-800 text-white border-gray-800 shadow-sm"
-                : "bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:text-gray-700"
-            }`}
-          >
-            전체
-            <span className={`px-1.5 py-0.5 rounded-full text-xs ${
-              selectedCategory === "all" ? "bg-white bg-opacity-20 text-white" : "bg-gray-100 text-gray-500"
-            }`}>{ideas.length}</span>
-          </button>
-          {IDEA_CATEGORIES.map(cat => {
-            const count = countByCategory(cat.id);
-            const isActive = selectedCategory === cat.id;
-            return (
-              <button key={cat.id} onClick={() => onCategoryChange(cat.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border"
-                style={{
-                  backgroundColor: isActive ? cat.bg : "white",
-                  color: isActive ? cat.text : "#6b7280",
-                  borderColor: isActive ? cat.border : "#e5e7eb",
-                  boxShadow: isActive ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                }}>
-                {cat.emoji} {cat.label}
-                <span className="px-1.5 py-0.5 rounded-full text-xs"
-                  style={{
-                    backgroundColor: isActive ? "rgba(0,0,0,0.1)" : "#f3f4f6",
-                    color: isActive ? cat.text : "#9ca3af",
-                  }}>{count}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       {selectedCategory === "all" ? (
         /* ── 전체: 피그마 캔버스 ── */
         <div
@@ -455,6 +371,29 @@ const Board: React.FC<BoardProps> = ({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
+          {/* 주제 입력 오버레이 (캔버스 상단 왼쪽) */}
+          <div data-toolbar className="absolute top-4 left-4 z-20 flex items-center gap-2">
+            <span className="text-gray-300">📎</span>
+            {editingTopic ? (
+              <input
+                autoFocus
+                type="text"
+                value={localTopic}
+                onChange={e => setLocalTopic(e.target.value)}
+                onBlur={handleTopicBlur}
+                onKeyDown={handleTopicKeyDown}
+                className="text-sm border-0 border-b border-gray-300 focus:outline-none focus:border-violet-400 bg-transparent text-gray-700 w-64 pb-0.5"
+              />
+            ) : (
+              <button
+                onClick={() => setEditingTopic(true)}
+                className={`text-sm bg-transparent border-0 ${localTopic ? "text-gray-600 font-medium" : "text-gray-400"}`}
+              >
+                {localTopic || "회의 주제를 입력해주세요"}
+              </button>
+            )}
+          </div>
+
           {/* 섹션 모드 안내 배너 */}
           {isSectionMode && (
             <div data-toolbar className="absolute top-4 left-1/2 -translate-x-1/2 z-30 bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-lg flex items-center gap-2.5">
@@ -662,9 +601,8 @@ const Board: React.FC<BoardProps> = ({
             </div>
           )}
 
-          {/* ── 좌하단: 줌 컨트롤 + 섹션 버튼 ── */}
+          {/* ── 좌하단: 줌 컨트롤 ── */}
           <div data-toolbar className="absolute bottom-4 left-4 z-20 flex items-center gap-2">
-            {/* 줌 컨트롤 */}
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 px-1 py-1 flex items-center gap-0.5">
               <button onClick={() => setZoom(z => Math.max(0.2, z / 1.25))}
                 className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg text-lg font-bold leading-none transition-colors">−</button>
@@ -675,15 +613,27 @@ const Board: React.FC<BoardProps> = ({
               <button onClick={() => setZoom(z => Math.min(3, z * 1.25))}
                 className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg text-lg font-bold leading-none transition-colors">+</button>
             </div>
+          </div>
 
-            {/* 섹션 그리기 버튼 */}
+          {/* ── 하단 중앙: 아이디어 추가 + 섹션 추가 버튼 ── */}
+          <div data-toolbar className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
+            <button
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-1.5 px-5 py-2.5 text-white rounded-full text-sm font-semibold shadow-lg transition-all"
+              style={{ background: "linear-gradient(135deg, #7C3AED, #4F46E5)" }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              아이디어 추가
+            </button>
             <button
               onClick={() => setIsSectionMode(v => !v)}
               title="섹션 그리기 (드래그로 영역 지정)"
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold shadow-md border transition-all ${
+              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold shadow-md border transition-all ${
                 isSectionMode
                   ? "bg-indigo-600 text-white border-indigo-600"
-                  : "bg-white text-gray-600 border-gray-100 hover:border-indigo-300 hover:text-indigo-600"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600"
               }`}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -691,23 +641,7 @@ const Board: React.FC<BoardProps> = ({
                 <line x1="3" y1="9" x2="21" y2="9" strokeDasharray="3 2" />
                 <line x1="3" y1="15" x2="21" y2="15" strokeDasharray="3 2" />
               </svg>
-              섹션
-            </button>
-
-            {/* 유저·카드 수 */}
-            <div className="text-xs text-gray-400 bg-white bg-opacity-90 rounded-xl px-2.5 py-1.5 shadow-sm border border-gray-100">
-              {userName} · {ideas.length}개
-            </div>
-          </div>
-
-          {/* ── 우하단: 아이디어 추가 버튼 ── */}
-          <div data-toolbar className="absolute bottom-4 right-4 z-20">
-            <button onClick={() => setShowModal(true)}
-              className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-semibold shadow-lg transition-all">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-              아이디어 추가
+              섹션 추가
             </button>
           </div>
         </div>
