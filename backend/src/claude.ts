@@ -333,10 +333,13 @@ export function generateIdeaImage(ideaName: string, ideaContent: string, topic?:
 export async function chatWithAI(
   message: string,
   ideas: IdeaInput[],
-  agentType: AgentType = null
+  agentType: AgentType = null,
+  contextIdea: { title: string; content: string } | null = null
 ): Promise<string> {
-  const ideasContext =
-    ideas.length > 0
+  // 특정 카드가 선택된 경우 → 참고용 컨텍스트로 사용
+  const ideasContext = contextIdea
+    ? `사용자가 선택한 아이디어:\n제목: ${contextIdea.title}\n내용: ${contextIdea.content || "(내용 없음)"}\n\n`
+    : ideas.length > 0
       ? `현재 보드의 아이디어들:\n${ideas
           .map((idea, idx) => `${String.fromCharCode(65 + idx)}. ${idea.title}: ${idea.content}`)
           .join("\n")}\n\n`
@@ -345,7 +348,11 @@ export async function chatWithAI(
   // 음성 메시지 여부 감지
   const isVoiceMessage = message.startsWith("🎤 [음성]");
   const voiceInstruction = isVoiceMessage
-    ? "\n\n사용자가 음성으로 말한 내용입니다. 보드의 아이디어들과 연관지어 깊이 분석하고, 음성에서 나온 핵심 키워드나 관점을 아이디어 평가에 반영해주세요."
+    ? "\n\n사용자가 음성으로 말한 내용입니다. 선택된 아이디어와 연관지어 분석해주세요."
+    : "";
+
+  const contextInstruction = contextIdea
+    ? `\n- 사용자가 특정 아이디어 카드를 선택했습니다. 그 아이디어를 중심으로 질문에 답해주세요. A안/B안처럼 비교 분석하지 말고, 선택한 아이디어에 대해 참고·조언 형식으로 자연스럽게 답변하세요.`
     : "";
 
   const systemPrompt = `당신은 창의적 사고를 돕는 AI 퍼실리테이터입니다. 한국어로 답변해주세요.
@@ -354,7 +361,7 @@ export async function chatWithAI(
 - 자연스러운 문장으로만 작성하세요
 - 핵심만 2~4문장으로 간결하게
 - 항목을 나열할 때는 "첫째", "또한", "마지막으로" 같은 연결어를 쓰세요
-- 구어체로 친근하게 말하듯이 작성하세요${voiceInstruction}`;
+- 구어체로 친근하게 말하듯이 작성하세요${contextInstruction}${voiceInstruction}`;
 
   const response = await getClient().messages.create({
     model: "claude-opus-4-5",

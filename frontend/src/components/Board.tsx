@@ -34,6 +34,7 @@ interface BoardProps {
   onEditIdea: (id: string, title: string, content: string, category: IdeaCategory, color: string, attachments?: IdeaAttachment[]) => void;
   onAddComment: (ideaId: string, text: string) => void;
   onSectionAnalysis?: (ideas: Idea[], agentType: AgentType) => void;
+  onFocusedIdeaChange?: (idea: Idea | null) => void;
 }
 
 const Board: React.FC<BoardProps> = ({
@@ -52,6 +53,7 @@ const Board: React.FC<BoardProps> = ({
   onEditIdea,
   onAddComment,
   onSectionAnalysis,
+  onFocusedIdeaChange,
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingTopic, setEditingTopic] = useState(false);
@@ -141,6 +143,11 @@ const Board: React.FC<BoardProps> = ({
   const canvasRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setLocalTopic(topic); }, [topic]);
+
+  useEffect(() => {
+    const idea = focusedCardId ? ideas.find(i => i.id === focusedCardId) ?? null : null;
+    onFocusedIdeaChange?.(idea);
+  }, [focusedCardId, ideas]);
 
   // Escape / Delete / Undo 키 핸들러
   useEffect(() => {

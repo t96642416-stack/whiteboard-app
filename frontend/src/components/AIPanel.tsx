@@ -22,6 +22,7 @@ interface AIPanelProps {
   onAddIdea?: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[], snapshot?: AnalysisSnapshot) => void;
   onApplyImage?: (ideaName: string, imageUrl: string) => void;
   onUpdateHistory?: (id: string, updated: AgentAnalysisResult) => void;
+  contextIdea?: { title: string; content: string } | null;
 }
 
 const AIPanel: React.FC<AIPanelProps> = ({
@@ -39,6 +40,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
   onAddIdea,
   onApplyImage,
   onUpdateHistory,
+  contextIdea,
 }) => {
   const [inputText, setInputText] = useState("");
   const [aiInputText, setAiInputText] = useState("");
@@ -1001,6 +1003,14 @@ const AIPanel: React.FC<AIPanelProps> = ({
       {/* 분석 탭 하단 - AI 채팅 입력창 (항상 표시) */}
       {activeTab === "analysis" && (
         <div className="border-t border-gray-100 px-3 pt-2 pb-2">
+          {/* 선택된 카드 컨텍스트 표시 */}
+          {contextIdea && (
+            <div className="flex items-center gap-1.5 mb-1.5 px-1 py-1 bg-blue-50 rounded-lg">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#4F48ED" strokeWidth="2.5"><path d="M5 3h14M5 21h14M12 3v18M5 12h14"/></svg>
+              <span className="text-xs text-blue-600 font-medium truncate flex-1">{contextIdea.title} 참고 중</span>
+              <span className="text-xs text-blue-400">📌</span>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <div className="flex-1 flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-full px-3 py-2 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100 transition-all">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" className="flex-shrink-0"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>

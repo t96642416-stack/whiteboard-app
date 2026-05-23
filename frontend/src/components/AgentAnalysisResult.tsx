@@ -160,14 +160,6 @@ const DraggableCard: React.FC<{
       onDragStart={handleDragStart}
       className="relative group cursor-grab active:cursor-grabbing"
     >
-      {/* 드래그 핸들 (왼쪽) */}
-      <div className="absolute -left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-60 transition-opacity pointer-events-none">
-        <svg width="8" height="14" viewBox="0 0 8 14" fill="#6b7280">
-          <circle cx="2" cy="2" r="1.5"/><circle cx="6" cy="2" r="1.5"/>
-          <circle cx="2" cy="7" r="1.5"/><circle cx="6" cy="7" r="1.5"/>
-          <circle cx="2" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/>
-        </svg>
-      </div>
       {/* 빠른 추가 버튼 (우측 상단) */}
       {onAdd && (
         <button

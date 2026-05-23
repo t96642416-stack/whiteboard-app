@@ -87,6 +87,7 @@ function App() {
   const [topic, setTopic] = useState("");
   const [topicFiles, setTopicFiles] = useState<AnalysisFile[]>([]);
   const [pendingCanvasImage, setPendingCanvasImage] = useState<string | null>(null);
+  const [focusedIdea, setFocusedIdea] = useState<Idea | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [agentAnalysisResult, setAgentAnalysisResult] = useState<AgentAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -329,14 +330,17 @@ function App() {
 
   const handleSendAIMessage = useCallback((message: string) => {
     if (!message.trim()) return;
-    // 내 메시지를 먼저 로컬에 추가
     setAiChatMessages((prev) => [
       ...prev,
       { id: `user-${Date.now()}-${Math.random()}`, userName, message, timestamp: new Date().toISOString(), isAI: false, userColor },
     ]);
     setIsAIResponding(true);
-    getSocket().emit("user-message", { message, agentType: null });
-  }, [userName, userColor]);
+    getSocket().emit("user-message", {
+      message,
+      agentType: null,
+      contextIdea: focusedIdea ? { title: focusedIdea.title, content: focusedIdea.content } : null,
+    });
+  }, [userName, userColor, focusedIdea]);
 
   const handleClearChat = useCallback(() => {
     setChatMessages([]);
@@ -374,6 +378,7 @@ function App() {
           onTopicFilesChange={setTopicFiles}
           pendingCanvasImage={pendingCanvasImage}
           onCanvasImageAdded={() => setPendingCanvasImage(null)}
+          onFocusedIdeaChange={setFocusedIdea}
           onAddIdea={handleAddIdea}
           onDeleteIdea={handleDeleteIdea}
           onRestoreIdeas={handleRestoreIdeas}
@@ -399,6 +404,7 @@ function App() {
         onClearChat={handleClearChat}
         onAddIdea={handleAddIdea}
         onApplyImage={handleApplyImage}
+        contextIdea={focusedIdea ? { title: focusedIdea.title, content: focusedIdea.content } : null}
         onUpdateHistory={handleUpdateHistory}
       />
     </div>

@@ -211,9 +211,11 @@ io.on("connection", (socket) => {
     async ({
       message,
       agentType,
+      contextIdea,
     }: {
       message: string;
       agentType: string | null;
+      contextIdea?: { title: string; content: string } | null;
     }) => {
       if (!currentRoom) return;
 
@@ -227,7 +229,7 @@ io.on("connection", (socket) => {
       });
 
       try {
-        const aiResponse = await chatWithAI(message, ideas, agentType as any);
+        const aiResponse = await chatWithAI(message, ideas, agentType as any, contextIdea ?? null);
         io.to(currentRoom).emit("ai-response", {
           message: aiResponse,
           timestamp: new Date().toISOString(),
