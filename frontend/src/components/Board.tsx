@@ -626,29 +626,13 @@ const Board: React.FC<BoardProps> = ({
                 ))}
                 {users.length > 5 && <span className="text-xs text-gray-400 ml-1">+{users.length - 5}</span>}
               </div>
-            </div>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
-              </svg>
-              {editingTopic ? (
-                <input autoFocus type="text" value={localTopic}
-                  onChange={e => setLocalTopic(e.target.value)}
-                  onBlur={handleTopicBlur} onKeyDown={handleTopicKeyDown}
-                  className="px-2 py-0.5 text-sm border border-blue-400 rounded focus:outline-none text-gray-800 w-64" />
-              ) : (
-                <button onClick={() => setEditingTopic(true)}
-                  className={`text-sm transition-colors ${localTopic ? "text-gray-700 font-medium hover:text-blue-600" : "text-gray-400 hover:text-blue-500"}`}>
-                  {localTopic || "회의 주제를 입력하세요..."}
-                </button>
-              )}
               {/* 파일 첨부 버튼 */}
               <input ref={topicFileInputRef} type="file" multiple accept=".txt,.md,.csv,.json,.pdf,image/*" className="hidden" onChange={handleTopicFileChange} />
               <button
                 onClick={() => topicFileInputRef.current?.click()}
                 disabled={topicFiles.length >= 3}
-                className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-500 disabled:opacity-30 transition-colors"
-                title="회의 주제에 참고 파일 첨부"
+                className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-500 disabled:opacity-30 transition-colors ml-1"
+                title="회의 참고 파일 첨부"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
@@ -666,6 +650,19 @@ const Board: React.FC<BoardProps> = ({
                   </button>
                 </span>
               ))}
+            </div>
+            <div className="flex items-center gap-1.5">
+              {editingTopic ? (
+                <input autoFocus type="text" value={localTopic}
+                  onChange={e => setLocalTopic(e.target.value)}
+                  onBlur={handleTopicBlur} onKeyDown={handleTopicKeyDown}
+                  className="px-2 py-0.5 text-sm border border-blue-400 rounded focus:outline-none text-gray-800 w-64" />
+              ) : (
+                <button onClick={() => setEditingTopic(true)}
+                  className={`text-sm transition-colors ${localTopic ? "text-gray-700 font-medium hover:text-blue-600" : "text-gray-400 hover:text-blue-500"}`}>
+                  {localTopic || "회의 주제를 입력하세요..."}
+                </button>
+              )}
             </div>
           </div>
         </div>
