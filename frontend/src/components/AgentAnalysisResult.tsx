@@ -440,7 +440,7 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
 
               {/* 오른쪽: AI 생성 이미지 */}
               {idea.imageUrl && (
-                <IdeaImage url={idea.imageUrl} alt={idea.name} delay={i * 1500}
+                <IdeaImage url={idea.imageUrl} alt={idea.name}
                   onApply={onApplyImage ? () => onApplyImage(idea.name, idea.imageUrl!) : undefined} />
               )}
             </div>
@@ -591,7 +591,7 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                 </div>
                 {/* 오른쪽: AI 생성 이미지 */}
                 {idea.imageUrl && (
-                  <IdeaImage url={idea.imageUrl} alt={idea.name} blue delay={idx * 1500}
+                  <IdeaImage url={idea.imageUrl} alt={idea.name} blue
                     onApply={onApplyImage ? () => onApplyImage(idea.name, idea.imageUrl!) : undefined} />
                 )}
               </div>
