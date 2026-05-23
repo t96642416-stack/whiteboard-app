@@ -142,6 +142,46 @@ const IdeaImage: React.FC<{
   );
 };
 
+// 접었다 펼 수 있는 아이디어 블록 헤더
+const CollapsibleBlock: React.FC<{
+  label: string;       // "A", "B" 등
+  name: string;        // 아이디어명
+  badge?: { bg: string; text: string };
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}> = ({ label, name, badge, defaultOpen = true, children }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border border-gray-100 rounded-xl overflow-hidden mb-4 last:mb-0">
+      {/* 헤더 (클릭 토글) */}
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50 transition-colors select-none"
+        style={{ backgroundColor: open ? "#F6F7F9" : "white" }}
+      >
+        <span className="text-xs font-bold text-gray-500 flex-shrink-0">{label}</span>
+        <span className="text-xs font-bold text-gray-800 flex-1 text-left truncate">{name}</span>
+        {badge && (
+          <span className="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0"
+            style={{ backgroundColor: badge.bg, color: badge.text }}>
+            아이디어 {label}
+          </span>
+        )}
+        <svg
+          width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"
+          className="flex-shrink-0 transition-transform duration-200"
+          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {/* 내용 */}
+      {open && <div className="px-3 pb-3 pt-1">{children}</div>}
+    </div>
+  );
+};
+
 // 드래그 가능한 카드 래퍼
 const DraggableCard: React.FC<{
   title: string;
@@ -349,75 +389,67 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
         </div>
 
         {result.ideas.map((idea, i) => (
-          <div key={i} className="mb-6 pb-5 border-b border-gray-100 last:border-0 last:pb-0 last:mb-0">
-            {/* 아이디어 헤더 */}
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-bold text-gray-500">{String.fromCharCode(65 + i)}</span>
-              <span className="text-xs font-bold text-gray-800">{idea.name}</span>
-              <span className="ml-auto px-2 py-0.5 rounded-full text-xs font-semibold"
-                style={{ backgroundColor: IDEA_BADGE_COLORS[i % Object.keys(IDEA_BADGE_COLORS).length].bg, color: IDEA_BADGE_COLORS[i % Object.keys(IDEA_BADGE_COLORS).length].text }}>
-                아이디어 {String.fromCharCode(65 + i)}
-              </span>
-            </div>
-
+          <CollapsibleBlock
+            key={i}
+            label={String.fromCharCode(65 + i)}
+            name={idea.name}
+            badge={IDEA_BADGE_COLORS[i % Object.keys(IDEA_BADGE_COLORS).length]}
+          >
             {/* 이미지 (상단) */}
             <IdeaImage alt={idea.name}
               onApplyImage={onApplyImage ? (url) => onApplyImage(idea.name, url) : undefined} />
 
             {/* 효과 목록 + 유사 사례 */}
             <div className="space-y-2 mt-2">
-              <div className="space-y-2">
-                {idea.effects.map((effect, j) => {
-                  const { cleanText: noteText, source: src } = effect.note
-                    ? parseSourceRef(effect.note, sources || [])
-                    : { cleanText: "", source: null };
-                  return (
-                    <DraggableCard key={j} title={effect.title} content={`${effect.description}${noteText ? `\n\n${noteText}` : ""}`} snapshot={{ agentType: 'emphasis', itemData: { ideaName: idea.name, ideaIndex: i, effect } }} onAdd={onAddIdea}>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-600 font-medium flex-shrink-0">
-                            {effect.label}
-                          </span>
-                          <ET value={effect.title} className="text-xs font-bold text-indigo-700"
-                            onSave={onUpdateResult ? v => upd(["ideas", i, "effects", j, "title"], v) : undefined} />
-                        </div>
-                        <ET value={effect.description} className="text-xs text-gray-600 leading-relaxed mb-1" multiline
-                          onSave={onUpdateResult ? v => upd(["ideas", i, "effects", j, "description"], v) : undefined} />
-                        {effect.note && noteText && (
-                          src ? (
-                            <a href={src.link} target="_blank" rel="noopener noreferrer" draggable={false}
-                              className="text-xs text-green-700 hover:text-green-800 hover:underline flex items-center gap-1 leading-relaxed">
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                              </svg>
-                              {noteText}
-                            </a>
-                          ) : (
-                            <p className="text-xs text-gray-400 leading-relaxed flex items-center gap-1">
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                              </svg>
-                              <ET value={noteText} className="text-xs text-gray-400 leading-relaxed"
-                                onSave={onUpdateResult ? v => upd(["ideas", i, "effects", j, "note"], v) : undefined} />
-                            </p>
-                          )
-                        )}
+              {idea.effects.map((effect, j) => {
+                const { cleanText: noteText, source: src } = effect.note
+                  ? parseSourceRef(effect.note, sources || [])
+                  : { cleanText: "", source: null };
+                return (
+                  <DraggableCard key={j} title={effect.title} content={`${effect.description}${noteText ? `\n\n${noteText}` : ""}`} snapshot={{ agentType: 'emphasis', itemData: { ideaName: idea.name, ideaIndex: i, effect } }} onAdd={onAddIdea}>
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-600 font-medium flex-shrink-0">
+                          {effect.label}
+                        </span>
+                        <ET value={effect.title} className="text-xs font-bold text-indigo-700"
+                          onSave={onUpdateResult ? v => upd(["ideas", i, "effects", j, "title"], v) : undefined} />
                       </div>
-                    </DraggableCard>
-                  );
-                })}
+                      <ET value={effect.description} className="text-xs text-gray-600 leading-relaxed mb-1" multiline
+                        onSave={onUpdateResult ? v => upd(["ideas", i, "effects", j, "description"], v) : undefined} />
+                      {effect.note && noteText && (
+                        src ? (
+                          <a href={src.link} target="_blank" rel="noopener noreferrer" draggable={false}
+                            className="text-xs text-green-700 hover:text-green-800 hover:underline flex items-center gap-1 leading-relaxed">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                            {noteText}
+                          </a>
+                        ) : (
+                          <p className="text-xs text-gray-400 leading-relaxed flex items-center gap-1">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                            <ET value={noteText} className="text-xs text-gray-400 leading-relaxed"
+                              onSave={onUpdateResult ? v => upd(["ideas", i, "effects", j, "note"], v) : undefined} />
+                          </p>
+                        )
+                      )}
+                    </div>
+                  </DraggableCard>
+                );
+              })}
 
-                {idea.similarCase && (
-                  <div className="rounded-lg p-3" style={{ backgroundColor: "#f9fafb" }}>
-                    <p className="text-xs font-semibold text-gray-500 mb-1">유사 사례</p>
-                    <ET value={idea.similarCase} className="text-xs text-gray-600 leading-relaxed" multiline
-                      onSave={onUpdateResult ? v => upd(["ideas", i, "similarCase"], v) : undefined} />
-                  </div>
-                )}
-              </div>
-
+              {idea.similarCase && (
+                <div className="rounded-lg p-3" style={{ backgroundColor: "#f9fafb" }}>
+                  <p className="text-xs font-semibold text-gray-500 mb-1">유사 사례</p>
+                  <ET value={idea.similarCase} className="text-xs text-gray-600 leading-relaxed" multiline
+                    onSave={onUpdateResult ? v => upd(["ideas", i, "similarCase"], v) : undefined} />
+                </div>
+              )}
             </div>
-          </div>
+          </CollapsibleBlock>
         ))}
 
         {result.commonalities.length > 0 && (
@@ -478,94 +510,86 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
             idea.cons.length > 0 ? `단점: ${idea.cons.map(c => c.point).join(", ")}` : "",
           ].filter(Boolean).join("\n");
           return (
-            <DraggableCard key={idea.id} title={idea.name} content={ideaSummary} snapshot={{ agentType: 'attribute', itemData: { ...idea, index: idx } }} onAdd={onAddIdea}>
-            <div className="mb-5 pb-4 border-b border-gray-100 last:border-0 last:pb-0 last:mb-0">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-xs font-bold text-gray-500">{label}</span>
-                <span className="text-xs font-bold text-gray-800 flex-1">{idea.name}</span>
-                <span className="px-2 py-0.5 rounded-full text-xs font-semibold"
-                  style={{ backgroundColor: badge.bg, color: badge.text }}>
-                  아이디어 {label}
-                </span>
-              </div>
-              {/* 이미지 (상단) */}
-              <IdeaImage alt={idea.name} blue
-                onApplyImage={onApplyImage ? (url) => onApplyImage(idea.name, url) : undefined} />
+            <CollapsibleBlock key={idea.id} label={label} name={idea.name} badge={badge}>
+              <DraggableCard title={idea.name} content={ideaSummary} snapshot={{ agentType: 'attribute', itemData: { ...idea, index: idx } }} onAdd={onAddIdea}>
+                <div>
+                  {/* 이미지 (상단) */}
+                  <IdeaImage alt={idea.name} blue
+                    onApplyImage={onApplyImage ? (url) => onApplyImage(idea.name, url) : undefined} />
 
-              <div className="space-y-2 mt-2">
-                <div className="grid grid-cols-2 gap-2">
-                {/* 장점 */}
-                <div className="rounded-lg p-3" style={{ backgroundColor: "#f0fdf4" }}>
-                  <p className="text-xs font-bold text-green-700 mb-2">장점</p>
-                  <div className="space-y-2">
-                    {idea.pros.map((pro, j) => {
-                      const { cleanText: evText, source: src } = pro.evidence
-                        ? parseSourceRef(pro.evidence, sources || [])
-                        : { cleanText: "", source: null };
-                      return (
-                        <div key={j}>
-                          <p className="text-xs font-semibold text-gray-800 flex items-center gap-1">
-                            <span className="flex-shrink-0">{j + 1}</span>
-                            <ET value={pro.point} className="flex-1"
-                              onSave={onUpdateResult ? v => upd(["ideas", idx, "pros", j, "point"], v) : undefined} />
-                          </p>
-                          {pro.evidence && (
-                            src ? (
-                              <a href={src.link} target="_blank" rel="noopener noreferrer" draggable={false}
-                                className="text-xs text-green-700 hover:text-green-800 hover:underline mt-0.5 flex items-start gap-1 leading-relaxed">
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>{evText}
-                              </a>
-                            ) : (
-                              <p className="text-xs text-gray-400 mt-0.5 flex items-start gap-1 leading-relaxed">
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                <ET value={evText || pro.evidence} className="leading-relaxed"
-                                  onSave={onUpdateResult ? v => upd(["ideas", idx, "pros", j, "evidence"], v) : undefined} />
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    {/* 장점 */}
+                    <div className="rounded-lg p-3" style={{ backgroundColor: "#f0fdf4" }}>
+                      <p className="text-xs font-bold text-green-700 mb-2">장점</p>
+                      <div className="space-y-2">
+                        {idea.pros.map((pro, j) => {
+                          const { cleanText: evText, source: src } = pro.evidence
+                            ? parseSourceRef(pro.evidence, sources || [])
+                            : { cleanText: "", source: null };
+                          return (
+                            <div key={j}>
+                              <p className="text-xs font-semibold text-gray-800 flex items-center gap-1">
+                                <span className="flex-shrink-0">{j + 1}</span>
+                                <ET value={pro.point} className="flex-1"
+                                  onSave={onUpdateResult ? v => upd(["ideas", idx, "pros", j, "point"], v) : undefined} />
                               </p>
-                            )
-                          )}
-                        </div>
-                      );
-                    })}
+                              {pro.evidence && (
+                                src ? (
+                                  <a href={src.link} target="_blank" rel="noopener noreferrer" draggable={false}
+                                    className="text-xs text-green-700 hover:text-green-800 hover:underline mt-0.5 flex items-start gap-1 leading-relaxed">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>{evText}
+                                  </a>
+                                ) : (
+                                  <p className="text-xs text-gray-400 mt-0.5 flex items-start gap-1 leading-relaxed">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    <ET value={evText || pro.evidence} className="leading-relaxed"
+                                      onSave={onUpdateResult ? v => upd(["ideas", idx, "pros", j, "evidence"], v) : undefined} />
+                                  </p>
+                                )
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {/* 단점 */}
+                    <div className="rounded-lg p-3" style={{ backgroundColor: "#fef2f2" }}>
+                      <p className="text-xs font-bold text-red-600 mb-2">단점</p>
+                      <div className="space-y-2">
+                        {idea.cons.map((con, j) => {
+                          const { cleanText: evText, source: src } = con.evidence
+                            ? parseSourceRef(con.evidence, sources || [])
+                            : { cleanText: "", source: null };
+                          return (
+                            <div key={j}>
+                              <p className="text-xs font-semibold text-gray-800 flex items-center gap-1">
+                                <span className="flex-shrink-0">{j + 1}</span>
+                                <ET value={con.point} className="flex-1"
+                                  onSave={onUpdateResult ? v => upd(["ideas", idx, "cons", j, "point"], v) : undefined} />
+                              </p>
+                              {con.evidence && (
+                                src ? (
+                                  <a href={src.link} target="_blank" rel="noopener noreferrer" draggable={false}
+                                    className="text-xs text-green-700 hover:text-green-800 hover:underline mt-0.5 flex items-start gap-1 leading-relaxed">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>{evText}
+                                  </a>
+                                ) : (
+                                  <p className="text-xs text-gray-400 mt-0.5 flex items-start gap-1 leading-relaxed">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    <ET value={evText || con.evidence} className="leading-relaxed"
+                                      onSave={onUpdateResult ? v => upd(["ideas", idx, "cons", j, "evidence"], v) : undefined} />
+                                  </p>
+                                )
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 </div>
-                {/* 단점 */}
-                <div className="rounded-lg p-3" style={{ backgroundColor: "#fef2f2" }}>
-                  <p className="text-xs font-bold text-red-600 mb-2">단점</p>
-                  <div className="space-y-2">
-                    {idea.cons.map((con, j) => {
-                      const { cleanText: evText, source: src } = con.evidence
-                        ? parseSourceRef(con.evidence, sources || [])
-                        : { cleanText: "", source: null };
-                      return (
-                        <div key={j}>
-                          <p className="text-xs font-semibold text-gray-800 flex items-center gap-1">
-                            <span className="flex-shrink-0">{j + 1}</span>
-                            <ET value={con.point} className="flex-1"
-                              onSave={onUpdateResult ? v => upd(["ideas", idx, "cons", j, "point"], v) : undefined} />
-                          </p>
-                          {con.evidence && (
-                            src ? (
-                              <a href={src.link} target="_blank" rel="noopener noreferrer" draggable={false}
-                                className="text-xs text-green-700 hover:text-green-800 hover:underline mt-0.5 flex items-start gap-1 leading-relaxed">
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>{evText}
-                              </a>
-                            ) : (
-                              <p className="text-xs text-gray-400 mt-0.5 flex items-start gap-1 leading-relaxed">
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                <ET value={evText || con.evidence} className="leading-relaxed"
-                                  onSave={onUpdateResult ? v => upd(["ideas", idx, "cons", j, "evidence"], v) : undefined} />
-                              </p>
-                            )
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-              </div>
-            </div>
-            </DraggableCard>
+              </DraggableCard>
+            </CollapsibleBlock>
           );
         })}
 
@@ -633,55 +657,51 @@ const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onA
           <p className="text-xs text-gray-600 leading-relaxed">{result.recommendReason}</p>
         </div>
 
-        <div className="space-y-5 mb-5">
+        <div className="mb-5">
           {result.ideas.map((idea, i) => {
             const src = sources && sources.length > 0 ? sources[i % sources.length] : null;
+            const badge = IDEA_BADGE_COLORS[i % Object.keys(IDEA_BADGE_COLORS).length];
             return (
-              <DraggableCard key={i} title={idea.name} content={idea.name} snapshot={{ agentType: 'guide', itemData: { ...idea, index: i, score: (idea as any).score } }} onAdd={onAddIdea}>
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <p className="text-xs font-bold text-gray-700">
-                    {String.fromCharCode(65 + i)} {idea.name}
-                  </p>
-                  {src && <SrcLink source={src} label={`${i % sources!.length + 1}`} />}
-                </div>
-                <div className="space-y-2">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-500">실현 가능성</span>
-                      <span className="text-xs font-semibold text-gray-700">{idea.feasibility}%</span>
+              <CollapsibleBlock key={i} label={String.fromCharCode(65 + i)} name={idea.name} badge={badge}>
+                <DraggableCard title={idea.name} content={idea.name} snapshot={{ agentType: 'guide', itemData: { ...idea, index: i, score: (idea as any).score } }} onAdd={onAddIdea}>
+                  <div className="space-y-2">
+                    {src && <div className="flex justify-end"><SrcLink source={src} label={`${i % sources!.length + 1}`} /></div>}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-500">실현 가능성</span>
+                        <span className="text-xs font-semibold text-gray-700">{idea.feasibility}%</span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div className="h-2 rounded-full transition-all"
+                          style={{ width: `${idea.feasibility}%`, backgroundColor: "#4F48ED" }} />
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div className="h-2 rounded-full transition-all"
-                        style={{ width: `${idea.feasibility}%`, backgroundColor: "#4F48ED" }} />
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-500">사용자 편의</span>
+                        <span className="text-xs font-semibold text-gray-700">{idea.userExperience}%</span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div className="h-2 rounded-full transition-all"
+                          style={{ width: `${idea.userExperience}%`, backgroundColor: "#eab308" }} />
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-500">사용자 편의</span>
-                      <span className="text-xs font-semibold text-gray-700">{idea.userExperience}%</span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div className="h-2 rounded-full transition-all"
-                        style={{ width: `${idea.userExperience}%`, backgroundColor: "#eab308" }} />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-500">주제 차별성</span>
-                      <span className="text-xs font-semibold text-gray-700"
-                        style={{ color: idea.uniqueness >= 50 ? "#374151" : "#ef4444" }}>
-                        {idea.uniqueness}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div className="h-2 rounded-full transition-all"
-                        style={{ width: `${idea.uniqueness}%`, backgroundColor: idea.uniqueness >= 50 ? "#16a34a" : "#ef4444" }} />
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-500">주제 차별성</span>
+                        <span className="text-xs font-semibold text-gray-700"
+                          style={{ color: idea.uniqueness >= 50 ? "#374151" : "#ef4444" }}>
+                          {idea.uniqueness}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div className="h-2 rounded-full transition-all"
+                          style={{ width: `${idea.uniqueness}%`, backgroundColor: idea.uniqueness >= 50 ? "#16a34a" : "#ef4444" }} />
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-              </DraggableCard>
+                </DraggableCard>
+              </CollapsibleBlock>
             );
           })}
         </div>
