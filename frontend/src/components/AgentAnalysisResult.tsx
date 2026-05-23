@@ -228,6 +228,21 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
               </span>
             </div>
 
+            {/* 이미지 + 분석 레이아웃 */}
+            {idea.imageUrl && (
+              <div className="mb-2 rounded-xl overflow-hidden border border-gray-100 shadow-sm">
+                <img
+                  src={idea.imageUrl}
+                  alt={`${idea.name} 적용 예시`}
+                  className="w-full object-cover"
+                  style={{ maxHeight: 180 }}
+                />
+                <div className="px-2 py-1 bg-gray-50 border-t border-gray-100">
+                  <p className="text-xs text-gray-400">🤖 아이디어 적용 시 예상 모습</p>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2 mb-2">
               {idea.effects.map((effect, j) => {
                 const titleColor = "#4F48ED";
@@ -344,6 +359,20 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                   아이디어 {label}
                 </span>
               </div>
+              {/* AI 생성 이미지 */}
+              {idea.imageUrl && (
+                <div className="mb-2 rounded-xl overflow-hidden border-2 border-blue-200 shadow-sm">
+                  <img
+                    src={idea.imageUrl}
+                    alt={`${idea.name} 적용 예시`}
+                    className="w-full object-cover"
+                    style={{ maxHeight: 160 }}
+                  />
+                  <div className="px-2 py-1 bg-blue-50 border-t border-blue-100">
+                    <p className="text-xs text-blue-400">🤖 아이디어 적용 시 예상 모습</p>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 {/* 장점 */}
                 <div className="rounded-lg p-3" style={{ backgroundColor: "#f0fdf4" }}>

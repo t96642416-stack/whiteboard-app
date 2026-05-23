@@ -315,7 +315,68 @@ export async function analyzeIdeas(
   if (searchSources.length > 0) {
     result.searchSources = searchSources;
   }
+
+  // 효과예측형·속성분석형: 아이디어별 Gemini 이미지 생성
+  if (
+    (agentType === "emphasis" || agentType === "attribute") &&
+    result.ideas &&
+    Array.isArray(result.ideas) &&
+    process.env.GEMINI_API_KEY
+  ) {
+    console.log(`🎨 Gemini 이미지 생성 중 (${result.ideas.length}개)...`);
+    const imagePromises = result.ideas.map((idea: any) => {
+      const matchingIdea = ideas.find(i => i.title === idea.name);
+      return generateIdeaImage(idea.name, matchingIdea?.content || idea.name);
+    });
+    const images = await Promise.all(imagePromises);
+    result.ideas.forEach((idea: any, idx: number) => {
+      if (images[idx]) idea.imageUrl = images[idx];
+    });
+    console.log(`✅ 이미지 생성 완료`);
+  }
+
   return result;
+}
+
+// Gemini 이미지 생성 (효과예측형·속성분석형용)
+export async function generateIdeaImage(ideaName: string, ideaContent: string): Promise<string | null> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const prompt = `A realistic, professional interior photo showing the concept "${ideaName}" applied in a real space. Context: ${ideaContent}. Modern, clean environment with natural lighting. People naturally using the space. Photorealistic, high quality, no text, no labels, no watermarks.`;
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Gemini API 오류 (${response.status}):`, errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    const parts = data.candidates?.[0]?.content?.parts || [];
+
+    for (const part of parts) {
+      if (part.inlineData) {
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error("Gemini 이미지 생성 오류:", error);
+    return null;
+  }
 }
 
 export async function chatWithAI(

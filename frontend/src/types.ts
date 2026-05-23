@@ -130,6 +130,7 @@ export interface AttributeAnalysis {
     name: string;
     pros: { point: string; evidence: string }[];
     cons: { point: string; evidence: string }[];
+    imageUrl?: string;
   }[];
   commonalities: string[];
   differences: string[];
@@ -145,6 +146,7 @@ export interface EmphasisAnalysis {
     label: string;
     effects: { label: string; title: string; description: string; note: string }[];
     similarCase: string;
+    imageUrl?: string;
   }[];
   commonalities: string[];
   differences: string[];
