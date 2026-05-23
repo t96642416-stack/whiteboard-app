@@ -303,9 +303,11 @@ const Board: React.FC<BoardProps> = ({
     if (target.closest("[data-card-wrapper]")) return;
     if (target.closest("[data-toolbar]")) return;
     if (target.closest("[data-canvas-image-wrapper]")) return;
-    // 빈 캔버스 클릭 시 포커스 해제
+    // 빈 캔버스 클릭 시 포커스 해제 + 캔버스에 DOM 포커스
     setFocusedImageId(null);
     setFocusedSectionId(null);
+    setFocusedCardId(null);
+    canvasRef.current?.focus();
 
     e.currentTarget.setPointerCapture(e.pointerId);
 
@@ -795,7 +797,8 @@ const Board: React.FC<BoardProps> = ({
       {/* ── 피그마 캔버스 ── */}
       <div
           ref={canvasRef}
-          className="flex-1 relative overflow-hidden"
+          tabIndex={-1}
+          className="flex-1 relative overflow-hidden outline-none"
           style={{
             backgroundColor: "#F6F7F9",
             backgroundImage: "radial-gradient(circle, #D1D5DB 1px, transparent 1px)",
@@ -879,7 +882,7 @@ const Board: React.FC<BoardProps> = ({
                     borderRadius: 12,
                     backgroundColor: hex + "15",
                   }}
-                  onClick={() => { setFocusedSectionId(section.id); setFocusedImageId(null); }}
+                  onClick={() => { setFocusedSectionId(section.id); setFocusedImageId(null); canvasRef.current?.focus(); }}
                 >
                   {/* 섹션 헤더 */}
                   <div data-toolbar className="flex items-center gap-1.5 px-3 py-2 rounded-t-xl select-none"
@@ -1064,7 +1067,7 @@ const Board: React.FC<BoardProps> = ({
                   outline: focusedImageId === img.id ? "2px solid #4F48ED" : "none",
                   borderRadius: 12,
                 }}
-                onPointerDown={e => { setFocusedImageId(img.id); setFocusedSectionId(null); startImageDrag(e, img); }}
+                onPointerDown={e => { setFocusedImageId(img.id); setFocusedSectionId(null); setFocusedCardId(null); canvasRef.current?.focus(); startImageDrag(e, img); }}
               >
                 <img
                   src={img.src}
@@ -1122,7 +1125,7 @@ const Board: React.FC<BoardProps> = ({
                     outlineOffset: 3,
                     borderRadius: 10,
                   }}
-                  onClick={() => { setFocusedCardId(idea.id); setFocusedImageId(null); setFocusedSectionId(null); }}
+                  onClick={() => { setFocusedCardId(idea.id); setFocusedImageId(null); setFocusedSectionId(null); canvasRef.current?.focus(); }}
                 >
                   {/* 드래그 핸들 (선택 모드에서는 숨김) */}
                   {!isSelectMode && (

@@ -22,7 +22,7 @@ const ScoreBar: React.FC<{ label: string; value: number; color: string }> = ({ l
 const BoardResultCard: React.FC<Props> = ({ idea, onDelete }) => {
   const snap = idea.analysisSnapshot!;
   const agentOption = AGENT_OPTIONS.find(o => o.type === snap.agentType);
-  const agentLabel = agentOption ? `${agentOption.emoji} ${agentOption.name}` : "AI 분석";
+  const agentLabel = agentOption ? agentOption.name : "AI 분석";
   const d = snap.itemData;
 
   const renderContent = () => {

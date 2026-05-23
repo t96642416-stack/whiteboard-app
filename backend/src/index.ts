@@ -142,6 +142,7 @@ io.on("connection", (socket) => {
       useSearch,
       ideaIds,
       topic,
+      excludeIds,
     }: {
       agentType: string | null;
       userMessage?: string;
@@ -150,17 +151,19 @@ io.on("connection", (socket) => {
       useSearch?: boolean;
       ideaIds?: string[];
       topic?: string;
+      excludeIds?: string[];
     }) => {
       if (!currentRoom) return;
 
       const allIdeas = roomIdeas[currentRoom] || [];
 
-      // ideaIds 우선, 없으면 카테고리 필터, 없으면 전체
-      const ideas = ideaIds
+      // ideaIds 우선, 없으면 카테고리 필터, 없으면 전체 (AI 결과 카드 제외)
+      const ideas = (ideaIds
         ? allIdeas.filter((i: any) => ideaIds.includes(i.id))
         : categoryFilter
           ? allIdeas.filter((i: any) => (i.category ?? "brainstorm") === categoryFilter)
-          : allIdeas;
+          : allIdeas
+      ).filter((i: any) => !i.analysisSnapshot && !(excludeIds ?? []).includes(i.id));
 
       if (ideas.length === 0) {
         const msg = ideaIds

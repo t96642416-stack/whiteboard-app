@@ -299,8 +299,9 @@ function App() {
     getSocket().emit("topic-changed", { topic: newTopic });
   }, []);
 
-  // 분석 요청
+  // 분석 요청 (AI가 보드에 추가한 카드는 분석 대상에서 제외)
   const handleRequestAnalysis = useCallback((agentType: AgentType, files?: AnalysisFile[], useSearch?: boolean) => {
+    const excludeIds = ideas.filter((i: any) => i.analysisSnapshot).map((i: any) => i.id);
     getSocket().emit("analysis-requested", {
       agentType,
       userMessage: "",
@@ -308,17 +309,19 @@ function App() {
       categoryFilter: null,
       useSearch: useSearch || false,
       topic,
+      excludeIds,
     });
-  }, [topic, topicFiles]);
+  }, [topic, topicFiles, ideas]);
 
-  // 섹션 분석 요청 - 특정 아이디어 ID만 필터링
+  // 섹션 분석 요청 - 특정 아이디어 ID만 필터링 (AI 결과 카드 제외)
   const handleSectionAnalysis = useCallback((sectionIdeas: Idea[], agentType: AgentType) => {
-    if (sectionIdeas.length === 0) return;
+    const filtered = sectionIdeas.filter((i: any) => !i.analysisSnapshot);
+    if (filtered.length === 0) return;
     getSocket().emit("analysis-requested", {
       agentType,
       userMessage: "",
       files: [],
-      ideaIds: sectionIdeas.map(i => i.id),
+      ideaIds: filtered.map(i => i.id),
       useSearch: false,
       topic,
     });
@@ -404,7 +407,6 @@ function App() {
         onClearChat={handleClearChat}
         onAddIdea={handleAddIdea}
         onApplyImage={handleApplyImage}
-        contextIdea={focusedIdea ? { title: focusedIdea.title, content: focusedIdea.content } : null}
         onUpdateHistory={handleUpdateHistory}
       />
     </div>
