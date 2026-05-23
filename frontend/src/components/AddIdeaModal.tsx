@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { CARD_COLORS, IDEA_CATEGORIES, IdeaCategory, IdeaAttachment } from "../types";
+import { CARD_COLORS, IdeaCategory, IdeaAttachment } from "../types";
 
 interface AddIdeaModalProps {
   onClose: () => void;
@@ -11,7 +11,7 @@ const AddIdeaModal: React.FC<AddIdeaModalProps> = ({ onClose, onAdd, defaultCate
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [selectedColor, setSelectedColor] = useState(CARD_COLORS[0]);
-  const [selectedCategory, setSelectedCategory] = useState<IdeaCategory>(defaultCategory ?? "brainstorm");
+  const selectedCategory: IdeaCategory = defaultCategory ?? "brainstorm";
   const [attachments, setAttachments] = useState<IdeaAttachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -69,8 +69,6 @@ const AddIdeaModal: React.FC<AddIdeaModalProps> = ({ onClose, onAdd, defaultCate
 
   const removeAttachment = (idx: number) => setAttachments((prev) => prev.filter((_, i) => i !== idx));
 
-  const currentCategory = IDEA_CATEGORIES.find((c) => c.id === selectedCategory)!;
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" onClick={handleBackdrop}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden max-h-[90vh] flex flex-col">
@@ -85,24 +83,6 @@ const AddIdeaModal: React.FC<AddIdeaModalProps> = ({ onClose, onAdd, defaultCate
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
-
-          {/* 카테고리 */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">카테고리</label>
-            <div className="grid grid-cols-2 gap-2">
-              {IDEA_CATEGORIES.map((cat) => (
-                <button key={cat.id} type="button" onClick={() => setSelectedCategory(cat.id)}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 transition-all text-left"
-                  style={{
-                    backgroundColor: selectedCategory === cat.id ? cat.bg : "transparent",
-                    borderColor: selectedCategory === cat.id ? cat.border : "#e5e7eb",
-                    color: selectedCategory === cat.id ? cat.text : "#6b7280",
-                  }}>
-                  <span className="text-sm font-semibold">{cat.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* 색상 */}
           <div>
@@ -198,15 +178,11 @@ const AddIdeaModal: React.FC<AddIdeaModalProps> = ({ onClose, onAdd, defaultCate
           {/* 미리보기 */}
           {title && (
             <div className="rounded-lg p-3 border border-gray-100" style={{ backgroundColor: selectedColor }}>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
-                  style={{ backgroundColor: currentCategory.bg, color: currentCategory.text }}>
-                  {currentCategory.label}
-                </span>
-                {attachments.length > 0 && (
+              {attachments.length > 0 && (
+                <div className="mb-1.5">
                   <span className="text-xs text-gray-500">{attachments.length}개 파일 첨부됨</span>
-                )}
-              </div>
+                </div>
+              )}
               <p className="font-bold text-gray-800 text-sm">{title}</p>
               {content && <p className="text-gray-700 text-xs mt-1 line-clamp-2">{content}</p>}
             </div>
