@@ -259,32 +259,39 @@ const AIPanel: React.FC<AIPanelProps> = ({
 
   // 에이전트별 뱃지 색상
   const AGENT_BADGE: Record<string, { bg: string; text: string }> = {
-    suggestion: { bg: "#FEF3C7", text: "#B45309" },
-    question:   { bg: "#EDE9FE", text: "#6D28D9" },
-    emphasis:   { bg: "#FFEDD5", text: "#C2410C" },
-    attribute:  { bg: "#DCFCE7", text: "#15803D" },
-    guide:      { bg: "#DBEAFE", text: "#1D4ED8" },
-    advise:     { bg: "#F3E8FF", text: "#7E22CE" },
+    suggestion: { bg: "#FEF3C7", text: "#D97706" },
+    question:   { bg: "#EDE9FE", text: "#7C3AED" },
+    emphasis:   { bg: "#FFE4E1", text: "#EA580C" },
+    attribute:  { bg: "#DCFCE7", text: "#16A34A" },
+    guide:      { bg: "#DBEAFE", text: "#2563EB" },
+    advise:     { bg: "#F3E8FF", text: "#9333EA" },
   };
 
   // 에이전트 목록 컴포넌트 (공용)
   const AgentListItems = ({ compact = false }: { compact?: boolean }) => (
-    <div className={`divide-y divide-gray-100 ${compact ? "" : "mt-3"}`}>
+    <div className={`space-y-2 ${compact ? "" : ""}`}>
       {AGENT_OPTIONS.map((agent) => {
         const badge = AGENT_BADGE[agent.type as string] ?? { bg: "#F3F4F6", text: "#374151" };
         return (
           <button
             key={agent.type}
             onClick={() => handleAgentClick(agent.type)}
-            className={`w-full text-left hover:bg-gray-50 transition-colors flex items-center gap-3 group ${compact ? "px-2 py-2" : "px-1 py-3"}`}
+            className={`w-full bg-white rounded-xl flex items-center gap-4 hover:shadow-md transition-all text-left ${compact ? "px-3 py-2.5" : "px-4 py-3.5"}`}
           >
             <span
-              className="flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-semibold"
-              style={{ backgroundColor: badge.bg, color: badge.text, minWidth: compact ? 68 : 76, textAlign: "center" }}
+              className="flex-shrink-0 rounded-lg font-semibold"
+              style={{
+                backgroundColor: badge.bg,
+                color: badge.text,
+                fontSize: compact ? 11 : 13,
+                padding: compact ? "4px 10px" : "6px 12px",
+                minWidth: compact ? 64 : 76,
+                textAlign: "center",
+              }}
             >
               {agent.name}
             </span>
-            <span className={`text-gray-500 group-hover:text-gray-700 leading-snug ${compact ? "text-xs" : "text-xs"}`}>
+            <span className="text-gray-500 leading-snug" style={{ fontSize: compact ? 11 : 13 }}>
               {agent.description}
             </span>
           </button>
@@ -293,74 +300,72 @@ const AIPanel: React.FC<AIPanelProps> = ({
     </div>
   );
 
-  // 파일 첨부 섹션 (초기화면용)
+  // 파일 첨부 섹션
   const FileAttachSection = () => (
-    <div className="rounded-xl border border-gray-200 overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 border-b border-gray-100">
-        <span className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2">
+    <div className="w-full bg-white rounded-xl px-4 py-3 hover:shadow-sm transition-all">
+      <input ref={analysisFileInputRef} type="file" accept=".txt,.md,.csv,.json,.pdf,image/*" multiple className="hidden" onChange={handleAnalysisFileUpload} />
+      <div className="flex items-center justify-between">
+        <span className="font-semibold text-gray-700 flex items-center gap-2" style={{ fontSize: 13 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2">
             <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
           </svg>
           참고 파일 첨부
-          <span className="text-gray-400 font-normal">(선택사항)</span>
+          <span className="text-gray-400 font-normal" style={{ fontSize: 11 }}>(선택사항)</span>
         </span>
         <button
           type="button"
           onClick={() => analysisFileInputRef.current?.click()}
           disabled={analysisFiles.length >= 3}
-          className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 font-semibold disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+          className="text-indigo-500 hover:text-indigo-700 font-semibold disabled:text-gray-300 transition-colors flex items-center gap-1"
+          style={{ fontSize: 12 }}
         >
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           파일 추가
         </button>
-        <input ref={analysisFileInputRef} type="file" accept=".txt,.md,.csv,.json,.pdf,image/*" multiple className="hidden" onChange={handleAnalysisFileUpload} />
       </div>
 
-      <div className="px-3 py-2.5 bg-white">
-        {analysisFiles.length === 0 ? (
-          <button
-            type="button"
-            onClick={() => analysisFileInputRef.current?.click()}
-            className="w-full flex items-center gap-2 py-1 text-xs text-gray-400 hover:text-indigo-500 transition-colors"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
-            </svg>
-            이미지, 텍스트 파일 등 AI가 참고할 파일을 추가해요
-          </button>
-        ) : (
-          <div className="space-y-1.5">
-            {analysisFiles.map((f, i) => (
-              <div key={i} className="flex items-center gap-2 px-2 py-1.5 bg-indigo-50 border border-indigo-100 rounded-lg">
-                <span className="text-indigo-400 flex-shrink-0">
-                  {f.type === "image" ? (
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                  ) : (
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  )}
-                </span>
-                <span className="text-xs text-gray-700 flex-1 truncate">{f.name}</span>
-                <button onClick={() => removeAnalysisFile(i)} className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-            ))}
-            {analysisFiles.length < 3 && (
-              <button type="button" onClick={() => analysisFileInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-1 py-1 text-xs text-indigo-400 hover:text-indigo-600 transition-colors">
+      {analysisFiles.length === 0 ? (
+        <button
+          type="button"
+          onClick={() => analysisFileInputRef.current?.click()}
+          className="mt-2 w-full flex items-center gap-1.5 text-gray-400 hover:text-indigo-400 transition-colors"
+          style={{ fontSize: 11 }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+          </svg>
+          이미지, 텍스트 파일 등 AI가 참고할 파일을 추가해요
+        </button>
+      ) : (
+        <div className="mt-2 space-y-1.5">
+          {analysisFiles.map((f, i) => (
+            <div key={i} className="flex items-center gap-2 px-2 py-1.5 bg-indigo-50 rounded-lg">
+              <span className="text-indigo-400 flex-shrink-0">
+                {f.type === "image"
+                  ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
+              </span>
+              <span className="text-gray-700 flex-1 truncate" style={{ fontSize: 11 }}>{f.name}</span>
+              <button onClick={() => removeAnalysisFile(i)} className="text-gray-300 hover:text-red-400 transition-colors">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
-                파일 더 추가
               </button>
-            )}
-          </div>
-        )}
-      </div>
+            </div>
+          ))}
+          {analysisFiles.length < 3 && (
+            <button type="button" onClick={() => analysisFileInputRef.current?.click()}
+              className="w-full text-center text-indigo-400 hover:text-indigo-600 transition-colors flex items-center justify-center gap-1"
+              style={{ fontSize: 11 }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>파일 더 추가
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 
@@ -570,54 +575,64 @@ const AIPanel: React.FC<AIPanelProps> = ({
                     : null}
               </>
             ) : !showAnalysisHistory ? (
-              /* 초기 상태 */
+              /* 초기 상태 - Figma 디자인 */
               <div className="pt-2 space-y-3">
-                {/* AI 아이콘 + 인삿말 */}
-                <div className="flex items-center gap-3 px-1">
-                  <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm"
-                    style={{ background: "linear-gradient(135deg, #7C3AED, #4F48ED)" }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                      <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-800">안녕하세요! 아이디어 분석을 도와드릴게요.</p>
-                    <p className="text-xs text-gray-500 mt-0.5">원하는 에이전트가 있다면 에이전트를 선택해주세요!</p>
-                  </div>
-                </div>
-
-                {/* 에이전트 선택 카드 */}
-                <div className="rounded-2xl border border-indigo-100 bg-white overflow-hidden shadow-sm">
-                  <AgentListItems />
-                </div>
-
-                {/* 실시간 검색 토글 */}
-                <button
-                  type="button"
-                  onClick={() => setUseSearch((v) => !v)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 transition-all ${
-                    useSearch ? "border-green-400 bg-green-50" : "border-gray-200 bg-white hover:border-indigo-200 hover:bg-indigo-50"
-                  }`}
+                {/* Ai 아이콘 (카드 밖, 상단) */}
+                <div
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0"
+                  style={{ background: "linear-gradient(135deg, #9B6DFF 0%, #6366F1 100%)" }}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={useSearch ? "#15803d" : "#6366f1"} strokeWidth="2">
-                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                  </svg>
-                  <div className="flex-1 text-left">
-                    <div className={`text-xs font-semibold ${useSearch ? "text-green-700" : "text-gray-700"}`}>
-                      실시간 검색 기반 분석
-                      {useSearch && <span className="ml-1.5 text-xs bg-green-500 text-white px-1.5 py-0.5 rounded-full">ON</span>}
-                    </div>
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      {useSearch ? "네이버 검색 자료를 참고해 더 정확하게 분석해요" : "켜면 네이버 실시간 검색 결과를 참고해요"}
-                    </div>
-                  </div>
-                  <div className={`w-10 h-5 rounded-full transition-all flex items-center px-0.5 flex-shrink-0 ${useSearch ? "bg-green-500" : "bg-gray-200"}`}>
-                    <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-all ${useSearch ? "translate-x-5" : "translate-x-0"}`} />
-                  </div>
-                </button>
+                  <span className="text-white font-bold text-base tracking-tight leading-none flex items-center gap-0.5">
+                    Ai
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="white" className="mb-1">
+                      <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
+                    </svg>
+                  </span>
+                </div>
 
-                {/* 참고 파일 첨부 */}
-                <FileAttachSection />
+                {/* 메인 카드 */}
+                <div
+                  className="rounded-2xl p-6"
+                  style={{ backgroundColor: "#EEEEFF", border: "1.5px solid #C8C6F6" }}
+                >
+                  {/* 인삿말 */}
+                  <p className="font-bold text-gray-900 leading-relaxed mb-6" style={{ fontSize: 15 }}>
+                    안녕하세요! 아이디어 분석을 도와드릴게요.<br />
+                    원하는 에이전트가 있다면 에이전트를 선택해주세요!
+                  </p>
+
+                  {/* 에이전트 목록 */}
+                  <AgentListItems />
+
+                  {/* 검색 토글 + 파일 첨부 (하단, 간소화) */}
+                  <div className="mt-5 pt-4 border-t space-y-2" style={{ borderColor: "#C8C6F6" }}>
+                    {/* 실시간 검색 토글 */}
+                    <button
+                      type="button"
+                      onClick={() => setUseSearch((v) => !v)}
+                      className="w-full bg-white rounded-xl flex items-center gap-3 px-4 py-3 hover:shadow-sm transition-all text-left"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={useSearch ? "#16A34A" : "#6366f1"} strokeWidth="2">
+                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                      </svg>
+                      <div className="flex-1">
+                        <div className="font-semibold text-gray-700" style={{ fontSize: 13 }}>
+                          실시간 검색 기반 분석
+                          {useSearch && <span className="ml-2 text-xs bg-green-500 text-white px-1.5 py-0.5 rounded-full">ON</span>}
+                        </div>
+                        <div className="text-gray-400 mt-0.5" style={{ fontSize: 11 }}>
+                          {useSearch ? "네이버 검색 자료를 참고해 더 정확하게 분석해요" : "켜면 네이버 실시간 검색 결과를 참고해요"}
+                        </div>
+                      </div>
+                      <div className={`w-9 h-5 rounded-full transition-all flex items-center px-0.5 flex-shrink-0 ${useSearch ? "bg-green-500" : "bg-gray-300"}`}>
+                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-all ${useSearch ? "translate-x-4" : "translate-x-0"}`} />
+                      </div>
+                    </button>
+
+                    {/* 파일 첨부 */}
+                    <FileAttachSection />
+                  </div>
+                </div>
               </div>
             ) : null}
 
