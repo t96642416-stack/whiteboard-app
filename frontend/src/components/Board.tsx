@@ -58,15 +58,15 @@ const Board: React.FC<BoardProps> = ({
 
   // 드래그 상태 (ref → 렌더 최소화)
   const dragState = useRef<{
-    type: "canvas" | "card" | "image" | "section-resize";
+    type: "canvas" | "card" | "image" | "section-resize" | "image-resize";
     cardId?: string;
     imageId?: string;
     sectionId?: string;
     resizeDir?: string; // "nw"|"n"|"ne"|"e"|"se"|"s"|"sw"|"w"
     startMouseX: number;
     startMouseY: number;
-    startValX: number;  // section x
-    startValY: number;  // section y
+    startValX: number;
+    startValY: number;
     startWidth?: number;
     startHeight?: number;
     moved: boolean;
@@ -297,6 +297,24 @@ const Board: React.FC<BoardProps> = ({
     };
   }, []);
 
+  // 캔버스 이미지 리사이즈
+  const startImageResize = useCallback((e: React.PointerEvent, img: CanvasImage, dir: string) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragState.current = {
+      type: "image-resize",
+      imageId: img.id,
+      resizeDir: dir,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startValX: img.x,
+      startValY: img.y,
+      startWidth: img.width,
+      startHeight: img.height,
+      moved: false,
+    };
+  }, []);
+
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     // 선택 박스 그리기
     if (selectBoxStartRef.current) {
@@ -367,6 +385,21 @@ const Board: React.FC<BoardProps> = ({
         if (dir.includes("w")) { const nw = Math.max(MIN_W, width - wdx); x += width - nw; width = nw; }
         if (dir.includes("n")) { const nh = Math.max(MIN_H, height - wdy); y += height - nh; height = nh; }
         return { ...s, x, y, width, height };
+      }));
+    } else if (dragState.current.type === "image-resize" && dragState.current.imageId) {
+      const d = dragState.current;
+      const wdx = dx / zoom;
+      const wdy = dy / zoom;
+      const dir = d.resizeDir!;
+      const MIN_W = 40, MIN_H = 40;
+      setCanvasImages(prev => prev.map(img => {
+        if (img.id !== d.imageId) return img;
+        let { x, y, width, height } = { x: d.startValX, y: d.startValY, width: d.startWidth!, height: d.startHeight! };
+        if (dir.includes("e")) width  = Math.max(MIN_W, width  + wdx);
+        if (dir.includes("s")) height = Math.max(MIN_H, height + wdy);
+        if (dir.includes("w")) { const nw = Math.max(MIN_W, width - wdx); x += width - nw; width = nw; }
+        if (dir.includes("n")) { const nh = Math.max(MIN_H, height - wdy); y += height - nh; height = nh; }
+        return { ...img, x, y, width, height };
       }));
     }
   }, [zoom]);
@@ -833,7 +866,7 @@ const Board: React.FC<BoardProps> = ({
               <div
                 key={img.id}
                 data-canvas-image-wrapper="true"
-                className="absolute group"
+                className="absolute group/cimg"
                 style={{
                   left: img.x, top: img.y,
                   width: img.width, height: img.height,
@@ -853,16 +886,30 @@ const Board: React.FC<BoardProps> = ({
                 <button
                   onPointerDown={e => e.stopPropagation()}
                   onClick={() => setCanvasImages(prev => prev.filter(i => i.id !== img.id))}
-                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black bg-opacity-60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-opacity-80"
+                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black bg-opacity-60 text-white flex items-center justify-center opacity-0 group-hover/cimg:opacity-100 transition-opacity hover:bg-opacity-80"
                 >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                 </button>
-                {/* 이미지 라벨 */}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent rounded-b-xl px-2 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="text-white text-xs font-medium opacity-70">이미지</span>
-                </div>
+                {/* 리사이즈 핸들 (8방향) */}
+                {([
+                  { dir: "nw", style: { top: -5, left: -5, cursor: "nw-resize" } },
+                  { dir: "n",  style: { top: -5, left: "50%", transform: "translateX(-50%)", cursor: "n-resize" } },
+                  { dir: "ne", style: { top: -5, right: -5, cursor: "ne-resize" } },
+                  { dir: "e",  style: { top: "50%", right: -5, transform: "translateY(-50%)", cursor: "e-resize" } },
+                  { dir: "se", style: { bottom: -5, right: -5, cursor: "se-resize" } },
+                  { dir: "s",  style: { bottom: -5, left: "50%", transform: "translateX(-50%)", cursor: "s-resize" } },
+                  { dir: "sw", style: { bottom: -5, left: -5, cursor: "sw-resize" } },
+                  { dir: "w",  style: { top: "50%", left: -5, transform: "translateY(-50%)", cursor: "w-resize" } },
+                ] as { dir: string; style: React.CSSProperties }[]).map(({ dir, style }) => (
+                  <div
+                    key={dir}
+                    className="absolute w-3 h-3 rounded-sm border-2 bg-white opacity-0 group-hover/cimg:opacity-100 transition-opacity hover:scale-125"
+                    style={{ ...style, borderColor: "#3b82f6", zIndex: 10 } as React.CSSProperties}
+                    onPointerDown={e => startImageResize(e, img, dir)}
+                  />
+                ))}
               </div>
             ))}
 

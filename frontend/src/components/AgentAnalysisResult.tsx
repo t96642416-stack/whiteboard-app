@@ -75,7 +75,7 @@ const ET: React.FC<{
   );
 };
 
-// 이미지 업로드 위젯
+// 이미지 업로드 위젯 (전체 너비, 세로 배치)
 const IdeaImage: React.FC<{
   alt: string;
   blue?: boolean;
@@ -93,10 +93,10 @@ const IdeaImage: React.FC<{
   };
 
   return (
-    <div className="flex-shrink-0 flex flex-col gap-1" style={{ width: 160 }}>
+    <div className="w-full flex flex-col gap-1 mt-2">
       <div
-        className={`rounded-xl overflow-hidden relative group/img cursor-pointer ${blue ? "border-2 border-blue-200" : "border border-gray-200"} ${src ? "shadow-md" : "border-dashed hover:bg-gray-50"}`}
-        style={{ height: 140 }}
+        className={`w-full rounded-xl overflow-hidden relative group/img cursor-pointer ${blue ? "border-2 border-blue-200" : "border border-gray-200"} ${src ? "shadow-md" : "border-dashed hover:bg-gray-50"}`}
+        style={{ minHeight: src ? undefined : 120, aspectRatio: src ? "16/9" : undefined }}
         onClick={() => !src && fileInputRef.current?.click()}
       >
         {src ? (
@@ -123,7 +123,7 @@ const IdeaImage: React.FC<{
           </>
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
             <span className="text-xs text-gray-400 text-center leading-relaxed">이미지 업로드</span>
           </div>
         )}
@@ -368,10 +368,10 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
               </span>
             </div>
 
-            {/* 텍스트(좌) + 이미지(우) 나란히 */}
-            <div className="flex gap-3">
-              {/* 왼쪽: 효과 목록 + 유사 사례 */}
-              <div className="flex-1 min-w-0 space-y-2">
+            {/* 텍스트 + 이미지 세로 배치 */}
+            <div className="space-y-2">
+              {/* 효과 목록 + 유사 사례 */}
+              <div className="space-y-2">
                 {idea.effects.map((effect, j) => {
                   const { cleanText: noteText, source: src } = effect.note
                     ? parseSourceRef(effect.note, sources || [])
@@ -421,7 +421,7 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
                 )}
               </div>
 
-              {/* 오른쪽: AI 생성 이미지 */}
+              {/* 이미지 (전체 너비) */}
               <IdeaImage alt={idea.name}
                 onApplyImage={onApplyImage ? (url) => onApplyImage(idea.name, url) : undefined} />
             </div>
@@ -496,10 +496,9 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                   아이디어 {label}
                 </span>
               </div>
-              {/* 텍스트(좌) + 이미지(우) */}
-              <div className="flex gap-3">
-                <div className="flex-1 min-w-0">
-              <div className="grid grid-cols-2 gap-2">
+              {/* 텍스트 + 이미지 세로 배치 */}
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
                 {/* 장점 */}
                 <div className="rounded-lg p-3" style={{ backgroundColor: "#f0fdf4" }}>
                   <p className="text-xs font-bold text-green-700 mb-2">장점</p>
@@ -569,8 +568,7 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                   </div>
                 </div>
               </div>
-                </div>
-                {/* 오른쪽: AI 생성 이미지 */}
+                {/* 이미지 (전체 너비) */}
                 <IdeaImage alt={idea.name} blue
                   onApplyImage={onApplyImage ? (url) => onApplyImage(idea.name, url) : undefined} />
               </div>
