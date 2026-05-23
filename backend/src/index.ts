@@ -101,7 +101,7 @@ io.on("connection", (socket) => {
   });
 
   // 아이디어 수정
-  socket.on("idea-updated", ({ ideaId, title, content, category, color, aiImageUrl }: { ideaId: string; title: string; content: string; category?: string; color?: string; aiImageUrl?: string }) => {
+  socket.on("idea-updated", ({ ideaId, title, content, category, color, aiImageUrl, attachments }: { ideaId: string; title: string; content: string; category?: string; color?: string; aiImageUrl?: string; attachments?: any[] }) => {
     if (!currentRoom) return;
     if (roomIdeas[currentRoom]) {
       const idea = roomIdeas[currentRoom].find((i: any) => i.id === ideaId) as any;
@@ -111,9 +111,10 @@ io.on("connection", (socket) => {
         if (category) idea.category = category;
         if (color) idea.color = color;
         if (aiImageUrl !== undefined) idea.aiImageUrl = aiImageUrl;
+        if (attachments !== undefined) idea.attachments = attachments;
       }
     }
-    socket.to(currentRoom).emit("idea-updated", { ideaId, title, content, category, color, aiImageUrl });
+    socket.to(currentRoom).emit("idea-updated", { ideaId, title, content, category, color, aiImageUrl, attachments });
   });
 
   // 아이디어 삭제

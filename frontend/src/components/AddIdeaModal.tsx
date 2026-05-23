@@ -69,16 +69,6 @@ const AddIdeaModal: React.FC<AddIdeaModalProps> = ({ onClose, onAdd, defaultCate
 
   const removeAttachment = (idx: number) => setAttachments((prev) => prev.filter((_, i) => i !== idx));
 
-  const getFileIcon = (mimeType?: string) => {
-    if (!mimeType) return "📄";
-    if (mimeType.includes("pdf")) return "📕";
-    if (mimeType.includes("word") || mimeType.includes("document")) return "📝";
-    if (mimeType.includes("sheet") || mimeType.includes("excel") || mimeType.includes("csv")) return "📊";
-    if (mimeType.includes("presentation") || mimeType.includes("powerpoint")) return "📋";
-    if (mimeType.includes("text")) return "📄";
-    return "📎";
-  };
-
   const currentCategory = IDEA_CATEGORIES.find((c) => c.id === selectedCategory)!;
 
   return (
@@ -108,7 +98,6 @@ const AddIdeaModal: React.FC<AddIdeaModalProps> = ({ onClose, onAdd, defaultCate
                     borderColor: selectedCategory === cat.id ? cat.border : "#e5e7eb",
                     color: selectedCategory === cat.id ? cat.text : "#6b7280",
                   }}>
-                  <span className="text-base">{cat.emoji}</span>
                   <span className="text-sm font-semibold">{cat.label}</span>
                 </button>
               ))}
@@ -189,7 +178,9 @@ const AddIdeaModal: React.FC<AddIdeaModalProps> = ({ onClose, onAdd, defaultCate
                       <img src={att.content} alt={att.name}
                         className="w-8 h-8 rounded object-cover flex-shrink-0 border border-gray-200" />
                     ) : (
-                      <span className="text-xl flex-shrink-0">{getFileIcon(att.mimeType)}</span>
+                      <span className="text-gray-400 flex-shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </span>
                     )}
                     <span className="text-xs text-gray-700 flex-1 truncate">{att.name}</span>
                     <button type="button" onClick={() => removeAttachment(idx)}
@@ -210,10 +201,10 @@ const AddIdeaModal: React.FC<AddIdeaModalProps> = ({ onClose, onAdd, defaultCate
               <div className="flex items-center gap-1.5 mb-1.5">
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
                   style={{ backgroundColor: currentCategory.bg, color: currentCategory.text }}>
-                  {currentCategory.emoji} {currentCategory.label}
+                  {currentCategory.label}
                 </span>
                 {attachments.length > 0 && (
-                  <span className="text-xs text-gray-500">📎 {attachments.length}개 파일</span>
+                  <span className="text-xs text-gray-500">{attachments.length}개 파일 첨부됨</span>
                 )}
               </div>
               <p className="font-bold text-gray-800 text-sm">{title}</p>

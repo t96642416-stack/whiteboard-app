@@ -4,9 +4,32 @@ import { Idea, IDEA_CATEGORIES, IdeaCategory, IdeaAttachment, CARD_COLORS } from
 interface IdeaCardProps {
   idea: Idea;
   onDelete: (id: string) => void;
-  onEdit: (id: string, title: string, content: string, category: IdeaCategory, color: string) => void;
+  onEdit: (id: string, title: string, content: string, category: IdeaCategory, color: string, attachments?: IdeaAttachment[]) => void;
   onAddComment: (ideaId: string, text: string) => void;
 }
+
+const FileIcon: React.FC<{ mimeType?: string; size?: number }> = ({ mimeType, size = 14 }) => {
+  if (mimeType?.startsWith("image/")) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
+      </svg>
+    );
+  }
+  if (mimeType?.includes("pdf")) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" />
+        <line x1="9" y1="15" x2="15" y2="15" /><line x1="9" y1="11" x2="15" y2="11" />
+      </svg>
+    );
+  }
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" />
+    </svg>
+  );
+};
 
 const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddComment }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -14,10 +37,12 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
   const [editContent, setEditContent] = useState(idea.content);
   const [editCategory, setEditCategory] = useState<IdeaCategory>(idea.category ?? "brainstorm");
   const [editColor, setEditColor] = useState(idea.color);
+  const [editAttachments, setEditAttachments] = useState<IdeaAttachment[]>(idea.attachments ?? []);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const commentInputRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isEditing) {
@@ -25,14 +50,16 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
       setEditContent(idea.content);
       setEditCategory(idea.category ?? "brainstorm");
       setEditColor(idea.color);
+      setEditAttachments(idea.attachments ?? []);
     }
-  }, [idea.title, idea.content, idea.category, idea.color, isEditing]);
+  }, [idea.title, idea.content, idea.category, idea.color, idea.attachments, isEditing]);
 
   const handleStartEdit = () => {
     setEditTitle(idea.title);
     setEditContent(idea.content);
     setEditCategory(idea.category ?? "brainstorm");
     setEditColor(idea.color);
+    setEditAttachments(idea.attachments ?? []);
     setIsEditing(true);
     setTimeout(() => titleRef.current?.focus(), 0);
   };
@@ -40,7 +67,7 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
   const handleSave = () => {
     const trimmedTitle = editTitle.trim();
     if (!trimmedTitle) return;
-    onEdit(idea.id, trimmedTitle, editContent.trim(), editCategory, editColor);
+    onEdit(idea.id, trimmedTitle, editContent.trim(), editCategory, editColor, editAttachments);
     setIsEditing(false);
   };
 
@@ -69,18 +96,31 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
     setCommentText("");
   };
 
+  // 편집 모드 첨부파일 추가
+  const handleEditFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    Array.from(files).forEach(file => {
+      if (editAttachments.length >= 5) { alert("파일은 최대 5개까지 첨부할 수 있어요"); return; }
+      if (file.size > 10 * 1024 * 1024) { alert(`${file.name}: 10MB 이하만 가능해요`); return; }
+      const isImage = file.type.startsWith("image/");
+      const reader = new FileReader();
+      reader.onload = () => {
+        setEditAttachments(prev => prev.length >= 5 ? prev : [...prev, {
+          name: file.name,
+          type: isImage ? "image" : "file",
+          mimeType: file.type,
+          content: reader.result as string,
+        }]);
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = "";
+  };
+
   const comments = idea.comments ?? [];
   const cat = IDEA_CATEGORIES.find((c) => c.id === (idea.category ?? "brainstorm")) ?? IDEA_CATEGORIES[0];
   const attachments: IdeaAttachment[] = idea.attachments ?? [];
-
-  const getFileIcon = (mimeType?: string) => {
-    if (!mimeType) return "📄";
-    if (mimeType.includes("pdf")) return "📕";
-    if (mimeType.includes("word") || mimeType.includes("document")) return "📝";
-    if (mimeType.includes("sheet") || mimeType.includes("excel") || mimeType.includes("csv")) return "📊";
-    if (mimeType.includes("presentation") || mimeType.includes("powerpoint")) return "📋";
-    return "📎";
-  };
 
   return (
     <div
@@ -112,7 +152,7 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
                     color: editCategory === c.id ? c.text : "#9ca3af",
                   }}
                 >
-                  {c.emoji} {c.label}
+                  {c.label}
                 </button>
               ))}
             </div>
@@ -157,6 +197,66 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
             className="w-full flex-1 bg-white bg-opacity-60 rounded-md px-2 py-1 text-xs text-gray-700
                        border border-blue-200 focus:outline-none focus:border-blue-400 resize-none leading-relaxed"
           />
+
+          {/* 첨부파일 편집 */}
+          <div className="mt-2">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-gray-500 font-medium">첨부파일</span>
+              <button
+                type="button"
+                onClick={() => editFileInputRef.current?.click()}
+                disabled={editAttachments.length >= 5}
+                className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 disabled:text-gray-300 transition-colors"
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                추가
+              </button>
+              <input
+                ref={editFileInputRef}
+                type="file"
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                multiple
+                className="hidden"
+                onChange={handleEditFileUpload}
+              />
+            </div>
+            {editAttachments.length > 0 ? (
+              <div className="space-y-1">
+                {editAttachments.map((att, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5 px-2 py-1 bg-white bg-opacity-60 rounded-lg border border-blue-100 group/att">
+                    {att.type === "image" ? (
+                      <img src={att.content} alt={att.name} className="w-5 h-5 rounded object-cover flex-shrink-0 border border-gray-200" />
+                    ) : (
+                      <span className="text-gray-400 flex-shrink-0"><FileIcon mimeType={att.mimeType} size={12} /></span>
+                    )}
+                    <span className="text-xs text-gray-600 flex-1 truncate">{att.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditAttachments(prev => prev.filter((_, i) => i !== idx))}
+                      className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => editFileInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 border border-dashed border-blue-200 rounded-lg text-xs text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-all"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+                </svg>
+                파일 첨부
+              </button>
+            )}
+          </div>
 
           {/* 저장 / 취소 */}
           <div className="flex items-center justify-end gap-2 mt-2">
@@ -215,7 +315,7 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
               onClick={handleStartEdit}
               title="클릭해서 카테고리 변경"
             >
-              {cat.emoji} {cat.label}
+              {cat.label}
             </span>
           </div>
 
@@ -242,11 +342,11 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
             <div className="mt-2 rounded-xl overflow-hidden border border-black border-opacity-10 shadow-sm relative group/aiimg" style={{ height: 140 }}>
               <img
                 src={idea.aiImageUrl}
-                alt={`${idea.title} AI 예상`}
+                alt={`${idea.title} 예상`}
                 className="w-full h-full object-cover"
               />
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black from-0% to-transparent to-100% px-2 py-1.5">
-                <span className="text-white text-xs font-medium opacity-80">🤖 AI 적용 예상 모습</span>
+                <span className="text-white text-xs font-medium opacity-80">AI 적용 예상 모습</span>
               </div>
             </div>
           )}
@@ -278,7 +378,7 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
                   onClick={(e) => e.stopPropagation()}
                   className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white bg-opacity-60 border border-black border-opacity-10 hover:bg-opacity-80 transition-all max-w-full"
                 >
-                  <span className="text-sm flex-shrink-0">{getFileIcon(att.mimeType)}</span>
+                  <span className="text-gray-500 flex-shrink-0"><FileIcon mimeType={att.mimeType} size={12} /></span>
                   <span className="text-xs text-gray-600 truncate">{att.name}</span>
                 </a>
               ))}

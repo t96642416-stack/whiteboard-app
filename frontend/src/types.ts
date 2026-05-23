@@ -241,6 +241,15 @@ export interface BoardSection {
   height: number;
 }
 
+export interface CanvasImage {
+  id: string;
+  src: string; // base64 data URL
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export const CARD_COLORS = [
   "#fef9c3", // 노란
   "#fce7f3", // 분홍

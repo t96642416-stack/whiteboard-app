@@ -268,7 +268,6 @@ const AIPanel: React.FC<AIPanelProps> = ({
           onClick={() => handleAgentClick(agent.type)}
           className={`w-full text-left rounded-xl hover:bg-purple-50 transition-colors group flex items-start gap-2.5 border border-transparent hover:border-purple-100 ${compact ? "px-2 py-2" : "px-3 py-2.5"}`}
         >
-          <span className={`flex-shrink-0 mt-0.5 ${compact ? "text-base" : "text-lg"}`}>{agent.emoji}</span>
           <div>
             <div className={`font-semibold text-gray-800 group-hover:text-purple-700 leading-tight ${compact ? "text-xs" : "text-sm"}`}>
               {agent.name}
@@ -329,8 +328,12 @@ const AIPanel: React.FC<AIPanelProps> = ({
         <div className="space-y-1.5">
           {analysisFiles.map((f, i) => (
             <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 bg-purple-50 border border-purple-100 rounded-lg">
-              <span className="text-base flex-shrink-0">
-                {f.type === "image" ? "🖼️" : "📄"}
+              <span className="text-gray-500 flex-shrink-0">
+                {f.type === "image" ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                )}
               </span>
               <span className="text-xs text-gray-700 flex-1 truncate">{f.name}</span>
               <button
@@ -467,7 +470,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
               activeTab === "meeting" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
             }`}
           >
-            🎤 회의
+            회의
             {isRecording && (
               <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
             )}
@@ -493,7 +496,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                 </div>
                 {analysisHistory.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 text-center">
-                    <div className="text-3xl mb-3">📊</div>
+                    <div className="mb-3 text-gray-300"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div>
                     <p className="text-gray-500 text-sm font-medium">저장된 분석 내역이 없어요</p>
                   </div>
                 ) : (
@@ -505,12 +508,12 @@ const AIPanel: React.FC<AIPanelProps> = ({
                           className="w-full text-left px-4 py-3 rounded-xl border border-gray-100 hover:border-purple-200 hover:bg-purple-50 transition-all group">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-semibold text-purple-600 flex items-center gap-1">
-                              {agent?.emoji} {agent?.name || "속성 분석형"}
+                              {agent?.name || "속성 분석형"}
                             </span>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" className="group-hover:stroke-purple-400"><path d="M9 18l6-6-6-6" /></svg>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500">👤 {item.requester || "알 수 없음"}</span>
+                            <span className="text-xs text-gray-500">{item.requester || "알 수 없음"}</span>
                             <span className="text-gray-200">·</span>
                             <span className="text-xs text-gray-400">{new Date(item.timestamp).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span>
                           </div>
@@ -531,7 +534,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                     <span className="text-sm font-semibold text-gray-700">
                       {AGENT_OPTIONS.find((a) => a.type === viewingHistoryItem.agentType)?.name || "속성 분석형"} 결과
                     </span>
-                    <span className="text-xs text-gray-400 ml-2">👤 {viewingHistoryItem.requester}</span>
+                    <span className="text-xs text-gray-400 ml-2">{viewingHistoryItem.requester}</span>
                   </div>
                 </div>
                 {viewingHistoryItem.agentResult
@@ -556,7 +559,6 @@ const AIPanel: React.FC<AIPanelProps> = ({
               <>
                 {analysisHistory[0]?.requester && (
                   <div className="flex items-center gap-1.5 mb-3 px-1">
-                    <span className="text-xs text-gray-400">👤</span>
                     <span className="text-xs text-gray-500"><span className="font-semibold text-gray-700">{analysisHistory[0].requester}</span>님이 요청</span>
                     <span className="text-gray-200">·</span>
                     <span className="text-xs text-gray-400">{new Date(analysisHistory[0].timestamp).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span>
@@ -573,7 +575,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
               <div className="pt-2">
                 <div className="flex items-start gap-2.5">
                   <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
-                    <span className="text-base">🤖</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
                   </div>
                   <div className="flex-1 bg-purple-50 border border-purple-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
                     <p className="text-sm text-gray-800 font-medium leading-relaxed">
@@ -584,7 +586,6 @@ const AIPanel: React.FC<AIPanelProps> = ({
                       const cat = IDEA_CATEGORIES.find((c) => c.id === selectedCategory);
                       return cat ? (
                         <div className="mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-purple-100">
-                          <span className="text-base">{cat.emoji}</span>
                           <span className="text-xs font-semibold" style={{ color: cat.text }}>
                             {cat.label}
                           </span>
@@ -593,13 +594,13 @@ const AIPanel: React.FC<AIPanelProps> = ({
                       ) : null;
                     })() : (
                       <p className="text-sm text-gray-600 mt-1">
-                        분석 방식을 선택해주세요 👇
+                        분석 방식을 선택해주세요
                       </p>
                     )}
                     {selectedCategory === "all" && <AgentListItems />}
                     {selectedCategory !== "all" && (
                       <>
-                        <p className="text-sm text-gray-600 mt-2">분석 방식을 선택해주세요 👇</p>
+                        <p className="text-sm text-gray-600 mt-2">분석 방식을 선택해주세요</p>
                         <AgentListItems />
                       </>
                     )}
@@ -615,7 +616,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                             : "border-gray-200 bg-white hover:border-gray-300"
                         }`}
                       >
-                        <span className="text-base">🔍</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={useSearch ? "#15803d" : "#4b5563"} strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                         <div className="flex-1 text-left">
                           <div className={`text-xs font-semibold ${useSearch ? "text-green-700" : "text-gray-600"}`}>
                             실시간 검색 기반 분석
@@ -641,7 +642,9 @@ const AIPanel: React.FC<AIPanelProps> = ({
             {aiChatMessages.length > 0 && (
               <div className="mt-4 pt-3 border-t border-gray-100 space-y-3">
                 <p className="text-xs font-semibold text-gray-400 flex items-center gap-1.5">
-                  <span className="w-4 h-4 rounded-full bg-purple-100 flex items-center justify-center text-xs">💬</span>
+                  <span className="w-4 h-4 rounded-full bg-purple-100 flex items-center justify-center text-purple-500">
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                  </span>
                   AI와의 대화
                 </p>
                 {aiChatMessages.map((msg) => (
@@ -649,7 +652,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                     {msg.isAI ? (
                       <div className="flex items-start gap-2">
                         <div className="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <span className="text-xs">🤖</span>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
                         </div>
                         <div className={`max-w-[85%] rounded-2xl rounded-tl-sm px-3 py-2 text-xs leading-relaxed prose prose-xs max-w-none ${
                           msg.isError ? "bg-red-50 text-red-700 border border-red-100" : "bg-purple-50 text-gray-800 border border-purple-100"
@@ -717,7 +720,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                 </div>
                 {savedSessions.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 text-center">
-                    <div className="text-3xl mb-3">📭</div>
+                    <div className="mb-3 text-gray-300"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
                     <p className="text-gray-500 text-sm font-medium">저장된 내역이 없어요</p>
                     <p className="text-gray-400 text-xs mt-1">새 채팅을 시작하면 이전 내용이 여기 저장돼요</p>
                   </div>
@@ -814,7 +817,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                       </svg>
                     </div>
                     <p className="text-gray-600 font-medium text-sm mb-1">팀원들과 채팅해보세요</p>
-                    <p className="text-gray-400 text-xs">이미지도 올릴 수 있어요 📸</p>
+                    <p className="text-gray-400 text-xs">이미지도 올릴 수 있어요</p>
                   </div>
                 ) : (
                   <>
@@ -848,7 +851,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
             <div className="p-4 border-b border-gray-100">
               {!isSupported ? (
                 <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-700">
-                  ⚠️ Chrome 브라우저에서만 음성 인식이 가능해요
+                  Chrome 브라우저에서만 음성 인식이 가능해요
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -939,7 +942,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                              disabled:from-gray-300 disabled:to-gray-300 text-white font-semibold text-sm rounded-xl shadow-md transition-all
                              flex items-center justify-center gap-2"
                 >
-                  ✨ 회의 내용 AI 분석하기
+                  회의 내용 AI 분석하기
                 </button>
               </div>
             )}
@@ -1022,7 +1025,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
         <div className="border-t border-gray-100 px-3 pt-2 pb-2">
           <div className="flex items-center gap-2">
             <div className="flex-1 flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-full px-3 py-2 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100 transition-all">
-              <span className="text-sm flex-shrink-0">🤖</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" className="flex-shrink-0"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
               <input
                 type="text"
                 value={aiInputText}

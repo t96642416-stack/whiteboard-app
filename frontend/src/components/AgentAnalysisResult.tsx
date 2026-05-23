@@ -116,12 +116,14 @@ const IdeaImage: React.FC<{
                 onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
                 className="p-1.5 rounded-lg text-xs bg-white text-gray-500 shadow-lg hover:bg-gray-100 transition-all"
                 title="이미지 교체"
-              >🔄</button>
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              </button>
             </div>
           </>
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
-            <span className="text-2xl">🖼️</span>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
             <span className="text-xs text-gray-400 text-center leading-relaxed">이미지 업로드</span>
           </div>
         )}
@@ -517,11 +519,11 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                             src ? (
                               <a href={src.link} target="_blank" rel="noopener noreferrer" draggable={false}
                                 className="text-xs text-green-700 hover:text-green-800 hover:underline mt-0.5 flex items-start gap-1 leading-relaxed">
-                                <span className="flex-shrink-0">📄</span>{evText}
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>{evText}
                               </a>
                             ) : (
                               <p className="text-xs text-gray-400 mt-0.5 flex items-start gap-1 leading-relaxed">
-                                <span className="flex-shrink-0">📄</span>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                                 <ET value={evText || pro.evidence} className="leading-relaxed"
                                   onSave={onUpdateResult ? v => upd(["ideas", idx, "pros", j, "evidence"], v) : undefined} />
                               </p>
@@ -551,11 +553,11 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                             src ? (
                               <a href={src.link} target="_blank" rel="noopener noreferrer" draggable={false}
                                 className="text-xs text-green-700 hover:text-green-800 hover:underline mt-0.5 flex items-start gap-1 leading-relaxed">
-                                <span className="flex-shrink-0">📄</span>{evText}
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>{evText}
                               </a>
                             ) : (
                               <p className="text-xs text-gray-400 mt-0.5 flex items-start gap-1 leading-relaxed">
-                                <span className="flex-shrink-0">📄</span>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                                 <ET value={evText || con.evidence} className="leading-relaxed"
                                   onSave={onUpdateResult ? v => upd(["ideas", idx, "cons", j, "evidence"], v) : undefined} />
                               </p>

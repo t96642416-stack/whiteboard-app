@@ -148,8 +148,8 @@ function App() {
       setIdeas((prev) => prev.filter((i) => i.id !== ideaId));
     });
 
-    socket.on("idea-updated", ({ ideaId, title, content, category, color, aiImageUrl }: { ideaId: string; title: string; content: string; category?: IdeaCategory; color?: string; aiImageUrl?: string }) => {
-      setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, title, content, ...(category ? { category } : {}), ...(color ? { color } : {}), ...(aiImageUrl !== undefined ? { aiImageUrl } : {}) } : i));
+    socket.on("idea-updated", ({ ideaId, title, content, category, color, aiImageUrl, attachments }: { ideaId: string; title: string; content: string; category?: IdeaCategory; color?: string; aiImageUrl?: string; attachments?: IdeaAttachment[] }) => {
+      setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, title, content, ...(category ? { category } : {}), ...(color ? { color } : {}), ...(aiImageUrl !== undefined ? { aiImageUrl } : {}), ...(attachments !== undefined ? { attachments } : {}) } : i));
     });
 
     socket.on("comment-added", ({ ideaId, comment }: { ideaId: string; comment: IdeaComment }) => {
@@ -256,9 +256,9 @@ function App() {
     getSocket().emit("idea-deleted", { ideaId });
   }, []);
 
-  const handleEditIdea = useCallback((ideaId: string, title: string, content: string, category: IdeaCategory, color: string) => {
-    setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, title, content, category, color } : i));
-    getSocket().emit("idea-updated", { ideaId, title, content, category, color });
+  const handleEditIdea = useCallback((ideaId: string, title: string, content: string, category: IdeaCategory, color: string, attachments?: IdeaAttachment[]) => {
+    setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, title, content, category, color, ...(attachments !== undefined ? { attachments } : {}) } : i));
+    getSocket().emit("idea-updated", { ideaId, title, content, category, color, ...(attachments !== undefined ? { attachments } : {}) });
   }, []);
 
   // 히스토리 아이템 내용 수정 (인라인 편집)

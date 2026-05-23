@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { Idea, IdeaCategory, IDEA_CATEGORIES, IdeaAttachment, CARD_COLORS, BoardSection, AgentType, AGENT_OPTIONS } from "../types";
+import { Idea, IdeaCategory, IDEA_CATEGORIES, IdeaAttachment, CARD_COLORS, BoardSection, AgentType, AGENT_OPTIONS, CanvasImage } from "../types";
 import IdeaCard from "./IdeaCard";
 import BoardResultCard from "./BoardResultCard";
 import AddIdeaModal from "./AddIdeaModal";
@@ -27,7 +27,7 @@ interface BoardProps {
   onTopicChange: (topic: string) => void;
   onAddIdea: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[], snapshot?: import("../types").AnalysisSnapshot) => void;
   onDeleteIdea: (id: string) => void;
-  onEditIdea: (id: string, title: string, content: string, category: IdeaCategory, color: string) => void;
+  onEditIdea: (id: string, title: string, content: string, category: IdeaCategory, color: string, attachments?: IdeaAttachment[]) => void;
   onAddComment: (ideaId: string, text: string) => void;
   selectedCategory: IdeaCategory | "all";
   onCategoryChange: (category: IdeaCategory | "all") => void;
@@ -62,8 +62,9 @@ const Board: React.FC<BoardProps> = ({
 
   // 드래그 상태 (ref → 렌더 최소화)
   const dragState = useRef<{
-    type: "canvas" | "card";
+    type: "canvas" | "card" | "image";
     cardId?: string;
+    imageId?: string;
     startMouseX: number;
     startMouseY: number;
     startValX: number;
@@ -91,6 +92,24 @@ const Board: React.FC<BoardProps> = ({
     canvasTop: number;
   } | null>(null);
 
+  // 멀티 선택 상태
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectBox, setSelectBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [selectionAgentSelector, setSelectionAgentSelector] = useState(false);
+  const selectBoxStartRef = useRef<{
+    clientX: number;
+    clientY: number;
+    canvasLeft: number;
+    canvasTop: number;
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
+
+  // 캔버스 이미지 상태
+  const [canvasImages, setCanvasImages] = useState<CanvasImage[]>([]);
+  const canvasImageInputRef = useRef<HTMLInputElement>(null);
+
   // 에이전트 드롭 위치 (다음 추가될 카드에 적용)
   const pendingDropPos = useRef<{ x: number; y: number } | null>(null);
 
@@ -98,7 +117,7 @@ const Board: React.FC<BoardProps> = ({
 
   useEffect(() => { setLocalTopic(topic); }, [topic]);
 
-  // Escape → 섹션 모드 종료
+  // Escape → 모드 종료
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -107,6 +126,11 @@ const Board: React.FC<BoardProps> = ({
         setDrawingPreview(null);
         setSectionAgentSelector(null);
         setEditingSectionId(null);
+        setIsSelectMode(false);
+        selectBoxStartRef.current = null;
+        setSelectBox(null);
+        setSelectedIds(new Set());
+        setSelectionAgentSelector(false);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -174,17 +198,17 @@ const Board: React.FC<BoardProps> = ({
     return () => el.removeEventListener("wheel", handleWheel);
   }, [handleWheel]);
 
-  // 캔버스 포인터 다운 (패닝 or 섹션 그리기)
+  // 캔버스 포인터 다운
   const handleCanvasPointerDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0 && e.button !== 1) return;
     const target = e.target as HTMLElement;
     if (target.closest("[data-card-wrapper]")) return;
     if (target.closest("[data-toolbar]")) return;
+    if (target.closest("[data-canvas-image-wrapper]")) return;
 
     e.currentTarget.setPointerCapture(e.pointerId);
 
     if (isSectionMode) {
-      // 섹션 그리기 시작
       const rect = canvasRef.current!.getBoundingClientRect();
       sectionDrawState.current = {
         startClientX: e.clientX,
@@ -197,6 +221,20 @@ const Board: React.FC<BoardProps> = ({
       return;
     }
 
+    if (isSelectMode) {
+      const rect = canvasRef.current!.getBoundingClientRect();
+      selectBoxStartRef.current = {
+        clientX: e.clientX,
+        clientY: e.clientY,
+        canvasLeft: rect.left,
+        canvasTop: rect.top,
+        offsetX: offset.x,
+        offsetY: offset.y,
+      };
+      setSelectBox(null);
+      return;
+    }
+
     dragState.current = {
       type: "canvas",
       startMouseX: e.clientX,
@@ -206,9 +244,9 @@ const Board: React.FC<BoardProps> = ({
       moved: false,
     };
     setIsPanning(true);
-  }, [offset, isSectionMode]);
+  }, [offset, isSectionMode, isSelectMode]);
 
-  // 카드 드래그 핸들 클릭
+  // 카드 드래그
   const startCardDrag = useCallback((e: React.PointerEvent, cardId: string) => {
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -226,8 +264,39 @@ const Board: React.FC<BoardProps> = ({
     setActiveDragId(cardId);
   }, [cardPositions, ideas]);
 
+  // 캔버스 이미지 드래그
+  const startImageDrag = useCallback((e: React.PointerEvent, img: CanvasImage) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragState.current = {
+      type: "image",
+      imageId: img.id,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startValX: img.x,
+      startValY: img.y,
+      moved: false,
+    };
+  }, []);
+
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    // 섹션 그리기 중
+    // 선택 박스 그리기
+    if (selectBoxStartRef.current) {
+      const s = selectBoxStartRef.current;
+      const startWX = (s.clientX - s.canvasLeft - s.offsetX) / zoom;
+      const startWY = (s.clientY - s.canvasTop - s.offsetY) / zoom;
+      const curWX = (e.clientX - s.canvasLeft - s.offsetX) / zoom;
+      const curWY = (e.clientY - s.canvasTop - s.offsetY) / zoom;
+      setSelectBox({
+        x: Math.min(startWX, curWX),
+        y: Math.min(startWY, curWY),
+        w: Math.abs(curWX - startWX),
+        h: Math.abs(curWY - startWY),
+      });
+      return;
+    }
+
+    // 섹션 그리기
     if (sectionDrawState.current) {
       const s = sectionDrawState.current;
       const startCX = (s.startClientX - s.canvasLeft - s.canvasOffsetX) / zoom;
@@ -251,7 +320,7 @@ const Board: React.FC<BoardProps> = ({
 
     if (dragState.current.type === "canvas") {
       setOffset({ x: dragState.current.startValX + dx, y: dragState.current.startValY + dy });
-    } else if (dragState.current.cardId) {
+    } else if (dragState.current.type === "card" && dragState.current.cardId) {
       setCardPositions(prev => ({
         ...prev,
         [dragState.current!.cardId!]: {
@@ -259,10 +328,54 @@ const Board: React.FC<BoardProps> = ({
           y: dragState.current!.startValY + dy / zoom,
         },
       }));
+    } else if (dragState.current.type === "image" && dragState.current.imageId) {
+      const id = dragState.current.imageId;
+      setCanvasImages(prev => prev.map(img =>
+        img.id === id
+          ? { ...img, x: dragState.current!.startValX + dx / zoom, y: dragState.current!.startValY + dy / zoom }
+          : img
+      ));
     }
   }, [zoom]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    // 선택 박스 완료
+    if (selectBoxStartRef.current) {
+      const s = selectBoxStartRef.current;
+      const dx = e.clientX - s.clientX;
+      const dy = e.clientY - s.clientY;
+      if (Math.sqrt(dx * dx + dy * dy) < 5) {
+        // 클릭만 → 선택 해제
+        setSelectedIds(new Set());
+      } else {
+        const startWX = (s.clientX - s.canvasLeft - s.offsetX) / zoom;
+        const startWY = (s.clientY - s.canvasTop - s.offsetY) / zoom;
+        const curWX = (e.clientX - s.canvasLeft - s.offsetX) / zoom;
+        const curWY = (e.clientY - s.canvasTop - s.offsetY) / zoom;
+        const box = {
+          x: Math.min(startWX, curWX),
+          y: Math.min(startWY, curWY),
+          w: Math.abs(curWX - startWX),
+          h: Math.abs(curWY - startWY),
+        };
+        // 박스 안의 아이디어 선택
+        const newSelected = new Set<string>();
+        (window as any).__boardIdeas?.forEach((idea: Idea, index: number) => {
+          const pos = (window as any).__boardCardPositions?.[idea.id] ?? getDefaultPosition(index);
+          const cardCX = pos.x + CARD_WIDTH / 2;
+          const cardCY = pos.y + 70;
+          if (cardCX >= box.x && cardCX <= box.x + box.w &&
+              cardCY >= box.y && cardCY <= box.y + box.h) {
+            newSelected.add(idea.id);
+          }
+        });
+        if (newSelected.size > 0) setSelectedIds(newSelected);
+      }
+      selectBoxStartRef.current = null;
+      setSelectBox(null);
+      return;
+    }
+
     // 섹션 그리기 완료
     if (sectionDrawState.current) {
       const s = sectionDrawState.current;
@@ -296,10 +409,21 @@ const Board: React.FC<BoardProps> = ({
     setIsPanning(false);
   }, [zoom]);
 
+  // ideas와 cardPositions를 window에 임시 저장 (handlePointerUp의 클로저 한계 우회)
+  useEffect(() => {
+    (window as any).__boardIdeas = ideas;
+    (window as any).__boardCardPositions = cardPositions;
+  }, [ideas, cardPositions]);
+
   const handlePointerLeave = useCallback(() => {
     if (sectionDrawState.current) {
       sectionDrawState.current = null;
       setDrawingPreview(null);
+      return;
+    }
+    if (selectBoxStartRef.current) {
+      selectBoxStartRef.current = null;
+      setSelectBox(null);
       return;
     }
     dragState.current = null;
@@ -332,6 +456,30 @@ const Board: React.FC<BoardProps> = ({
       };
       onAddIdea(title, content, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "ai", [], snapshot);
     } catch { /* ignore */ }
+  };
+
+  // 캔버스 이미지 업로드
+  const handleCanvasImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const src = ev.target?.result as string;
+      const rect = canvasRef.current?.getBoundingClientRect();
+      const centerX = rect ? (rect.width / 2 - offset.x) / zoom : 200;
+      const centerY = rect ? (rect.height / 2 - offset.y) / zoom : 200;
+      const newImg: CanvasImage = {
+        id: `img-${Date.now()}`,
+        src,
+        x: centerX - 150,
+        y: centerY - 100,
+        width: 300,
+        height: 200,
+      };
+      setCanvasImages(prev => [...prev, newImg]);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   const filteredIdeas = selectedCategory === "all"
@@ -373,7 +521,9 @@ const Board: React.FC<BoardProps> = ({
               </div>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-gray-400">📌</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+              </svg>
               {editingTopic ? (
                 <input autoFocus type="text" value={localTopic}
                   onChange={e => setLocalTopic(e.target.value)}
@@ -390,7 +540,7 @@ const Board: React.FC<BoardProps> = ({
         </div>
       </div>
 
-      {/* ── 카테고리 필터 탭 (상단 고정) ── */}
+      {/* ── 카테고리 필터 탭 ── */}
       <div className="px-5 py-2 bg-white border-b border-gray-100 flex-shrink-0">
         <div className="flex items-center gap-1.5 overflow-x-auto">
           <button
@@ -418,7 +568,7 @@ const Board: React.FC<BoardProps> = ({
                   borderColor: isActive ? cat.border : "#e5e7eb",
                   boxShadow: isActive ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
                 }}>
-                {cat.emoji} {cat.label}
+                {cat.label}
                 <span className="px-1.5 py-0.5 rounded-full text-xs"
                   style={{
                     backgroundColor: isActive ? "rgba(0,0,0,0.1)" : "#f3f4f6",
@@ -442,6 +592,7 @@ const Board: React.FC<BoardProps> = ({
             backgroundPosition: `${offset.x % (28 * zoom)}px ${offset.y % (28 * zoom)}px`,
             cursor: isSectionMode
               ? "crosshair"
+              : isSelectMode ? "crosshair"
               : isPanning ? "grabbing"
               : activeDragId ? "grabbing"
               : "default",
@@ -477,13 +628,31 @@ const Board: React.FC<BoardProps> = ({
             </div>
           )}
 
+          {/* 선택 모드 안내 배너 */}
+          {isSelectMode && (
+            <div data-toolbar className="absolute top-4 left-1/2 -translate-x-1/2 z-30 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-lg flex items-center gap-2.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 2">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+              </svg>
+              드래그해서 카드를 선택하거나 카드를 클릭해서 선택하세요
+              <button
+                onClick={() => { setIsSelectMode(false); setSelectedIds(new Set()); setSelectBox(null); selectBoxStartRef.current = null; }}
+                className="ml-1 opacity-70 hover:opacity-100 transition-opacity"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          )}
+
           <div style={{
             position: "absolute",
             transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
             transformOrigin: "0 0",
             width: 0, height: 0,
           }}>
-            {/* ── 섹션 프레임 (카드 아래에 렌더) ── */}
+            {/* ── 섹션 프레임 ── */}
             {sections.map(section => {
               const cardsInSection = ideas.filter(idea => isCardInSection(idea, section));
               const hex = section.color;
@@ -534,51 +703,75 @@ const Board: React.FC<BoardProps> = ({
                       {cardsInSection.length}개
                     </span>
 
-                    <div className="flex-1" />
-
-                    {/* AI 분석 버튼 */}
-                    <div className="relative">
+                    {/* 섹션 선택 버튼 (선택 모드에서 섹션 통째로 선택) */}
+                    {isSelectMode && cardsInSection.length > 0 && (
                       <button
-                        title="이 섹션 AI 분석"
-                        onClick={() => setSectionAgentSelector(sectionAgentSelector === section.id ? null : section.id)}
+                        title="섹션 전체 선택"
+                        onClick={() => {
+                          setSelectedIds(prev => {
+                            const next = new Set(prev);
+                            cardsInSection.forEach(idea => next.add(idea.id));
+                            return next;
+                          });
+                        }}
                         className="flex items-center gap-1 px-2 py-1 rounded-lg text-white text-xs font-semibold transition-all hover:opacity-90 shadow-sm"
                         style={{ backgroundColor: hex }}
                       >
-                        <span>🤖</span>
-                        <span>분석</span>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        선택
                       </button>
+                    )}
 
-                      {/* 에이전트 선택 드롭다운 */}
-                      {sectionAgentSelector === section.id && (
-                        <div
-                          className="absolute right-0 top-8 z-50 bg-white rounded-xl shadow-2xl border border-gray-100 p-2 w-52"
-                          style={{ minWidth: 200 }}
+                    <div className="flex-1" />
+
+                    {/* AI 분석 버튼 */}
+                    {!isSelectMode && (
+                      <div className="relative">
+                        <button
+                          title="이 섹션 AI 분석"
+                          onClick={() => setSectionAgentSelector(sectionAgentSelector === section.id ? null : section.id)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-white text-xs font-semibold transition-all hover:opacity-90 shadow-sm"
+                          style={{ backgroundColor: hex }}
                         >
-                          <div className="text-xs font-semibold text-gray-400 px-2 py-1 mb-1">분석 방식 선택</div>
-                          {AGENT_OPTIONS.map(agent => (
-                            <button
-                              key={agent.type}
-                              onClick={() => {
-                                const inSection = ideas.filter(idea => isCardInSection(idea, section));
-                                if (inSection.length === 0) {
-                                  alert("섹션 안에 카드가 없어요. 카드를 섹션 영역 안으로 이동해보세요.");
-                                  return;
-                                }
-                                onSectionAnalysis?.(inSection, agent.type);
-                                setSectionAgentSelector(null);
-                              }}
-                              className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-purple-50 transition-colors flex items-start gap-2"
-                            >
-                              <span className="text-base flex-shrink-0 mt-0.5">{agent.emoji}</span>
-                              <div>
-                                <div className="text-xs font-semibold text-gray-800">{agent.name}</div>
-                                <div className="text-xs text-gray-400 mt-0.5">{agent.description}</div>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                          </svg>
+                          <span>분석</span>
+                        </button>
+
+                        {/* 에이전트 선택 드롭다운 */}
+                        {sectionAgentSelector === section.id && (
+                          <div
+                            className="absolute right-0 top-8 z-50 bg-white rounded-xl shadow-2xl border border-gray-100 p-2 w-52"
+                            style={{ minWidth: 200 }}
+                          >
+                            <div className="text-xs font-semibold text-gray-400 px-2 py-1 mb-1">분석 방식 선택</div>
+                            {AGENT_OPTIONS.map(agent => (
+                              <button
+                                key={agent.type}
+                                onClick={() => {
+                                  const inSection = ideas.filter(idea => isCardInSection(idea, section));
+                                  if (inSection.length === 0) {
+                                    alert("섹션 안에 카드가 없어요. 카드를 섹션 영역 안으로 이동해보세요.");
+                                    return;
+                                  }
+                                  onSectionAnalysis?.(inSection, agent.type);
+                                  setSectionAgentSelector(null);
+                                }}
+                                className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-purple-50 transition-colors flex items-start gap-2"
+                              >
+                                <div>
+                                  <div className="text-xs font-semibold text-gray-800">{agent.name}</div>
+                                  <div className="text-xs text-gray-400 mt-0.5">{agent.description}</div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* 삭제 버튼 */}
                     <button
@@ -609,11 +802,64 @@ const Board: React.FC<BoardProps> = ({
               />
             )}
 
+            {/* 선택 박스 미리보기 */}
+            {selectBox && (
+              <div
+                className="absolute pointer-events-none"
+                style={{
+                  left: selectBox.x, top: selectBox.y,
+                  width: selectBox.w, height: selectBox.h,
+                  border: "2px dashed #3b82f6",
+                  borderRadius: 6,
+                  backgroundColor: "rgba(59, 130, 246, 0.08)",
+                }}
+              />
+            )}
+
+            {/* ── 캔버스 이미지 ── */}
+            {canvasImages.map(img => (
+              <div
+                key={img.id}
+                data-canvas-image-wrapper="true"
+                className="absolute group"
+                style={{
+                  left: img.x, top: img.y,
+                  width: img.width, height: img.height,
+                  cursor: "grab",
+                  zIndex: 2,
+                }}
+                onPointerDown={e => startImageDrag(e, img)}
+              >
+                <img
+                  src={img.src}
+                  alt="캔버스 이미지"
+                  className="w-full h-full object-cover rounded-xl shadow-lg"
+                  style={{ border: "2px solid rgba(255,255,255,0.8)" }}
+                  draggable={false}
+                />
+                {/* 삭제 버튼 */}
+                <button
+                  onPointerDown={e => e.stopPropagation()}
+                  onClick={() => setCanvasImages(prev => prev.filter(i => i.id !== img.id))}
+                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black bg-opacity-60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-opacity-80"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+                {/* 이미지 라벨 */}
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent rounded-b-xl px-2 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-white text-xs font-medium opacity-70">이미지</span>
+                </div>
+              </div>
+            ))}
+
             {/* ── 아이디어 카드 ── */}
             {ideas.map((idea) => {
               const globalIndex = ideas.indexOf(idea);
               const pos = getCardPos(idea.id, globalIndex);
               const isActive = activeDragId === idea.id;
+              const isSelected = selectedIds.has(idea.id);
               return (
                 <div key={idea.id} data-card-wrapper="true" className="absolute group"
                   style={{
@@ -622,16 +868,50 @@ const Board: React.FC<BoardProps> = ({
                     filter: isActive ? "drop-shadow(0 12px 20px rgba(0,0,0,0.25))" : "none",
                     transition: isActive ? "none" : "filter 0.2s",
                   }}>
-                  <div
-                    className="absolute -top-3.5 left-1/2 -translate-x-1/2 h-3 w-12 rounded-full cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-all z-10 flex items-center justify-center gap-0.5"
-                    style={{ backgroundColor: isActive ? "#6366f1" : "#d1d5db" }}
-                    onPointerDown={e => startCardDrag(e, idea.id)}
-                    title="드래그해서 이동"
-                  >
-                    {[0,1,2,3].map(i => (
-                      <div key={i} className="w-0.5 h-1.5 rounded-full" style={{ backgroundColor: isActive ? "white" : "#6b7280" }} />
-                    ))}
-                  </div>
+                  {/* 드래그 핸들 (선택 모드에서는 숨김) */}
+                  {!isSelectMode && (
+                    <div
+                      className="absolute -top-3.5 left-1/2 -translate-x-1/2 h-3 w-12 rounded-full cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-all z-10 flex items-center justify-center gap-0.5"
+                      style={{ backgroundColor: isActive ? "#6366f1" : "#d1d5db" }}
+                      onPointerDown={e => startCardDrag(e, idea.id)}
+                      title="드래그해서 이동"
+                    >
+                      {[0,1,2,3].map(i => (
+                        <div key={i} className="w-0.5 h-1.5 rounded-full" style={{ backgroundColor: isActive ? "white" : "#6b7280" }} />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 선택 오버레이 (선택 모드에서만) */}
+                  {isSelectMode && (
+                    <div
+                      className="absolute inset-0 z-20 rounded-lg cursor-pointer transition-all"
+                      style={{
+                        border: isSelected ? "2px solid #3b82f6" : "2px solid transparent",
+                        backgroundColor: isSelected ? "rgba(59,130,246,0.12)" : "transparent",
+                        borderRadius: 8,
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedIds(prev => {
+                          const next = new Set(prev);
+                          if (next.has(idea.id)) next.delete(idea.id);
+                          else next.add(idea.id);
+                          return next;
+                        });
+                      }}
+                    />
+                  )}
+
+                  {/* 선택 체크 표시 */}
+                  {isSelectMode && isSelected && (
+                    <div className="absolute -top-2 -right-2 z-30 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center shadow-sm">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </div>
+                  )}
+
                   {idea.analysisSnapshot
                     ? <BoardResultCard idea={idea} onDelete={onDeleteIdea} />
                     : <IdeaCard idea={idea} onDelete={onDeleteIdea} onEdit={onEditIdea} onAddComment={onAddComment} />
@@ -655,14 +935,16 @@ const Board: React.FC<BoardProps> = ({
           {ideas.length === 0 && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
               <div className="w-16 h-16 rounded-2xl bg-yellow-100 flex items-center justify-center mb-3 shadow-sm">
-                <span className="text-3xl">💡</span>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ca8a04" strokeWidth="1.5" strokeLinecap="round">
+                  <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
               </div>
               <p className="text-gray-500 font-medium mb-1">아직 아이디어가 없어요</p>
-              <p className="text-gray-400 text-sm">오른쪽 하단 버튼으로 추가해보세요!</p>
+              <p className="text-gray-400 text-sm">오른쪽 하단 버튼으로 추가해보세요</p>
             </div>
           )}
 
-          {/* ── 좌하단: 줌 컨트롤 + 섹션 버튼 ── */}
+          {/* ── 좌하단: 줌 + 섹션 + 선택 + 이미지 버튼 ── */}
           <div data-toolbar className="absolute bottom-4 left-4 z-20 flex items-center gap-2">
             {/* 줌 컨트롤 */}
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 px-1 py-1 flex items-center gap-0.5">
@@ -678,8 +960,11 @@ const Board: React.FC<BoardProps> = ({
 
             {/* 섹션 그리기 버튼 */}
             <button
-              onClick={() => setIsSectionMode(v => !v)}
-              title="섹션 그리기 (드래그로 영역 지정)"
+              onClick={() => {
+                setIsSectionMode(v => !v);
+                if (isSelectMode) { setIsSelectMode(false); setSelectedIds(new Set()); }
+              }}
+              title="섹션 그리기"
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold shadow-md border transition-all ${
                 isSectionMode
                   ? "bg-indigo-600 text-white border-indigo-600"
@@ -694,11 +979,121 @@ const Board: React.FC<BoardProps> = ({
               섹션
             </button>
 
+            {/* 드래그 선택 버튼 */}
+            <button
+              onClick={() => {
+                setIsSelectMode(v => {
+                  if (v) { setSelectedIds(new Set()); setSelectionAgentSelector(false); }
+                  return !v;
+                });
+                if (isSectionMode) { setIsSectionMode(false); sectionDrawState.current = null; setDrawingPreview(null); }
+              }}
+              title="드래그 선택"
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold shadow-md border transition-all ${
+                isSelectMode
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white text-gray-600 border-gray-100 hover:border-blue-300 hover:text-blue-600"
+              }`}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M4 4l4 1-1 4M4 4l6 6" />
+                <rect x="10" y="10" width="10" height="10" rx="2" strokeDasharray="3 2" />
+              </svg>
+              선택
+            </button>
+
+            {/* 이미지 추가 버튼 */}
+            <button
+              onClick={() => canvasImageInputRef.current?.click()}
+              title="캔버스에 이미지 추가"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold shadow-md border bg-white text-gray-600 border-gray-100 hover:border-green-300 hover:text-green-600 transition-all"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              이미지
+            </button>
+            <input ref={canvasImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleCanvasImageUpload} />
+
             {/* 유저·카드 수 */}
             <div className="text-xs text-gray-400 bg-white bg-opacity-90 rounded-xl px-2.5 py-1.5 shadow-sm border border-gray-100">
               {userName} · {ideas.length}개
             </div>
           </div>
+
+          {/* ── 선택 시 배치 액션 툴바 ── */}
+          {selectedIds.size > 0 && (
+            <div data-toolbar className="absolute bottom-16 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-white rounded-2xl shadow-xl border border-gray-100 px-3 py-2">
+              <span className="text-xs font-semibold text-gray-600">{selectedIds.size}개 선택됨</span>
+              <div className="w-px h-4 bg-gray-200" />
+
+              {/* 분석 버튼 */}
+              <div className="relative">
+                <button
+                  onClick={() => setSelectionAgentSelector(v => !v)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold transition-all shadow-sm"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  분석
+                </button>
+
+                {selectionAgentSelector && (
+                  <div className="absolute bottom-full mb-2 left-0 z-50 bg-white rounded-xl shadow-2xl border border-gray-100 p-2 w-52">
+                    <div className="text-xs font-semibold text-gray-400 px-2 py-1 mb-1">분석 방식 선택</div>
+                    {AGENT_OPTIONS.map(agent => (
+                      <button
+                        key={agent.type}
+                        onClick={() => {
+                          const selectedIdeas = ideas.filter(idea => selectedIds.has(idea.id));
+                          onSectionAnalysis?.(selectedIdeas, agent.type);
+                          setSelectionAgentSelector(false);
+                          setIsSelectMode(false);
+                          setSelectedIds(new Set());
+                        }}
+                        className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-purple-50 transition-colors"
+                      >
+                        <div className="text-xs font-semibold text-gray-800">{agent.name}</div>
+                        <div className="text-xs text-gray-400 mt-0.5">{agent.description}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 삭제 버튼 */}
+              <button
+                onClick={() => {
+                  if (window.confirm(`${selectedIds.size}개 아이디어를 삭제할까요?`)) {
+                    selectedIds.forEach(id => onDeleteIdea(id));
+                    setSelectedIds(new Set());
+                    setIsSelectMode(false);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 text-xs font-semibold transition-all border border-red-100"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                  <path d="M10 11v6M14 11v6" />
+                </svg>
+                삭제
+              </button>
+
+              {/* 선택 해제 */}
+              <button
+                onClick={() => { setSelectedIds(new Set()); setSelectionAgentSelector(false); }}
+                className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          )}
 
           {/* ── 우하단: 아이디어 추가 버튼 ── */}
           <div data-toolbar className="absolute bottom-4 right-4 z-20">
@@ -718,7 +1113,9 @@ const Board: React.FC<BoardProps> = ({
             <div className="h-full flex flex-col items-center justify-center text-center">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3 shadow-sm"
                 style={{ backgroundColor: IDEA_CATEGORIES.find(c => c.id === selectedCategory)?.bg ?? "#f3f4f6" }}>
-                <span className="text-3xl">{IDEA_CATEGORIES.find(c => c.id === selectedCategory)?.emoji ?? "💡"}</span>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={IDEA_CATEGORIES.find(c => c.id === selectedCategory)?.text ?? "#6b7280"} strokeWidth="1.5" strokeLinecap="round">
+                  <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
               </div>
               <p className="text-gray-500 font-medium mb-1">
                 '{IDEA_CATEGORIES.find(c => c.id === selectedCategory)?.label}' 아이디어가 없어요
@@ -735,7 +1132,6 @@ const Board: React.FC<BoardProps> = ({
                 const cat = IDEA_CATEGORIES.find(c => c.id === selectedCategory);
                 return cat ? (
                   <div className="flex items-center gap-2 mb-5">
-                    <span className="text-lg">{cat.emoji}</span>
                     <h2 className="text-base font-bold" style={{ color: cat.text }}>{cat.label}</h2>
                     <span className="px-2 py-0.5 rounded-full text-xs font-semibold"
                       style={{ backgroundColor: cat.bg, color: cat.text }}>
