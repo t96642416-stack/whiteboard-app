@@ -38,6 +38,7 @@ export interface Idea {
   attachments?: IdeaAttachment[];
   comments?: IdeaComment[];
   analysisSnapshot?: AnalysisSnapshot;  // AI 결과 카드용 스냅샷
+  aiImageUrl?: string;  // AI 분석에서 적용된 예상 이미지 URL
 }
 
 export interface ProCon {

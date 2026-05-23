@@ -148,8 +148,8 @@ function App() {
       setIdeas((prev) => prev.filter((i) => i.id !== ideaId));
     });
 
-    socket.on("idea-updated", ({ ideaId, title, content, category, color }: { ideaId: string; title: string; content: string; category?: IdeaCategory; color?: string }) => {
-      setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, title, content, ...(category ? { category } : {}), ...(color ? { color } : {}) } : i));
+    socket.on("idea-updated", ({ ideaId, title, content, category, color, aiImageUrl }: { ideaId: string; title: string; content: string; category?: IdeaCategory; color?: string; aiImageUrl?: string }) => {
+      setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, title, content, ...(category ? { category } : {}), ...(color ? { color } : {}), ...(aiImageUrl !== undefined ? { aiImageUrl } : {}) } : i));
     });
 
     socket.on("comment-added", ({ ideaId, comment }: { ideaId: string; comment: IdeaComment }) => {
@@ -273,6 +273,23 @@ function App() {
     getSocket().emit("idea-updated", { ideaId, title, content, category, color });
   }, []);
 
+  // AI 분석 이미지를 보드 카드에 적용
+  const handleApplyImage = useCallback((ideaName: string, imageUrl: string) => {
+    setIdeas((prev) => {
+      const idea = prev.find(i => i.title === ideaName);
+      if (!idea) return prev;
+      getSocket().emit("idea-updated", {
+        ideaId: idea.id,
+        title: idea.title,
+        content: idea.content,
+        category: idea.category,
+        color: idea.color,
+        aiImageUrl: imageUrl,
+      });
+      return prev.map(i => i.id === idea.id ? { ...i, aiImageUrl: imageUrl } : i);
+    });
+  }, []);
+
   const handleAddComment = useCallback((ideaId: string, text: string) => {
     const comment: IdeaComment = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -391,6 +408,7 @@ function App() {
         onClearChat={handleClearChat}
         selectedCategory={selectedCategory}
         onAddIdea={handleAddIdea}
+        onApplyImage={handleApplyImage}
       />
     </div>
   );

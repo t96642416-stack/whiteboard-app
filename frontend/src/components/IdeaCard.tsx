@@ -237,6 +237,20 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
             {idea.content}
           </p>
 
+          {/* AI 예상 이미지 */}
+          {idea.aiImageUrl && (
+            <div className="mt-2 rounded-xl overflow-hidden border border-black border-opacity-10 shadow-sm relative group/aiimg" style={{ height: 140 }}>
+              <img
+                src={idea.aiImageUrl}
+                alt={`${idea.title} AI 예상`}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black from-0% to-transparent to-100% px-2 py-1.5">
+                <span className="text-white text-xs font-medium opacity-80">🤖 AI 적용 예상 모습</span>
+              </div>
+            </div>
+          )}
+
           {/* 첨부 파일 */}
           {attachments.length > 0 && (
             <div className="mt-2 space-y-1">

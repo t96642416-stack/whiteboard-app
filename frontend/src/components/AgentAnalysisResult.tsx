@@ -17,10 +17,11 @@ import {
 interface Props {
   result: AgentAnalysisResult;
   onAddIdea?: (title: string, content: string, snapshot?: AnalysisSnapshot) => void;
+  onApplyImage?: (ideaName: string, imageUrl: string) => void;
 }
 
 // AI 이미지 (순차 로드 + 자동 재시도)
-const IdeaImage: React.FC<{ url: string; alt: string; blue?: boolean; delay?: number }> = ({ url, alt, blue, delay = 0 }) => {
+const IdeaImage: React.FC<{ url: string; alt: string; blue?: boolean; delay?: number; onApply?: () => void }> = ({ url, alt, blue, delay = 0, onApply }) => {
   const [loaded, setLoaded] = useState(false);
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
@@ -45,15 +46,15 @@ const IdeaImage: React.FC<{ url: string; alt: string; blue?: boolean; delay?: nu
 
   if (failed) return null;
   return (
-    <div className="flex-shrink-0 w-32 flex flex-col gap-1">
+    <div className="flex-shrink-0 flex flex-col gap-1" style={{ width: 180 }}>
       <div
-        className={`rounded-xl overflow-hidden shadow-sm relative ${blue ? "border-2 border-blue-200" : "border border-gray-100"}`}
-        style={{ minHeight: 120 }}
+        className={`rounded-xl overflow-hidden shadow-md relative group/img ${blue ? "border-2 border-blue-200" : "border border-gray-200"}`}
+        style={{ minHeight: 160, height: 160 }}
       >
         {!loaded && (
-          <div className="absolute inset-0 bg-gray-100 animate-pulse flex items-center justify-center rounded-xl flex-col gap-1">
-            <span className="text-xl">🎨</span>
-            <span className="text-xs text-gray-400">생성 중...</span>
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-50 animate-pulse flex items-center justify-center rounded-xl flex-col gap-2">
+            <span className="text-2xl">🎨</span>
+            <span className="text-xs text-gray-400 font-medium">이미지 생성 중...</span>
           </div>
         )}
         {src && (
@@ -61,13 +62,44 @@ const IdeaImage: React.FC<{ url: string; alt: string; blue?: boolean; delay?: nu
             src={src}
             alt={`${alt} 적용 예시`}
             className="w-full h-full object-cover"
-            style={{ minHeight: 120, display: loaded ? "block" : "none" }}
+            style={{ height: 160, display: loaded ? "block" : "none" }}
             onLoad={() => setLoaded(true)}
             onError={handleError}
           />
         )}
+        {/* 이미지 위 오버레이 버튼 */}
+        {loaded && onApply && (
+          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover/img:bg-opacity-30 transition-all flex items-end justify-center pb-2 opacity-0 group-hover/img:opacity-100">
+            <button
+              onClick={(e) => { e.stopPropagation(); onApply(); }}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-gray-800 shadow-lg hover:bg-indigo-50 hover:text-indigo-700 transition-all flex items-center gap-1"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" />
+              </svg>
+              보드 카드에 적용
+            </button>
+          </div>
+        )}
       </div>
-      {loaded && <p className={`text-xs text-center leading-tight ${blue ? "text-blue-400" : "text-gray-400"}`}>🤖 적용 예상 모습</p>}
+      {loaded ? (
+        <div className="flex items-center justify-between gap-1">
+          <p className={`text-xs leading-tight ${blue ? "text-blue-400" : "text-gray-400"}`}>🤖 AI 예상 이미지</p>
+          {onApply && (
+            <button
+              onClick={onApply}
+              className="text-xs text-indigo-500 hover:text-indigo-700 font-medium flex items-center gap-0.5 flex-shrink-0"
+              title="보드 카드에 이미지 적용"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              적용
+            </button>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -260,7 +292,7 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
 };
 
 // 효과 예측형 UI - note를 링크로
-const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void }> = ({ result, sources, onAddIdea }) => {
+const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void; onApplyImage?: (ideaName: string, imageUrl: string) => void }> = ({ result, sources, onAddIdea, onApplyImage }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "효과 예측형";
   return (
     <div className="space-y-4">
@@ -336,7 +368,8 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
 
               {/* 오른쪽: AI 생성 이미지 */}
               {idea.imageUrl && (
-                <IdeaImage url={idea.imageUrl} alt={idea.name} delay={i * 1500} />
+                <IdeaImage url={idea.imageUrl} alt={idea.name} delay={i * 1500}
+                  onApply={onApplyImage ? () => onApplyImage(idea.name, idea.imageUrl!) : undefined} />
               )}
             </div>
           </div>
@@ -379,7 +412,7 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
 };
 
 // 속성 분석형 UI - evidence를 링크로
-const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void }> = ({ result, sources, onAddIdea }) => {
+const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void; onApplyImage?: (ideaName: string, imageUrl: string) => void }> = ({ result, sources, onAddIdea, onApplyImage }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "속성 분석형";
   return (
     <div className="space-y-3">
@@ -471,7 +504,8 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                 </div>
                 {/* 오른쪽: AI 생성 이미지 */}
                 {idea.imageUrl && (
-                  <IdeaImage url={idea.imageUrl} alt={idea.name} blue delay={idx * 1500} />
+                  <IdeaImage url={idea.imageUrl} alt={idea.name} blue delay={idx * 1500}
+                    onApply={onApplyImage ? () => onApplyImage(idea.name, idea.imageUrl!) : undefined} />
                 )}
               </div>
             </div>
@@ -735,7 +769,7 @@ const EffectView: React.FC<{ result: EffectAnalysis }> = ({ result }) => (
   </div>
 );
 
-const AgentAnalysisResultComponent: React.FC<Props> = ({ result, onAddIdea }) => {
+const AgentAnalysisResultComponent: React.FC<Props> = ({ result, onAddIdea, onApplyImage }) => {
   switch (result.agentType) {
     case "suggestion":
       return <PerspectiveView result={result as PerspectiveAnalysis} sources={(result as PerspectiveAnalysis).searchSources} onAddIdea={onAddIdea} />;
@@ -744,9 +778,9 @@ const AgentAnalysisResultComponent: React.FC<Props> = ({ result, onAddIdea }) =>
     case "effect":
       return <EffectView result={result as EffectAnalysis} />;
     case "attribute":
-      return <AttributeView result={result as AttributeAnalysis} sources={(result as AttributeAnalysis).searchSources} onAddIdea={onAddIdea} />;
+      return <AttributeView result={result as AttributeAnalysis} sources={(result as AttributeAnalysis).searchSources} onAddIdea={onAddIdea} onApplyImage={onApplyImage} />;
     case "emphasis":
-      return <EmphasisView result={result as EmphasisAnalysis} sources={(result as EmphasisAnalysis).searchSources} onAddIdea={onAddIdea} />;
+      return <EmphasisView result={result as EmphasisAnalysis} sources={(result as EmphasisAnalysis).searchSources} onAddIdea={onAddIdea} onApplyImage={onApplyImage} />;
     case "guide":
       return <GuideView result={result as GuideAnalysis} sources={(result as GuideAnalysis).searchSources} onAddIdea={onAddIdea} />;
     case "advise":

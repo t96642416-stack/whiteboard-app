@@ -21,6 +21,7 @@ interface AIPanelProps {
   onClearChat?: () => void;
   selectedCategory?: IdeaCategory | "all";
   onAddIdea?: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[], snapshot?: AnalysisSnapshot) => void;
+  onApplyImage?: (ideaName: string, imageUrl: string) => void;
 }
 
 const AIPanel: React.FC<AIPanelProps> = ({
@@ -37,6 +38,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
   isAIResponding,
   selectedCategory = "all",
   onAddIdea,
+  onApplyImage,
 }) => {
   const [inputText, setInputText] = useState("");
   const [aiInputText, setAiInputText] = useState("");
@@ -531,7 +533,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                   </div>
                 </div>
                 {viewingHistoryItem.agentResult
-                  ? <AgentAnalysisResultComponent result={viewingHistoryItem.agentResult} onAddIdea={onAddIdea ? (t, c, snap?) => onAddIdea(t, c, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "ai", [], snap) : undefined} />
+                  ? <AgentAnalysisResultComponent result={viewingHistoryItem.agentResult} onAddIdea={onAddIdea ? (t, c, snap?) => onAddIdea(t, c, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "ai", [], snap) : undefined} onApplyImage={onApplyImage} />
                   : viewingHistoryItem.result
                     ? <AnalysisResult result={viewingHistoryItem.result} />
                     : null}
@@ -554,7 +556,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                   </div>
                 )}
                 {agentAnalysisResult
-                  ? <AgentAnalysisResultComponent result={agentAnalysisResult} onAddIdea={onAddIdea ? (t, c, snap?) => onAddIdea(t, c, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "ai", [], snap) : undefined} />
+                  ? <AgentAnalysisResultComponent result={agentAnalysisResult} onAddIdea={onAddIdea ? (t, c, snap?) => onAddIdea(t, c, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "ai", [], snap) : undefined} onApplyImage={onApplyImage} />
                   : analysisResult
                     ? <AnalysisResult result={analysisResult} />
                     : null}
