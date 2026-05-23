@@ -316,12 +316,11 @@ export async function analyzeIdeas(
     result.searchSources = searchSources;
   }
 
-  // 효과예측형·속성분석형: 아이디어별 Gemini 이미지 생성
+  // 효과예측형·속성분석형: 아이디어별 이미지 생성 (Pollinations.ai, 무료)
   if (
     (agentType === "emphasis" || agentType === "attribute") &&
     result.ideas &&
-    Array.isArray(result.ideas) &&
-    process.env.GEMINI_API_KEY
+    Array.isArray(result.ideas)
   ) {
     console.log(`🎨 Gemini 이미지 생성 중 (${result.ideas.length}개)...`);
     const imagePromises = result.ideas.map((idea: any) => {
@@ -338,43 +337,22 @@ export async function analyzeIdeas(
   return result;
 }
 
-// Gemini 이미지 생성 (효과예측형·속성분석형용)
+// Pollinations.ai 이미지 생성 (무료, API 키 불필요)
 export async function generateIdeaImage(ideaName: string, ideaContent: string): Promise<string | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
-
   try {
-    const prompt = `A realistic, professional interior photo showing the concept "${ideaName}" applied in a real space. Context: ${ideaContent}. Modern, clean environment with natural lighting. People naturally using the space. Photorealistic, high quality, no text, no labels, no watermarks.`;
+    const prompt = `realistic professional photo of "${ideaName}", ${ideaContent}, modern interior space, natural lighting, people using the space, photorealistic, high quality, no text`;
+    const seed = Math.floor(Math.random() * 9999);
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=600&height=400&nologo=true&seed=${seed}&model=flux`;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Gemini API 오류 (${response.status}):`, errorText);
+    // URL이 유효한지 확인 (HEAD 요청)
+    const res = await fetch(url, { method: "HEAD" });
+    if (!res.ok) {
+      console.error("Pollinations 이미지 생성 실패:", res.status);
       return null;
     }
-
-    const data = await response.json();
-    const parts = data.candidates?.[0]?.content?.parts || [];
-
-    for (const part of parts) {
-      if (part.inlineData) {
-        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-      }
-    }
-    return null;
+    return url; // 이미지 URL을 그대로 반환
   } catch (error) {
-    console.error("Gemini 이미지 생성 오류:", error);
+    console.error("이미지 생성 오류:", error);
     return null;
   }
 }
