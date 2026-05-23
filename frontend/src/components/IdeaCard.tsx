@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Idea, IDEA_CATEGORIES, IdeaCategory, IdeaAttachment, CARD_COLORS } from "../types";
+import { Idea, IdeaCategory, IdeaAttachment, CARD_COLORS } from "../types";
 
 interface IdeaCardProps {
   idea: Idea;
@@ -35,7 +35,7 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(idea.title);
   const [editContent, setEditContent] = useState(idea.content);
-  const [editCategory, setEditCategory] = useState<IdeaCategory>(idea.category ?? "brainstorm");
+  const editCategory: IdeaCategory = idea.category ?? "brainstorm";
   const [editColor, setEditColor] = useState(idea.color);
   const [editAttachments, setEditAttachments] = useState<IdeaAttachment[]>(idea.attachments ?? []);
   const [showComments, setShowComments] = useState(false);
@@ -48,16 +48,15 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
     if (!isEditing) {
       setEditTitle(idea.title);
       setEditContent(idea.content);
-      setEditCategory(idea.category ?? "brainstorm");
+
       setEditColor(idea.color);
       setEditAttachments(idea.attachments ?? []);
     }
-  }, [idea.title, idea.content, idea.category, idea.color, idea.attachments, isEditing]);
+  }, [idea.title, idea.content, idea.color, idea.attachments, isEditing]);
 
   const handleStartEdit = () => {
     setEditTitle(idea.title);
     setEditContent(idea.content);
-    setEditCategory(idea.category ?? "brainstorm");
     setEditColor(idea.color);
     setEditAttachments(idea.attachments ?? []);
     setIsEditing(true);
@@ -119,7 +118,6 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
   };
 
   const comments = idea.comments ?? [];
-  const cat = IDEA_CATEGORIES.find((c) => c.id === (idea.category ?? "brainstorm")) ?? IDEA_CATEGORIES[0];
   const attachments: IdeaAttachment[] = idea.attachments ?? [];
 
   return (
@@ -137,27 +135,6 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
       {isEditing ? (
         /* ── 편집 모드 ── */
         <>
-          {/* 카테고리 선택 */}
-          <div className="mb-2">
-            <div className="flex flex-wrap gap-1">
-              {IDEA_CATEGORIES.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setEditCategory(c.id)}
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border transition-all"
-                  style={{
-                    backgroundColor: editCategory === c.id ? c.bg : "transparent",
-                    borderColor: editCategory === c.id ? c.border : "#d1d5db",
-                    color: editCategory === c.id ? c.text : "#9ca3af",
-                  }}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* 색상 선택 */}
           <div className="flex items-center gap-1.5 mb-2">
             {CARD_COLORS.map((c) => (
@@ -306,18 +283,6 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
               <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
           </button>
-
-          {/* 카테고리 뱃지 */}
-          <div className="mb-2">
-            <span
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold cursor-pointer hover:opacity-80 transition-opacity"
-              style={{ backgroundColor: cat.bg, color: cat.text }}
-              onClick={handleStartEdit}
-              title="클릭해서 카테고리 변경"
-            >
-              {cat.label}
-            </span>
-          </div>
 
           {/* 제목 */}
           <h3
