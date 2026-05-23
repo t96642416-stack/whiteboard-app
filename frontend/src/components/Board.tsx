@@ -29,8 +29,6 @@ interface BoardProps {
   onDeleteIdea: (id: string) => void;
   onEditIdea: (id: string, title: string, content: string, category: IdeaCategory, color: string, attachments?: IdeaAttachment[]) => void;
   onAddComment: (ideaId: string, text: string) => void;
-  selectedCategory: IdeaCategory | "all";
-  onCategoryChange: (category: IdeaCategory | "all") => void;
   onSectionAnalysis?: (ideas: Idea[], agentType: AgentType) => void;
 }
 

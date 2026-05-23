@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
-import { AgentType, AnalysisResult as AnalysisResultType, AgentAnalysisResult, ChatMessage, AGENT_OPTIONS, AnalysisFile, IdeaCategory, IDEA_CATEGORIES, AnalysisHistoryItem, IdeaAttachment, CARD_COLORS, AnalysisSnapshot } from "../types";
+import { AgentType, AnalysisResult as AnalysisResultType, AgentAnalysisResult, ChatMessage, AGENT_OPTIONS, AnalysisFile, IdeaCategory, AnalysisHistoryItem, IdeaAttachment, CARD_COLORS, AnalysisSnapshot } from "../types";
 import AnalysisResult from "./AnalysisResult";
 import AgentAnalysisResultComponent from "./AgentAnalysisResult";
 import { useMeetingRecognition } from "../hooks/useVoiceRecognition";
@@ -19,7 +19,6 @@ interface AIPanelProps {
   onRequestAnalysis: (agentType: AgentType, files?: AnalysisFile[], useSearch?: boolean) => void;
   isAIResponding: boolean;
   onClearChat?: () => void;
-  selectedCategory?: IdeaCategory | "all";
   onAddIdea?: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[], snapshot?: AnalysisSnapshot) => void;
   onApplyImage?: (ideaName: string, imageUrl: string) => void;
   onUpdateHistory?: (id: string, updated: AgentAnalysisResult) => void;
@@ -37,7 +36,6 @@ const AIPanel: React.FC<AIPanelProps> = ({
   onSendAIMessage,
   onRequestAnalysis,
   isAIResponding,
-  selectedCategory = "all",
   onAddIdea,
   onApplyImage,
   onUpdateHistory,
@@ -581,29 +579,10 @@ const AIPanel: React.FC<AIPanelProps> = ({
                     <p className="text-sm text-gray-800 font-medium leading-relaxed">
                       안녕하세요! 아이디어 분석을 도와드릴게요.
                     </p>
-                    {/* 현재 카테고리 필터 표시 */}
-                    {selectedCategory !== "all" ? (() => {
-                      const cat = IDEA_CATEGORIES.find((c) => c.id === selectedCategory);
-                      return cat ? (
-                        <div className="mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-purple-100">
-                          <span className="text-xs font-semibold" style={{ color: cat.text }}>
-                            {cat.label}
-                          </span>
-                          <span className="text-xs text-gray-500">아이디어만 분석합니다</span>
-                        </div>
-                      ) : null;
-                    })() : (
-                      <p className="text-sm text-gray-600 mt-1">
-                        분석 방식을 선택해주세요
-                      </p>
-                    )}
-                    {selectedCategory === "all" && <AgentListItems />}
-                    {selectedCategory !== "all" && (
-                      <>
-                        <p className="text-sm text-gray-600 mt-2">분석 방식을 선택해주세요</p>
-                        <AgentListItems />
-                      </>
-                    )}
+                    <p className="text-sm text-gray-600 mt-1">
+                      분석 방식을 선택해주세요
+                    </p>
+                    <AgentListItems />
 
                     {/* 실시간 검색 토글 */}
                     <div className="mt-3 pt-3 border-t border-purple-100">

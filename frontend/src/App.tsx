@@ -96,9 +96,6 @@ function App() {
   const [selectedAgent, setSelectedAgent] = useState<AgentType>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
-  // 카테고리 필터 (Board와 분석 공통)
-  const [selectedCategory, setSelectedCategory] = useState<IdeaCategory | "all">("all");
-
   const showError = useCallback((msg: string) => {
     setErrorBanner(msg);
     setTimeout(() => setErrorBanner(null), 5000);
@@ -304,17 +301,17 @@ function App() {
     getSocket().emit("topic-changed", { topic: newTopic });
   }, []);
 
-  // 분석 요청 - 현재 선택된 카테고리 + 파일 포함
+  // 분석 요청
   const handleRequestAnalysis = useCallback((agentType: AgentType, files?: AnalysisFile[], useSearch?: boolean) => {
     getSocket().emit("analysis-requested", {
       agentType,
       userMessage: "",
       files: files || [],
-      categoryFilter: selectedCategory === "all" ? null : selectedCategory,
+      categoryFilter: null,
       useSearch: useSearch || false,
       topic,
     });
-  }, [selectedCategory, topic]);
+  }, [topic]);
 
   // 섹션 분석 요청 - 특정 아이디어 ID만 필터링
   const handleSectionAnalysis = useCallback((sectionIdeas: Idea[], agentType: AgentType) => {
@@ -381,8 +378,6 @@ function App() {
           onDeleteIdea={handleDeleteIdea}
           onEditIdea={handleEditIdea}
           onAddComment={handleAddComment}
-          selectedCategory={selectedCategory}
-          onCategoryChange={setSelectedCategory}
           onSectionAnalysis={handleSectionAnalysis}
         />
       </div>
@@ -401,7 +396,6 @@ function App() {
         onRequestAnalysis={handleRequestAnalysis}
         isAIResponding={isAIResponding}
         onClearChat={handleClearChat}
-        selectedCategory={selectedCategory}
         onAddIdea={handleAddIdea}
         onApplyImage={handleApplyImage}
         onUpdateHistory={handleUpdateHistory}
