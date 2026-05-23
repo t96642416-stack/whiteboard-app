@@ -348,14 +348,12 @@ function App() {
     setChatMessages([]);
   }, []);
 
-  const [activeTab, setActiveTab] = useState<"analysis" | "chat" | "meeting">("analysis");
-
   if (!joined) return <LoginModal onJoin={handleJoin} />;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden relative">
+    <div className="flex h-screen overflow-hidden relative">
       {errorBanner && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-red-500 text-white px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 max-w-sm">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-red-500 text-white px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 max-w-sm">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="8" x2="12" y2="12" />
@@ -371,105 +369,43 @@ function App() {
         </div>
       )}
 
-      {/* 공통 헤더 */}
-      <header className="flex-shrink-0 h-11 px-4 bg-white border-b border-gray-100 flex items-center justify-between z-30">
-        {/* 왼쪽: 접속 정보 + 아바타 */}
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-green-400" />
-            <span className="text-xs text-gray-500">{users.length}명 접속 중</span>
-          </div>
-          <div className="flex items-center">
-            {users.slice(0, 6).map((u, i) => (
-              <div
-                key={u.name}
-                title={u.name}
-                className="w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold shadow-sm -ml-1.5 first:ml-0"
-                style={{
-                  backgroundColor: u.color === "#E5E7EB" ? "#d1d5db" : u.color,
-                  color: u.color === "#E5E7EB" ? "#374151" : "white",
-                  zIndex: 10 - i,
-                }}
-              >
-                {u.name.charAt(0)}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 오른쪽: 음성 아이콘 + 탭 */}
-        <div className="flex items-center gap-1">
-          {/* 음성 아이콘 */}
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-              <line x1="12" y1="19" x2="12" y2="23" />
-              <line x1="8" y1="23" x2="16" y2="23" />
-            </svg>
-          </div>
-          {(["analysis", "chat", "meeting"] as const).map((tab) => {
-            const labels = { analysis: "AI 대화", chat: "채팅", meeting: "회의" };
-            return (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1.5 text-sm font-medium transition-all relative ${
-                  activeTab === tab ? "text-violet-600" : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                {labels[tab]}
-                {activeTab === tab && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-500 rounded-full" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </header>
-
-      {/* 메인 영역 */}
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-hidden">
-          <Board
-            ideas={ideas}
-            userName={userName}
-            roomId={roomId}
-            users={users}
-            topic={topic}
-            onTopicChange={handleTopicChange}
-            onAddIdea={handleAddIdea}
-            onDeleteIdea={handleDeleteIdea}
-            onEditIdea={handleEditIdea}
-            onAddComment={handleAddComment}
-            selectedCategory={selectedCategory}
-            onCategoryChange={setSelectedCategory}
-            onSectionAnalysis={handleSectionAnalysis}
-          />
-        </div>
-
-        <AIPanel
-          analysisResult={analysisResult}
-          agentAnalysisResult={agentAnalysisResult}
-          isAnalyzing={isAnalyzing}
-          analysisHistory={analysisHistory}
-          chatMessages={chatMessages}
-          aiChatMessages={aiChatMessages}
-          selectedAgent={selectedAgent}
-          onAgentChange={setSelectedAgent}
-          onSendChat={handleSendChat}
-          onSendAIMessage={handleSendAIMessage}
-          onRequestAnalysis={handleRequestAnalysis}
-          isAIResponding={isAIResponding}
-          onClearChat={handleClearChat}
-          selectedCategory={selectedCategory}
+      <div className="flex-1 overflow-hidden">
+        <Board
+          ideas={ideas}
+          userName={userName}
+          roomId={roomId}
+          users={users}
+          topic={topic}
+          onTopicChange={handleTopicChange}
           onAddIdea={handleAddIdea}
-          onApplyImage={handleApplyImage}
-          onUpdateHistory={handleUpdateHistory}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
+          onDeleteIdea={handleDeleteIdea}
+          onEditIdea={handleEditIdea}
+          onAddComment={handleAddComment}
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+          onSectionAnalysis={handleSectionAnalysis}
         />
       </div>
+
+      <AIPanel
+        analysisResult={analysisResult}
+        agentAnalysisResult={agentAnalysisResult}
+        isAnalyzing={isAnalyzing}
+        analysisHistory={analysisHistory}
+        chatMessages={chatMessages}
+        aiChatMessages={aiChatMessages}
+        selectedAgent={selectedAgent}
+        onAgentChange={setSelectedAgent}
+        onSendChat={handleSendChat}
+        onSendAIMessage={handleSendAIMessage}
+        onRequestAnalysis={handleRequestAnalysis}
+        isAIResponding={isAIResponding}
+        onClearChat={handleClearChat}
+        selectedCategory={selectedCategory}
+        onAddIdea={handleAddIdea}
+        onApplyImage={handleApplyImage}
+        onUpdateHistory={handleUpdateHistory}
+      />
     </div>
   );
 }
