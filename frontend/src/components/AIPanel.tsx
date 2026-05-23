@@ -22,6 +22,7 @@ interface AIPanelProps {
   selectedCategory?: IdeaCategory | "all";
   onAddIdea?: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[], snapshot?: AnalysisSnapshot) => void;
   onApplyImage?: (ideaName: string, imageUrl: string) => void;
+  onUpdateHistory?: (id: string, updated: AgentAnalysisResult) => void;
 }
 
 const AIPanel: React.FC<AIPanelProps> = ({
@@ -39,6 +40,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
   selectedCategory = "all",
   onAddIdea,
   onApplyImage,
+  onUpdateHistory,
 }) => {
   const [inputText, setInputText] = useState("");
   const [aiInputText, setAiInputText] = useState("");
@@ -533,7 +535,12 @@ const AIPanel: React.FC<AIPanelProps> = ({
                   </div>
                 </div>
                 {viewingHistoryItem.agentResult
-                  ? <AgentAnalysisResultComponent result={viewingHistoryItem.agentResult} onAddIdea={onAddIdea ? (t, c, snap?) => onAddIdea(t, c, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "ai", [], snap) : undefined} onApplyImage={onApplyImage} />
+                  ? <AgentAnalysisResultComponent
+                      result={viewingHistoryItem.agentResult}
+                      onAddIdea={onAddIdea ? (t, c, snap?) => onAddIdea(t, c, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "ai", [], snap) : undefined}
+                      onApplyImage={onApplyImage}
+                      onUpdateResult={onUpdateHistory ? (updated) => onUpdateHistory(viewingHistoryItem.id, updated) : undefined}
+                    />
                   : viewingHistoryItem.result
                     ? <AnalysisResult result={viewingHistoryItem.result} />
                     : null}

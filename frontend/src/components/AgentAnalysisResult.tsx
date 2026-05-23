@@ -18,7 +18,62 @@ interface Props {
   result: AgentAnalysisResult;
   onAddIdea?: (title: string, content: string, snapshot?: AnalysisSnapshot) => void;
   onApplyImage?: (ideaName: string, imageUrl: string) => void;
+  onUpdateResult?: (updated: AgentAnalysisResult) => void;
 }
+
+// 깊은 불변 업데이트 헬퍼
+function setIn(obj: any, path: (string | number)[], value: any): any {
+  if (path.length === 0) return value;
+  const [head, ...tail] = path;
+  if (Array.isArray(obj)) {
+    const arr = [...obj];
+    arr[Number(head)] = setIn(arr[Number(head)], tail, value);
+    return arr;
+  }
+  return { ...obj, [String(head)]: setIn(obj[String(head)], tail, value) };
+}
+
+// 인라인 편집 텍스트 컴포넌트
+const ET: React.FC<{
+  value: string;
+  className?: string;
+  multiline?: boolean;
+  onSave?: (v: string) => void;
+  placeholder?: string;
+}> = ({ value, className = "", multiline, onSave, placeholder }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  React.useEffect(() => { if (!editing) setDraft(value); }, [value, editing]);
+
+  if (!onSave) {
+    return multiline
+      ? <p className={className}>{value || placeholder}</p>
+      : <span className={className}>{value || placeholder}</span>;
+  }
+
+  if (editing) {
+    const base = `${className} bg-white border border-blue-300 rounded px-1.5 focus:outline-none focus:ring-2 focus:ring-blue-300`;
+    const commit = () => { onSave(draft.trim() || value); setEditing(false); };
+    return multiline
+      ? <textarea className={`${base} resize-y w-full block text-xs`} value={draft}
+          onChange={e => setDraft(e.target.value)} onBlur={commit} autoFocus rows={3} />
+      : <input className={`${base} inline-block w-full text-xs`} value={draft}
+          onChange={e => setDraft(e.target.value)} onBlur={commit}
+          onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
+          autoFocus />;
+  }
+
+  return (
+    <span
+      className={`${className} cursor-text hover:bg-amber-50 hover:ring-1 hover:ring-amber-300 rounded px-0.5 transition-colors relative group/et`}
+      onClick={() => setEditing(true)}
+      title="클릭하여 편집"
+    >
+      {value || <span className="text-gray-400 italic">{placeholder}</span>}
+      <span className="absolute -top-0.5 -right-0.5 opacity-0 group-hover/et:opacity-100 text-amber-400 text-xs pointer-events-none">✏</span>
+    </span>
+  );
+};
 
 // AI 이미지 (순차 로드 + 자동 재시도)
 const IdeaImage: React.FC<{ url: string; alt: string; blue?: boolean; delay?: number; onApply?: () => void }> = ({ url, alt, blue, delay = 0, onApply }) => {
@@ -183,14 +238,19 @@ const SrcLink: React.FC<{ source: SearchSource; label?: string }> = ({ source, l
 );
 
 // 관점 제시형 UI
-const PerspectiveView: React.FC<{ result: PerspectiveAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void }> = ({ result, sources, onAddIdea }) => {
+const PerspectiveView: React.FC<{ result: PerspectiveAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void; onUpdateResult?: (u: PerspectiveAnalysis) => void }> = ({ result, sources, onAddIdea, onUpdateResult }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "관점 제시형";
+  const upd = (path: (string | number)[], v: string) => onUpdateResult?.(setIn(result, path, v));
   return (
     <div className="space-y-3">
       <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
-        <p className="text-sm font-bold text-gray-800 mb-3">{agentName}, 분석 완료</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-bold text-gray-800">{agentName}, 분석 완료</p>
+          {onUpdateResult && <span className="text-xs text-amber-500 flex items-center gap-1">✏ 클릭해서 편집</span>}
+        </div>
         <div className="bg-gray-50 rounded-lg p-3 mb-3">
-          <p className="text-xs text-gray-600 leading-relaxed">{result.summary}</p>
+          <ET value={result.summary} className="text-xs text-gray-600 leading-relaxed" multiline
+            onSave={onUpdateResult ? v => upd(["summary"], v) : undefined} />
         </div>
         <div className="mb-3">
           <p className="text-xs font-semibold text-blue-600 mb-2">현재 집중 관점</p>
@@ -219,14 +279,16 @@ const PerspectiveView: React.FC<{ result: PerspectiveAnalysis; sources?: SearchS
               <DraggableCard key={i} title={p.title} content={p.description} snapshot={{ agentType: 'suggestion', itemData: { ...p, index: i } }} onAdd={onAddIdea}>
                 <div className="rounded-xl p-3" style={{ backgroundColor: "#F0EFFD" }}>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold"
+                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0"
                       style={{ backgroundColor: "#4F48ED", color: "white" }}>
                       관점 {i + 1}
                     </span>
-                    <span className="text-xs font-bold text-gray-800 flex-1">{p.title}</span>
+                    <ET value={p.title} className="text-xs font-bold text-gray-800 flex-1"
+                      onSave={onUpdateResult ? v => upd(["perspectives", i, "title"], v) : undefined} />
                     {src && <SrcLink source={src} label={`${i % sources!.length + 1}`} />}
                   </div>
-                  <p className="text-xs text-gray-600 leading-relaxed">{p.description}</p>
+                  <ET value={p.description} className="text-xs text-gray-600 leading-relaxed" multiline
+                    onSave={onUpdateResult ? v => upd(["perspectives", i, "description"], v) : undefined} />
                 </div>
               </DraggableCard>
             );
@@ -238,14 +300,19 @@ const PerspectiveView: React.FC<{ result: PerspectiveAnalysis; sources?: SearchS
 };
 
 // 관점 탐색형 UI
-const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void }> = ({ result, sources, onAddIdea }) => {
+const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void; onUpdateResult?: (u: QuestionAnalysis) => void }> = ({ result, sources, onAddIdea, onUpdateResult }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "관점 탐색형";
+  const upd = (path: (string | number)[], v: string) => onUpdateResult?.(setIn(result, path, v));
   return (
     <div className="space-y-3">
       <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
-        <p className="text-sm font-bold text-gray-800 mb-3">{agentName}, 분석완료</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-bold text-gray-800">{agentName}, 분석완료</p>
+          {onUpdateResult && <span className="text-xs text-amber-500 flex items-center gap-1">✏ 클릭해서 편집</span>}
+        </div>
         <div className="bg-gray-50 rounded-lg p-3 mb-3">
-          <p className="text-xs text-gray-600 leading-relaxed">{result.summary}</p>
+          <ET value={result.summary} className="text-xs text-gray-600 leading-relaxed" multiline
+            onSave={onUpdateResult ? v => upd(["summary"], v) : undefined} />
         </div>
         <div className="mb-3">
           <p className="text-xs font-semibold text-blue-600 mb-2">현재 집중 관점</p>
@@ -278,7 +345,8 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
                       style={{ backgroundColor: "#4F48ED", color: "white" }}>
                       Q{i + 1}
                     </span>
-                    <p className="text-xs text-gray-800 leading-relaxed font-medium flex-1">{q.text}</p>
+                    <ET value={q.text} className="text-xs text-gray-800 leading-relaxed font-medium flex-1" multiline
+                      onSave={onUpdateResult ? v => upd(["questions", i, "text"], v) : undefined} />
                     {src && <SrcLink source={src} label={`${i % sources!.length + 1}`} />}
                   </div>
                 </div>
@@ -292,14 +360,17 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
 };
 
 // 효과 예측형 UI - note를 링크로
-const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void; onApplyImage?: (ideaName: string, imageUrl: string) => void }> = ({ result, sources, onAddIdea, onApplyImage }) => {
+const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void; onApplyImage?: (ideaName: string, imageUrl: string) => void; onUpdateResult?: (u: EmphasisAnalysis) => void }> = ({ result, sources, onAddIdea, onApplyImage, onUpdateResult }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "효과 예측형";
+  const upd = (path: (string | number)[], v: string) => onUpdateResult?.(setIn(result, path, v));
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm font-bold text-gray-800">{agentName}, 분석 완료</p>
-          <button className="text-gray-400 hover:text-gray-600 text-lg leading-none">···</button>
+          {onUpdateResult
+            ? <span className="text-xs text-amber-500 flex items-center gap-1">✏ 클릭해서 편집</span>
+            : <button className="text-gray-400 hover:text-gray-600 text-lg leading-none">···</button>}
         </div>
 
         {result.ideas.map((idea, i) => (
@@ -319,7 +390,6 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
               {/* 왼쪽: 효과 목록 + 유사 사례 */}
               <div className="flex-1 min-w-0 space-y-2">
                 {idea.effects.map((effect, j) => {
-                  const titleColor = "#4F48ED";
                   const { cleanText: noteText, source: src } = effect.note
                     ? parseSourceRef(effect.note, sources || [])
                     : { cleanText: "", source: null };
@@ -330,11 +400,11 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
                           <span className="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-600 font-medium flex-shrink-0">
                             {effect.label}
                           </span>
-                          <span className="text-xs font-bold" style={{ color: titleColor }}>
-                            {effect.title}
-                          </span>
+                          <ET value={effect.title} className="text-xs font-bold text-indigo-700"
+                            onSave={onUpdateResult ? v => upd(["ideas", i, "effects", j, "title"], v) : undefined} />
                         </div>
-                        <p className="text-xs text-gray-600 leading-relaxed mb-1">{effect.description}</p>
+                        <ET value={effect.description} className="text-xs text-gray-600 leading-relaxed mb-1" multiline
+                          onSave={onUpdateResult ? v => upd(["ideas", i, "effects", j, "description"], v) : undefined} />
                         {effect.note && noteText && (
                           src ? (
                             <a href={src.link} target="_blank" rel="noopener noreferrer" draggable={false}
@@ -349,7 +419,8 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
                               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                               </svg>
-                              {noteText}
+                              <ET value={noteText} className="text-xs text-gray-400 leading-relaxed"
+                                onSave={onUpdateResult ? v => upd(["ideas", i, "effects", j, "note"], v) : undefined} />
                             </p>
                           )
                         )}
@@ -361,7 +432,8 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
                 {idea.similarCase && (
                   <div className="rounded-lg p-3" style={{ backgroundColor: "#f9fafb" }}>
                     <p className="text-xs font-semibold text-gray-500 mb-1">유사 사례</p>
-                    <p className="text-xs text-gray-600 leading-relaxed">{idea.similarCase}</p>
+                    <ET value={idea.similarCase} className="text-xs text-gray-600 leading-relaxed" multiline
+                      onSave={onUpdateResult ? v => upd(["ideas", i, "similarCase"], v) : undefined} />
                   </div>
                 )}
               </div>
@@ -412,14 +484,17 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
 };
 
 // 속성 분석형 UI - evidence를 링크로
-const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void; onApplyImage?: (ideaName: string, imageUrl: string) => void }> = ({ result, sources, onAddIdea, onApplyImage }) => {
+const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void; onApplyImage?: (ideaName: string, imageUrl: string) => void; onUpdateResult?: (u: AttributeAnalysis) => void }> = ({ result, sources, onAddIdea, onApplyImage, onUpdateResult }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "속성 분석형";
+  const upd = (path: (string | number)[], v: string) => onUpdateResult?.(setIn(result, path, v));
   return (
     <div className="space-y-3">
       <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm font-bold text-gray-800">{agentName}, 분석 완료</p>
-          <button className="text-gray-400 hover:text-gray-600 text-lg leading-none">···</button>
+          {onUpdateResult
+            ? <span className="text-xs text-amber-500 flex items-center gap-1">✏ 클릭해서 편집</span>
+            : <button className="text-gray-400 hover:text-gray-600 text-lg leading-none">···</button>}
         </div>
 
         {result.ideas.map((idea, idx) => {
@@ -454,7 +529,11 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                         : { cleanText: "", source: null };
                       return (
                         <div key={j}>
-                          <p className="text-xs font-semibold text-gray-800">{j + 1} {pro.point}</p>
+                          <p className="text-xs font-semibold text-gray-800 flex items-center gap-1">
+                            <span className="flex-shrink-0">{j + 1}</span>
+                            <ET value={pro.point} className="flex-1"
+                              onSave={onUpdateResult ? v => upd(["ideas", idx, "pros", j, "point"], v) : undefined} />
+                          </p>
                           {pro.evidence && (
                             src ? (
                               <a href={src.link} target="_blank" rel="noopener noreferrer" draggable={false}
@@ -463,7 +542,9 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                               </a>
                             ) : (
                               <p className="text-xs text-gray-400 mt-0.5 flex items-start gap-1 leading-relaxed">
-                                <span className="flex-shrink-0">📄</span>{evText || pro.evidence}
+                                <span className="flex-shrink-0">📄</span>
+                                <ET value={evText || pro.evidence} className="leading-relaxed"
+                                  onSave={onUpdateResult ? v => upd(["ideas", idx, "pros", j, "evidence"], v) : undefined} />
                               </p>
                             )
                           )}
@@ -482,7 +563,11 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                         : { cleanText: "", source: null };
                       return (
                         <div key={j}>
-                          <p className="text-xs font-semibold text-gray-800">{j + 1} {con.point}</p>
+                          <p className="text-xs font-semibold text-gray-800 flex items-center gap-1">
+                            <span className="flex-shrink-0">{j + 1}</span>
+                            <ET value={con.point} className="flex-1"
+                              onSave={onUpdateResult ? v => upd(["ideas", idx, "cons", j, "point"], v) : undefined} />
+                          </p>
                           {con.evidence && (
                             src ? (
                               <a href={src.link} target="_blank" rel="noopener noreferrer" draggable={false}
@@ -491,7 +576,9 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                               </a>
                             ) : (
                               <p className="text-xs text-gray-400 mt-0.5 flex items-start gap-1 leading-relaxed">
-                                <span className="flex-shrink-0">📄</span>{evText || con.evidence}
+                                <span className="flex-shrink-0">📄</span>
+                                <ET value={evText || con.evidence} className="leading-relaxed"
+                                  onSave={onUpdateResult ? v => upd(["ideas", idx, "cons", j, "evidence"], v) : undefined} />
                               </p>
                             )
                           )}
@@ -769,18 +856,22 @@ const EffectView: React.FC<{ result: EffectAnalysis }> = ({ result }) => (
   </div>
 );
 
-const AgentAnalysisResultComponent: React.FC<Props> = ({ result, onAddIdea, onApplyImage }) => {
+const AgentAnalysisResultComponent: React.FC<Props> = ({ result, onAddIdea, onApplyImage, onUpdateResult }) => {
   switch (result.agentType) {
     case "suggestion":
-      return <PerspectiveView result={result as PerspectiveAnalysis} sources={(result as PerspectiveAnalysis).searchSources} onAddIdea={onAddIdea} />;
+      return <PerspectiveView result={result as PerspectiveAnalysis} sources={(result as PerspectiveAnalysis).searchSources} onAddIdea={onAddIdea}
+        onUpdateResult={onUpdateResult ? (u) => onUpdateResult(u) : undefined} />;
     case "question":
-      return <ExploreView result={result as QuestionAnalysis} sources={(result as QuestionAnalysis).searchSources} onAddIdea={onAddIdea} />;
+      return <ExploreView result={result as QuestionAnalysis} sources={(result as QuestionAnalysis).searchSources} onAddIdea={onAddIdea}
+        onUpdateResult={onUpdateResult ? (u) => onUpdateResult(u) : undefined} />;
     case "effect":
       return <EffectView result={result as EffectAnalysis} />;
     case "attribute":
-      return <AttributeView result={result as AttributeAnalysis} sources={(result as AttributeAnalysis).searchSources} onAddIdea={onAddIdea} onApplyImage={onApplyImage} />;
+      return <AttributeView result={result as AttributeAnalysis} sources={(result as AttributeAnalysis).searchSources} onAddIdea={onAddIdea}
+        onApplyImage={onApplyImage} onUpdateResult={onUpdateResult ? (u) => onUpdateResult(u) : undefined} />;
     case "emphasis":
-      return <EmphasisView result={result as EmphasisAnalysis} sources={(result as EmphasisAnalysis).searchSources} onAddIdea={onAddIdea} onApplyImage={onApplyImage} />;
+      return <EmphasisView result={result as EmphasisAnalysis} sources={(result as EmphasisAnalysis).searchSources} onAddIdea={onAddIdea}
+        onApplyImage={onApplyImage} onUpdateResult={onUpdateResult ? (u) => onUpdateResult(u) : undefined} />;
     case "guide":
       return <GuideView result={result as GuideAnalysis} sources={(result as GuideAnalysis).searchSources} onAddIdea={onAddIdea} />;
     case "advise":

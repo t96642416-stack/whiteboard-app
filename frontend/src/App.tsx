@@ -213,13 +213,26 @@ function App() {
 
     // 이미지 스트리밍: 생성되는 대로 각 아이디어 카드에 반영
     socket.on("analysis-image", ({ index, imageUrl }: { index: number; imageUrl: string; agentType: string }) => {
+      // 현재 결과에 반영
       setAgentAnalysisResult(prev => {
         if (!prev) return prev;
         const result = prev as any;
-        if (!result.ideas || !result.ideas[index]) return prev;
+        if (!result.ideas?.[index]) return prev;
         const newIdeas = [...result.ideas];
         newIdeas[index] = { ...newIdeas[index], imageUrl };
         return { ...result, ideas: newIdeas };
+      });
+      // 최신 히스토리 아이템에도 반영 (내역에서 이미지가 사라지지 않도록)
+      setAnalysisHistory(prev => {
+        if (!prev.length || !prev[0].agentResult) return prev;
+        const agentResult = prev[0].agentResult as any;
+        if (!agentResult.ideas?.[index]) return prev;
+        const newIdeas = [...agentResult.ideas];
+        newIdeas[index] = { ...newIdeas[index], imageUrl };
+        return [
+          { ...prev[0], agentResult: { ...agentResult, ideas: newIdeas } },
+          ...prev.slice(1),
+        ];
       });
     });
 
@@ -271,6 +284,13 @@ function App() {
   const handleEditIdea = useCallback((ideaId: string, title: string, content: string, category: IdeaCategory, color: string) => {
     setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, title, content, category, color } : i));
     getSocket().emit("idea-updated", { ideaId, title, content, category, color });
+  }, []);
+
+  // 히스토리 아이템 내용 수정 (인라인 편집)
+  const handleUpdateHistory = useCallback((id: string, updated: AgentAnalysisResult) => {
+    setAnalysisHistory(prev => prev.map(item =>
+      item.id === id ? { ...item, agentResult: updated } : item
+    ));
   }, []);
 
   // AI 분석 이미지를 보드 카드에 적용
@@ -409,6 +429,7 @@ function App() {
         selectedCategory={selectedCategory}
         onAddIdea={handleAddIdea}
         onApplyImage={handleApplyImage}
+        onUpdateHistory={handleUpdateHistory}
       />
     </div>
   );
