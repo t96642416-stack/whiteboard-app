@@ -211,6 +211,18 @@ function App() {
       ]);
     });
 
+    // 이미지 스트리밍: 생성되는 대로 각 아이디어 카드에 반영
+    socket.on("analysis-image", ({ index, imageUrl }: { index: number; imageUrl: string; agentType: string }) => {
+      setAgentAnalysisResult(prev => {
+        if (!prev) return prev;
+        const result = prev as any;
+        if (!result.ideas || !result.ideas[index]) return prev;
+        const newIdeas = [...result.ideas];
+        newIdeas[index] = { ...newIdeas[index], imageUrl };
+        return { ...result, ideas: newIdeas };
+      });
+    });
+
     socket.on("ai-response", ({ message, timestamp, isError }: { message: string; timestamp: string; isError?: boolean }) => {
       setIsAIResponding(false);
       setAiChatMessages((prev) => [
@@ -232,6 +244,7 @@ function App() {
       socket.off("user-left");
       socket.off("topic-changed");
       socket.off("chat-message");
+      socket.off("analysis-image");
       socket.off("ai-response");
     };
   }, [joined, showError]);

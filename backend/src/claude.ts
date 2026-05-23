@@ -316,24 +316,6 @@ export async function analyzeIdeas(
     result.searchSources = searchSources;
   }
 
-  // 효과예측형·속성분석형: 아이디어별 이미지 생성 (Pollinations.ai, 무료)
-  if (
-    (agentType === "emphasis" || agentType === "attribute") &&
-    result.ideas &&
-    Array.isArray(result.ideas)
-  ) {
-    console.log(`🎨 Gemini 이미지 생성 중 (${result.ideas.length}개)...`);
-    const imagePromises = result.ideas.map((idea: any) => {
-      const matchingIdea = ideas.find(i => i.title === idea.name);
-      return generateIdeaImage(idea.name, matchingIdea?.content || idea.name);
-    });
-    const images = await Promise.all(imagePromises);
-    result.ideas.forEach((idea: any, idx: number) => {
-      if (images[idx]) idea.imageUrl = images[idx];
-    });
-    console.log(`✅ 이미지 생성 완료`);
-  }
-
   return result;
 }
 

@@ -4,7 +4,7 @@ import { Server } from "socket.io";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
-import { analyzeIdeas, chatWithAI, IdeaInput, AnalysisFile } from "./claude";
+import { analyzeIdeas, chatWithAI, generateIdeaImage, IdeaInput, AnalysisFile } from "./claude";
 
 dotenv.config();
 
@@ -179,11 +179,34 @@ io.on("connection", (socket) => {
           files || [],
           useSearch || false
         );
+
+        // 텍스트 분석 결과 먼저 즉시 전송
         io.to(currentRoom).emit("analysis-result", {
           ...result,
           _meta: { requester: currentUser, agentType, timestamp: new Date().toISOString() },
         });
         console.log(`분석 완료 (방: ${currentRoom})`);
+
+        // 효과예측형·속성분석형: 이미지를 생성되는 대로 하나씩 스트리밍
+        if (
+          (agentType === "emphasis" || agentType === "attribute") &&
+          result.ideas &&
+          Array.isArray(result.ideas)
+        ) {
+          const ideaList = result.ideas as any[];
+          ideaList.forEach(async (idea: any, idx: number) => {
+            try {
+              const matchingIdea = ideas.find(i => i.title === idea.name);
+              const imageUrl = await generateIdeaImage(idea.name, matchingIdea?.content || idea.name);
+              if (imageUrl) {
+                io.to(currentRoom).emit("analysis-image", { index: idx, imageUrl, agentType });
+                console.log(`🎨 이미지 전송 완료: ${idea.name}`);
+              }
+            } catch (e) {
+              console.error(`이미지 생성 실패: ${idea.name}`, e);
+            }
+          });
+        }
       } catch (error) {
         // 실제 에러 메시지를 그대로 전달 (API 키 오류, 모델 오류 등 디버깅용)
         let errorMessage = "알 수 없는 오류가 발생했습니다.";
