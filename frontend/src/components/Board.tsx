@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { Idea, IdeaCategory, IDEA_CATEGORIES, IdeaAttachment, CARD_COLORS, BoardSection, AgentType, AGENT_OPTIONS, CanvasImage } from "../types";
+import { Idea, IdeaCategory, IdeaAttachment, CARD_COLORS, BoardSection, AgentType, AGENT_OPTIONS, CanvasImage } from "../types";
 import IdeaCard from "./IdeaCard";
 import BoardResultCard from "./BoardResultCard";
 import AddIdeaModal from "./AddIdeaModal";
@@ -45,8 +45,6 @@ const Board: React.FC<BoardProps> = ({
   onDeleteIdea,
   onEditIdea,
   onAddComment,
-  selectedCategory,
-  onCategoryChange,
   onSectionAnalysis,
 }) => {
   const [showModal, setShowModal] = useState(false);
@@ -458,36 +456,37 @@ const Board: React.FC<BoardProps> = ({
     } catch { /* ignore */ }
   };
 
-  // 캔버스 이미지 업로드
+  // 캔버스 이미지 업로드 (자연 비율 유지)
   const handleCanvasImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
       const src = ev.target?.result as string;
-      const rect = canvasRef.current?.getBoundingClientRect();
-      const centerX = rect ? (rect.width / 2 - offset.x) / zoom : 200;
-      const centerY = rect ? (rect.height / 2 - offset.y) / zoom : 200;
-      const newImg: CanvasImage = {
-        id: `img-${Date.now()}`,
-        src,
-        x: centerX - 150,
-        y: centerY - 100,
-        width: 300,
-        height: 200,
+      const imgEl = new window.Image();
+      imgEl.onload = () => {
+        const maxW = 600;
+        const scale = imgEl.naturalWidth > maxW ? maxW / imgEl.naturalWidth : 1;
+        const w = Math.round(imgEl.naturalWidth * scale);
+        const h = Math.round(imgEl.naturalHeight * scale);
+        const rect = canvasRef.current?.getBoundingClientRect();
+        const centerX = rect ? (rect.width / 2 - offset.x) / zoom : 200;
+        const centerY = rect ? (rect.height / 2 - offset.y) / zoom : 200;
+        const newImg: CanvasImage = {
+          id: `img-${Date.now()}`,
+          src,
+          x: centerX - w / 2,
+          y: centerY - h / 2,
+          width: w,
+          height: h,
+        };
+        setCanvasImages(prev => [...prev, newImg]);
       };
-      setCanvasImages(prev => [...prev, newImg]);
+      imgEl.src = src;
     };
     reader.readAsDataURL(file);
     e.target.value = "";
   };
-
-  const filteredIdeas = selectedCategory === "all"
-    ? ideas
-    : ideas.filter(i => (i.category ?? "brainstorm") === selectedCategory);
-
-  const countByCategory = (catId: string) =>
-    catId === "all" ? ideas.length : ideas.filter(i => (i.category ?? "brainstorm") === catId).length;
 
   const handleTopicBlur = () => { setEditingTopic(false); onTopicChange(localTopic); };
   const handleTopicKeyDown = (e: React.KeyboardEvent) => {
@@ -540,49 +539,8 @@ const Board: React.FC<BoardProps> = ({
         </div>
       </div>
 
-      {/* ── 카테고리 필터 탭 ── */}
-      <div className="px-5 py-2 bg-white border-b border-gray-100 flex-shrink-0">
-        <div className="flex items-center gap-1.5 overflow-x-auto">
-          <button
-            onClick={() => onCategoryChange("all")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${
-              selectedCategory === "all"
-                ? "bg-gray-800 text-white border-gray-800 shadow-sm"
-                : "bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:text-gray-700"
-            }`}
-          >
-            전체
-            <span className={`px-1.5 py-0.5 rounded-full text-xs ${
-              selectedCategory === "all" ? "bg-white bg-opacity-20 text-white" : "bg-gray-100 text-gray-500"
-            }`}>{ideas.length}</span>
-          </button>
-          {IDEA_CATEGORIES.map(cat => {
-            const count = countByCategory(cat.id);
-            const isActive = selectedCategory === cat.id;
-            return (
-              <button key={cat.id} onClick={() => onCategoryChange(cat.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border"
-                style={{
-                  backgroundColor: isActive ? cat.bg : "white",
-                  color: isActive ? cat.text : "#6b7280",
-                  borderColor: isActive ? cat.border : "#e5e7eb",
-                  boxShadow: isActive ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                }}>
-                {cat.label}
-                <span className="px-1.5 py-0.5 rounded-full text-xs"
-                  style={{
-                    backgroundColor: isActive ? "rgba(0,0,0,0.1)" : "#f3f4f6",
-                    color: isActive ? cat.text : "#9ca3af",
-                  }}>{count}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {selectedCategory === "all" ? (
-        /* ── 전체: 피그마 캔버스 ── */
-        <div
+      {/* ── 피그마 캔버스 ── */}
+      <div
           ref={canvasRef}
           className="flex-1 relative overflow-hidden"
           style={{
@@ -1106,66 +1064,12 @@ const Board: React.FC<BoardProps> = ({
             </button>
           </div>
         </div>
-      ) : (
-        /* ── 카테고리 선택: 정렬 그리드 뷰 ── */
-        <div className="flex-1 overflow-y-auto" style={{ backgroundColor: "#f4f3ef" }}>
-          {filteredIdeas.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center">
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3 shadow-sm"
-                style={{ backgroundColor: IDEA_CATEGORIES.find(c => c.id === selectedCategory)?.bg ?? "#f3f4f6" }}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={IDEA_CATEGORIES.find(c => c.id === selectedCategory)?.text ?? "#6b7280"} strokeWidth="1.5" strokeLinecap="round">
-                  <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-              </div>
-              <p className="text-gray-500 font-medium mb-1">
-                '{IDEA_CATEGORIES.find(c => c.id === selectedCategory)?.label}' 아이디어가 없어요
-              </p>
-              <p className="text-gray-400 text-sm mb-4">이 카테고리로 아이디어를 추가해보세요</p>
-              <button onClick={() => setShowModal(true)}
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold shadow-sm transition-all">
-                + 아이디어 추가
-              </button>
-            </div>
-          ) : (
-            <div className="p-6">
-              {(() => {
-                const cat = IDEA_CATEGORIES.find(c => c.id === selectedCategory);
-                return cat ? (
-                  <div className="flex items-center gap-2 mb-5">
-                    <h2 className="text-base font-bold" style={{ color: cat.text }}>{cat.label}</h2>
-                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold"
-                      style={{ backgroundColor: cat.bg, color: cat.text }}>
-                      {filteredIdeas.length}개
-                    </span>
-                  </div>
-                ) : null;
-              })()}
-              <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
-                {filteredIdeas.map(idea =>
-                  idea.analysisSnapshot
-                    ? <BoardResultCard key={idea.id} idea={idea} onDelete={onDeleteIdea} />
-                    : <IdeaCard key={idea.id} idea={idea} onDelete={onDeleteIdea} onEdit={onEditIdea} onAddComment={onAddComment} />
-                )}
-                <button onClick={() => setShowModal(true)}
-                  className="rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 min-h-[140px] flex flex-col items-center justify-center gap-2 text-gray-400 hover:text-blue-500 transition-all group">
-                  <div className="w-9 h-9 rounded-full border-2 border-current flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                    </svg>
-                  </div>
-                  <span className="text-sm font-medium">아이디어 추가</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {showModal && (
         <AddIdeaModal
           onClose={() => setShowModal(false)}
           onAdd={onAddIdea}
-          defaultCategory={selectedCategory === "all" ? "brainstorm" : selectedCategory}
+          defaultCategory="brainstorm"
         />
       )}
     </div>
