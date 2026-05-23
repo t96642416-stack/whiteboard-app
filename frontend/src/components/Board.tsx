@@ -122,6 +122,9 @@ const Board: React.FC<BoardProps> = ({
   const [canvasImages, setCanvasImages] = useState<CanvasImage[]>([]);
   const canvasImageInputRef = useRef<HTMLInputElement>(null);
 
+  // BoardResultCard 너비 상태
+  const [cardWidths, setCardWidths] = useState<Record<string, number>>({});
+
   // 포커스 선택 상태 (Delete 키용)
   const [focusedImageId, setFocusedImageId] = useState<string | null>(null);
   const [focusedSectionId, setFocusedSectionId] = useState<string | null>(null);
@@ -1118,10 +1121,12 @@ const Board: React.FC<BoardProps> = ({
               const isActive = activeDragId === idea.id;
               const isSelected = selectedIds.has(idea.id);
               const isFocused = focusedCardId === idea.id;
+              const isResultCard = !!(idea as any).analysisSnapshot;
+              const cardW = isResultCard ? (cardWidths[idea.id] ?? 280) : CARD_WIDTH;
               return (
                 <div key={idea.id} data-card-wrapper="true" className="absolute group"
                   style={{
-                    left: pos.x, top: pos.y, width: CARD_WIDTH,
+                    left: pos.x, top: pos.y, width: cardW,
                     zIndex: isActive ? 1000 : 1,
                     filter: isActive ? "drop-shadow(0 12px 20px rgba(0,0,0,0.25))" : "none",
                     transition: isActive ? "none" : "filter 0.2s",
@@ -1183,7 +1188,34 @@ const Board: React.FC<BoardProps> = ({
                   )}
 
                   {idea.analysisSnapshot
-                    ? <BoardResultCard idea={idea} onDelete={onDeleteIdea} />
+                    ? (
+                      <div className="relative">
+                        <BoardResultCard idea={idea} onDelete={onDeleteIdea} />
+                        {/* 오른쪽 리사이즈 핸들 */}
+                        <div
+                          className="absolute top-0 right-0 bottom-0 w-2 cursor-ew-resize z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          onPointerDown={(e) => {
+                            e.stopPropagation();
+                            e.currentTarget.setPointerCapture(e.pointerId);
+                            const startX = e.clientX;
+                            const startW = cardWidths[idea.id] ?? 280;
+                            const onMove = (ev: PointerEvent) => {
+                              const delta = (ev.clientX - startX) / zoom;
+                              const newW = Math.max(200, Math.min(600, startW + delta));
+                              setCardWidths(prev => ({ ...prev, [idea.id]: newW }));
+                            };
+                            const onUp = () => {
+                              window.removeEventListener("pointermove", onMove);
+                              window.removeEventListener("pointerup", onUp);
+                            };
+                            window.addEventListener("pointermove", onMove);
+                            window.addEventListener("pointerup", onUp);
+                          }}
+                        >
+                          <div className="w-1 h-8 rounded-full bg-indigo-300 opacity-60" />
+                        </div>
+                      </div>
+                    )
                     : <IdeaCard idea={idea} onDelete={onDeleteIdea} onEdit={onEditIdea} onAddComment={onAddComment} />
                   }
                 </div>

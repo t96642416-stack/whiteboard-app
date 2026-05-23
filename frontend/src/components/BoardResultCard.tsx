@@ -141,8 +141,7 @@ const BoardResultCard: React.FC<Props> = ({ idea, onDelete }) => {
         backgroundColor: "white",
         border: "1px solid rgba(79,72,237,0.15)",
         boxShadow: "2px 3px 10px rgba(79,72,237,0.08), 0 1px 3px rgba(0,0,0,0.06)",
-        minWidth: 200,
-        maxWidth: 260,
+        width: "100%",
       }}
     >
       {/* 상단 배지 바 */}
