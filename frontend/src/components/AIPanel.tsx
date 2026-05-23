@@ -374,33 +374,15 @@ const AIPanel: React.FC<AIPanelProps> = ({
       {/* 리사이즈 핸들 */}
       <div
         onMouseDown={handleResizeMouseDown}
-        className="absolute left-0 top-0 bottom-0 cursor-col-resize z-10 flex flex-col items-center justify-center group"
-        style={{ width: "12px" }}
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-10"
+        style={{ width: "4px" }}
       >
         <div
-          className="w-1 h-full transition-colors group-hover:bg-indigo-400"
+          className="w-full h-full transition-colors"
           style={{ backgroundColor: "transparent" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.backgroundColor = "#4F48ED"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.backgroundColor = "transparent"; }}
         />
-        {/* 너비 프리셋 버튼 */}
-        <div className="absolute flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-          style={{ left: "14px", top: "50%", transform: "translateY(-50%)" }}>
-          {[320, 400, 520, 680].map((w) => (
-            <button
-              key={w}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => { e.stopPropagation(); setPanelWidth(w); }}
-              className="text-xs rounded px-1.5 py-0.5 font-semibold shadow-sm transition-all whitespace-nowrap"
-              style={{
-                backgroundColor: panelWidth === w ? "#4F48ED" : "white",
-                color: panelWidth === w ? "white" : "#6366f1",
-                border: "1px solid #c7d2fe",
-                fontSize: 10,
-              }}
-            >
-              {w === 320 ? "좁게" : w === 400 ? "기본" : w === 520 ? "넓게" : "최대"}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* 헤더 */}
