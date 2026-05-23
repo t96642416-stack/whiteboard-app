@@ -255,6 +255,13 @@ function App() {
     getSocket().emit("idea-deleted", { ideaId });
   }, []);
 
+  const handleRestoreIdeas = useCallback((items: Array<{ idea: Idea; pos: { x: number; y: number } }>) => {
+    items.forEach(({ idea }) => {
+      setIdeas(prev => prev.some(i => i.id === idea.id) ? prev : [...prev, idea]);
+      getSocket().emit("idea-added", idea);
+    });
+  }, []);
+
   const handleEditIdea = useCallback((ideaId: string, title: string, content: string, category: IdeaCategory, color: string, attachments?: IdeaAttachment[]) => {
     setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, title, content, category, color, ...(attachments !== undefined ? { attachments } : {}) } : i));
     getSocket().emit("idea-updated", { ideaId, title, content, category, color, ...(attachments !== undefined ? { attachments } : {}) });
@@ -369,6 +376,7 @@ function App() {
           onCanvasImageAdded={() => setPendingCanvasImage(null)}
           onAddIdea={handleAddIdea}
           onDeleteIdea={handleDeleteIdea}
+          onRestoreIdeas={handleRestoreIdeas}
           onEditIdea={handleEditIdea}
           onAddComment={handleAddComment}
           onSectionAnalysis={handleSectionAnalysis}

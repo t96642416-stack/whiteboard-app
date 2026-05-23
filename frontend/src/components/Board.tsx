@@ -30,6 +30,7 @@ interface BoardProps {
   onCanvasImageAdded?: () => void;
   onAddIdea: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[], snapshot?: import("../types").AnalysisSnapshot) => void;
   onDeleteIdea: (id: string) => void;
+  onRestoreIdeas?: (items: Array<{ idea: Idea; pos: { x: number; y: number } }>) => void;
   onEditIdea: (id: string, title: string, content: string, category: IdeaCategory, color: string, attachments?: IdeaAttachment[]) => void;
   onAddComment: (ideaId: string, text: string) => void;
   onSectionAnalysis?: (ideas: Idea[], agentType: AgentType) => void;
@@ -47,6 +48,7 @@ const Board: React.FC<BoardProps> = ({
   onCanvasImageAdded,
   onAddIdea,
   onDeleteIdea,
+  onRestoreIdeas,
   onEditIdea,
   onAddComment,
   onSectionAnalysis,
@@ -121,6 +123,17 @@ const Board: React.FC<BoardProps> = ({
   // 포커스 선택 상태 (Delete 키용)
   const [focusedImageId, setFocusedImageId] = useState<string | null>(null);
   const [focusedSectionId, setFocusedSectionId] = useState<string | null>(null);
+  const [focusedCardId, setFocusedCardId] = useState<string | null>(null);
+
+  // Undo 스택
+  type UndoEntry =
+    | { type: "delete-ideas"; items: Array<{ idea: Idea; pos: { x: number; y: number } }> }
+    | { type: "delete-image"; image: CanvasImage }
+    | { type: "delete-section"; section: BoardSection };
+  const undoStack = useRef<UndoEntry[]>([]);
+  const pushUndo = (entry: UndoEntry) => {
+    undoStack.current = [...undoStack.current.slice(-49), entry];
+  };
 
   // 에이전트 드롭 위치 (다음 추가될 카드에 적용)
   const pendingDropPos = useRef<{ x: number; y: number } | null>(null);
@@ -129,10 +142,9 @@ const Board: React.FC<BoardProps> = ({
 
   useEffect(() => { setLocalTopic(topic); }, [topic]);
 
-  // Escape / Delete 키 핸들러
+  // Escape / Delete / Undo 키 핸들러
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // 텍스트 입력 중이면 무시
       const tag = (e.target as HTMLElement).tagName;
       const isTyping = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable;
 
@@ -149,30 +161,72 @@ const Board: React.FC<BoardProps> = ({
         setSelectionAgentSelector(false);
         setFocusedImageId(null);
         setFocusedSectionId(null);
+        setFocusedCardId(null);
       }
 
+      // ── Delete / Backspace ──
       if ((e.key === "Delete" || e.key === "Backspace") && !isTyping) {
         e.preventDefault();
-        // 선택된 아이디어 카드
+
+        // 포커스된 단일 카드
+        if (focusedCardId && selectedIds.size === 0) {
+          const idea = ideas.find(i => i.id === focusedCardId);
+          const pos = cardPositions[focusedCardId];
+          if (idea && pos) pushUndo({ type: "delete-ideas", items: [{ idea, pos }] });
+          onDeleteIdea(focusedCardId);
+          setFocusedCardId(null);
+        }
+        // 선택 모드의 다중 카드
         if (selectedIds.size > 0) {
+          const items = [...selectedIds].flatMap(id => {
+            const idea = ideas.find(i => i.id === id);
+            const pos = cardPositions[id];
+            return idea && pos ? [{ idea, pos }] : [];
+          });
+          if (items.length) pushUndo({ type: "delete-ideas", items });
           selectedIds.forEach(id => onDeleteIdea(id));
           setSelectedIds(new Set());
         }
-        // 포커스된 캔버스 이미지
+        // 포커스된 이미지
         if (focusedImageId) {
+          const img = canvasImages.find(i => i.id === focusedImageId);
+          if (img) pushUndo({ type: "delete-image", image: img });
           setCanvasImages(prev => prev.filter(i => i.id !== focusedImageId));
           setFocusedImageId(null);
         }
         // 포커스된 섹션
         if (focusedSectionId) {
+          const sec = sections.find(s => s.id === focusedSectionId);
+          if (sec) pushUndo({ type: "delete-section", section: sec });
           setSections(prev => prev.filter(s => s.id !== focusedSectionId));
           setFocusedSectionId(null);
+        }
+      }
+
+      // ── Ctrl/Cmd + Z : Undo ──
+      if ((e.key === "z" || e.key === "Z") && (e.metaKey || e.ctrlKey) && !e.shiftKey && !isTyping) {
+        e.preventDefault();
+        const last = undoStack.current[undoStack.current.length - 1];
+        if (!last) return;
+        undoStack.current = undoStack.current.slice(0, -1);
+
+        if (last.type === "delete-ideas") {
+          onRestoreIdeas?.(last.items);
+          setCardPositions(prev => {
+            const next = { ...prev };
+            last.items.forEach(({ idea, pos }) => { next[idea.id] = pos; });
+            return next;
+          });
+        } else if (last.type === "delete-image") {
+          setCanvasImages(prev => [...prev, last.image]);
+        } else if (last.type === "delete-section") {
+          setSections(prev => [...prev, last.section]);
         }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selectedIds, focusedImageId, focusedSectionId, onDeleteIdea]);
+  }, [selectedIds, focusedImageId, focusedSectionId, focusedCardId, ideas, cardPositions, canvasImages, sections, onDeleteIdea, onRestoreIdeas]);
 
   // 새 카드 위치 자동 할당
   useEffect(() => {
@@ -1049,6 +1103,7 @@ const Board: React.FC<BoardProps> = ({
               const pos = getCardPos(idea.id, globalIndex);
               const isActive = activeDragId === idea.id;
               const isSelected = selectedIds.has(idea.id);
+              const isFocused = focusedCardId === idea.id;
               return (
                 <div key={idea.id} data-card-wrapper="true" className="absolute group"
                   style={{
@@ -1056,7 +1111,12 @@ const Board: React.FC<BoardProps> = ({
                     zIndex: isActive ? 1000 : 1,
                     filter: isActive ? "drop-shadow(0 12px 20px rgba(0,0,0,0.25))" : "none",
                     transition: isActive ? "none" : "filter 0.2s",
-                  }}>
+                    outline: isFocused ? "2px solid #4F48ED" : "none",
+                    outlineOffset: 3,
+                    borderRadius: 10,
+                  }}
+                  onClick={() => { setFocusedCardId(idea.id); setFocusedImageId(null); setFocusedSectionId(null); }}
+                >
                   {/* 드래그 핸들 (선택 모드에서는 숨김) */}
                   {!isSelectMode && (
                     <div
