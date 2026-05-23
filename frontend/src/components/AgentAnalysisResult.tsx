@@ -218,8 +218,9 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
         </div>
 
         {result.ideas.map((idea, i) => (
-          <div key={i} className="mb-5">
-            <div className="flex items-center gap-2 mb-2">
+          <div key={i} className="mb-6 pb-5 border-b border-gray-100 last:border-0 last:pb-0 last:mb-0">
+            {/* 아이디어 헤더 */}
+            <div className="flex items-center gap-2 mb-3">
               <span className="text-xs font-bold text-gray-500">{String.fromCharCode(65 + i)}</span>
               <span className="text-xs font-bold text-gray-800">{idea.name}</span>
               <span className="ml-auto px-2 py-0.5 rounded-full text-xs font-semibold"
@@ -228,69 +229,73 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
               </span>
             </div>
 
-            {/* 이미지 + 분석 레이아웃 */}
-            {idea.imageUrl && (
-              <div className="mb-2 rounded-xl overflow-hidden border border-gray-100 shadow-sm">
-                <img
-                  src={idea.imageUrl}
-                  alt={`${idea.name} 적용 예시`}
-                  className="w-full object-cover"
-                  style={{ maxHeight: 180 }}
-                />
-                <div className="px-2 py-1 bg-gray-50 border-t border-gray-100">
-                  <p className="text-xs text-gray-400">🤖 아이디어 적용 시 예상 모습</p>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-2 mb-2">
-              {idea.effects.map((effect, j) => {
-                const titleColor = "#4F48ED";
-                const { cleanText: noteText, source: src } = effect.note
-                  ? parseSourceRef(effect.note, sources || [])
-                  : { cleanText: "", source: null };
-                return (
-                  <DraggableCard key={j} title={effect.title} content={`${effect.description}${noteText ? `\n\n${noteText}` : ""}`} snapshot={{ agentType: 'emphasis', itemData: { ideaName: idea.name, ideaIndex: i, effect } }} onAdd={onAddIdea}>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-600 font-medium">
-                          {effect.label}
-                        </span>
-                        <span className="text-xs font-bold" style={{ color: titleColor }}>
-                          {effect.title}
-                        </span>
+            {/* 텍스트(좌) + 이미지(우) 나란히 */}
+            <div className="flex gap-3">
+              {/* 왼쪽: 효과 목록 + 유사 사례 */}
+              <div className="flex-1 min-w-0 space-y-2">
+                {idea.effects.map((effect, j) => {
+                  const titleColor = "#4F48ED";
+                  const { cleanText: noteText, source: src } = effect.note
+                    ? parseSourceRef(effect.note, sources || [])
+                    : { cleanText: "", source: null };
+                  return (
+                    <DraggableCard key={j} title={effect.title} content={`${effect.description}${noteText ? `\n\n${noteText}` : ""}`} snapshot={{ agentType: 'emphasis', itemData: { ideaName: idea.name, ideaIndex: i, effect } }} onAdd={onAddIdea}>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-600 font-medium flex-shrink-0">
+                            {effect.label}
+                          </span>
+                          <span className="text-xs font-bold" style={{ color: titleColor }}>
+                            {effect.title}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 leading-relaxed mb-1">{effect.description}</p>
+                        {effect.note && noteText && (
+                          src ? (
+                            <a href={src.link} target="_blank" rel="noopener noreferrer" draggable={false}
+                              className="text-xs text-green-700 hover:text-green-800 hover:underline flex items-center gap-1 leading-relaxed">
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                              </svg>
+                              {noteText}
+                            </a>
+                          ) : (
+                            <p className="text-xs text-gray-400 leading-relaxed flex items-center gap-1">
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                              </svg>
+                              {noteText}
+                            </p>
+                          )
+                        )}
                       </div>
-                      <p className="text-xs text-gray-600 leading-relaxed mb-1">{effect.description}</p>
-                      {effect.note && noteText && (
-                        src ? (
-                          <a href={src.link} target="_blank" rel="noopener noreferrer" draggable={false}
-                            className="text-xs text-green-700 hover:text-green-800 hover:underline flex items-center gap-1 leading-relaxed">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                            </svg>
-                            {noteText}
-                          </a>
-                        ) : (
-                          <p className="text-xs text-gray-400 leading-relaxed flex items-center gap-1">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                            </svg>
-                            {noteText}
-                          </p>
-                        )
-                      )}
-                    </div>
-                  </DraggableCard>
-                );
-              })}
-            </div>
+                    </DraggableCard>
+                  );
+                })}
 
-            {idea.similarCase && (
-              <div className="rounded-lg p-3" style={{ backgroundColor: "#f9fafb" }}>
-                <p className="text-xs font-semibold text-gray-500 mb-1">유사 사례</p>
-                <p className="text-xs text-gray-600 leading-relaxed">{idea.similarCase}</p>
+                {idea.similarCase && (
+                  <div className="rounded-lg p-3" style={{ backgroundColor: "#f9fafb" }}>
+                    <p className="text-xs font-semibold text-gray-500 mb-1">유사 사례</p>
+                    <p className="text-xs text-gray-600 leading-relaxed">{idea.similarCase}</p>
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* 오른쪽: AI 생성 이미지 */}
+              {idea.imageUrl && (
+                <div className="flex-shrink-0 w-32 flex flex-col gap-1">
+                  <div className="rounded-xl overflow-hidden border border-gray-100 shadow-sm h-full" style={{ minHeight: 120 }}>
+                    <img
+                      src={idea.imageUrl}
+                      alt={`${idea.name} 적용 예시`}
+                      className="w-full h-full object-cover"
+                      style={{ minHeight: 120 }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 text-center leading-tight">🤖 적용 예상 모습</p>
+                </div>
+              )}
+            </div>
           </div>
         ))}
 
@@ -350,8 +355,8 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
           ].filter(Boolean).join("\n");
           return (
             <DraggableCard key={idea.id} title={idea.name} content={ideaSummary} snapshot={{ agentType: 'attribute', itemData: { ...idea, index: idx } }} onAdd={onAddIdea}>
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-2">
+            <div className="mb-5 pb-4 border-b border-gray-100 last:border-0 last:pb-0 last:mb-0">
+              <div className="flex items-center gap-2 mb-3">
                 <span className="text-xs font-bold text-gray-500">{label}</span>
                 <span className="text-xs font-bold text-gray-800 flex-1">{idea.name}</span>
                 <span className="px-2 py-0.5 rounded-full text-xs font-semibold"
@@ -359,20 +364,9 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                   아이디어 {label}
                 </span>
               </div>
-              {/* AI 생성 이미지 */}
-              {idea.imageUrl && (
-                <div className="mb-2 rounded-xl overflow-hidden border-2 border-blue-200 shadow-sm">
-                  <img
-                    src={idea.imageUrl}
-                    alt={`${idea.name} 적용 예시`}
-                    className="w-full object-cover"
-                    style={{ maxHeight: 160 }}
-                  />
-                  <div className="px-2 py-1 bg-blue-50 border-t border-blue-100">
-                    <p className="text-xs text-blue-400">🤖 아이디어 적용 시 예상 모습</p>
-                  </div>
-                </div>
-              )}
+              {/* 텍스트(좌) + 이미지(우) */}
+              <div className="flex gap-3">
+                <div className="flex-1 min-w-0">
               <div className="grid grid-cols-2 gap-2">
                 {/* 장점 */}
                 <div className="rounded-lg p-3" style={{ backgroundColor: "#f0fdf4" }}>
@@ -430,6 +424,22 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                     })}
                   </div>
                 </div>
+              </div>
+                </div>
+                {/* 오른쪽: AI 생성 이미지 */}
+                {idea.imageUrl && (
+                  <div className="flex-shrink-0 w-32 flex flex-col gap-1">
+                    <div className="rounded-xl overflow-hidden border-2 border-blue-200 shadow-sm" style={{ minHeight: 120 }}>
+                      <img
+                        src={idea.imageUrl}
+                        alt={`${idea.name} 적용 예시`}
+                        className="w-full h-full object-cover"
+                        style={{ minHeight: 120 }}
+                      />
+                    </div>
+                    <p className="text-xs text-blue-400 text-center leading-tight">🤖 적용 예상 모습</p>
+                  </div>
+                )}
               </div>
             </div>
             </DraggableCard>
