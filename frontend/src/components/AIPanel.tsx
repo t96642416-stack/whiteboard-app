@@ -571,11 +571,6 @@ const AIPanel: React.FC<AIPanelProps> = ({
                   }}
                 >
                   <span className="text-white font-bold" style={{ fontSize: 17, letterSpacing: "-0.5px" }}>Ai</span>
-                  {/* 4-point sparkle ✦ */}
-                  <svg width="10" height="10" viewBox="0 0 16 16" fill="white"
-                    style={{ position: "absolute", top: 3, right: 3 }}>
-                    <path d="M8 0 L9.5 6.5 L16 8 L9.5 9.5 L8 16 L6.5 9.5 L0 8 L6.5 6.5 Z"/>
-                  </svg>
                 </div>
 
                 {/* 메인 카드 */}
