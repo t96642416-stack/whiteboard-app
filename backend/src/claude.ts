@@ -338,19 +338,25 @@ export async function analyzeIdeas(
 }
 
 // Pollinations.ai 이미지 생성 (무료, API 키 불필요)
+// 백엔드에서 직접 다운로드 후 base64로 변환하여 안정적으로 전달
 export async function generateIdeaImage(ideaName: string, ideaContent: string): Promise<string | null> {
   try {
-    const prompt = `realistic professional photo of "${ideaName}", ${ideaContent}, modern interior space, natural lighting, people using the space, photorealistic, high quality, no text`;
+    const prompt = `realistic professional photo of "${ideaName}", ${ideaContent}, modern interior space, natural lighting, people naturally using the space, high quality, no text, no labels`;
     const seed = Math.floor(Math.random() * 9999);
-    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=600&height=400&nologo=true&seed=${seed}&model=flux`;
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=600&height=400&nologo=true&seed=${seed}&model=turbo`;
 
-    // URL이 유효한지 확인 (HEAD 요청)
-    const res = await fetch(url, { method: "HEAD" });
+    console.log(`🎨 이미지 생성 중: ${ideaName}`);
+    const res = await fetch(url, { signal: AbortSignal.timeout(40000) });
     if (!res.ok) {
-      console.error("Pollinations 이미지 생성 실패:", res.status);
+      console.error(`이미지 생성 실패 (${res.status}):`, ideaName);
       return null;
     }
-    return url; // 이미지 URL을 그대로 반환
+
+    const buffer = await res.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString("base64");
+    const contentType = res.headers.get("content-type") || "image/jpeg";
+    console.log(`✅ 이미지 완료: ${ideaName} (${(buffer.byteLength / 1024).toFixed(0)}KB)`);
+    return `data:${contentType};base64,${base64}`;
   } catch (error) {
     console.error("이미지 생성 오류:", error);
     return null;
