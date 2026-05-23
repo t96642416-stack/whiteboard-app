@@ -24,11 +24,6 @@ const LoginModal: React.FC<{ onJoin: (userName: string, roomId: string, color: s
     <div className="fixed inset-0 bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
         <div className="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 py-8 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-white bg-opacity-20 flex items-center justify-center mx-auto mb-4">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5">
-              <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </div>
           <h1 className="text-2xl font-bold text-white">협업 화이트보드</h1>
           <p className="text-blue-100 text-sm mt-1">팀과 함께 아이디어를 공유하세요</p>
         </div>
