@@ -118,6 +118,10 @@ const Board: React.FC<BoardProps> = ({
   const [canvasImages, setCanvasImages] = useState<CanvasImage[]>([]);
   const canvasImageInputRef = useRef<HTMLInputElement>(null);
 
+  // 포커스 선택 상태 (Delete 키용)
+  const [focusedImageId, setFocusedImageId] = useState<string | null>(null);
+  const [focusedSectionId, setFocusedSectionId] = useState<string | null>(null);
+
   // 에이전트 드롭 위치 (다음 추가될 카드에 적용)
   const pendingDropPos = useRef<{ x: number; y: number } | null>(null);
 
@@ -125,9 +129,13 @@ const Board: React.FC<BoardProps> = ({
 
   useEffect(() => { setLocalTopic(topic); }, [topic]);
 
-  // Escape → 모드 종료
+  // Escape / Delete 키 핸들러
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // 텍스트 입력 중이면 무시
+      const tag = (e.target as HTMLElement).tagName;
+      const isTyping = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable;
+
       if (e.key === "Escape") {
         setIsSectionMode(false);
         sectionDrawState.current = null;
@@ -139,11 +147,32 @@ const Board: React.FC<BoardProps> = ({
         setSelectBox(null);
         setSelectedIds(new Set());
         setSelectionAgentSelector(false);
+        setFocusedImageId(null);
+        setFocusedSectionId(null);
+      }
+
+      if ((e.key === "Delete" || e.key === "Backspace") && !isTyping) {
+        e.preventDefault();
+        // 선택된 아이디어 카드
+        if (selectedIds.size > 0) {
+          selectedIds.forEach(id => onDeleteIdea(id));
+          setSelectedIds(new Set());
+        }
+        // 포커스된 캔버스 이미지
+        if (focusedImageId) {
+          setCanvasImages(prev => prev.filter(i => i.id !== focusedImageId));
+          setFocusedImageId(null);
+        }
+        // 포커스된 섹션
+        if (focusedSectionId) {
+          setSections(prev => prev.filter(s => s.id !== focusedSectionId));
+          setFocusedSectionId(null);
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [selectedIds, focusedImageId, focusedSectionId, onDeleteIdea]);
 
   // 새 카드 위치 자동 할당
   useEffect(() => {
@@ -213,6 +242,9 @@ const Board: React.FC<BoardProps> = ({
     if (target.closest("[data-card-wrapper]")) return;
     if (target.closest("[data-toolbar]")) return;
     if (target.closest("[data-canvas-image-wrapper]")) return;
+    // 빈 캔버스 클릭 시 포커스 해제
+    setFocusedImageId(null);
+    setFocusedSectionId(null);
 
     e.currentTarget.setPointerCapture(e.pointerId);
 
@@ -780,10 +812,14 @@ const Board: React.FC<BoardProps> = ({
                   style={{
                     left: section.x, top: section.y,
                     width: section.width, height: section.height,
-                    border: `2px solid ${hex}`,
+                    border: focusedSectionId === section.id ? `2px solid ${hex}` : `2px solid ${hex}`,
+                    outline: focusedSectionId === section.id ? `2px solid ${hex}` : "none",
+                    outlineOffset: 2,
                     borderRadius: 12,
                     backgroundColor: hex + "15",
-                  }}>
+                  }}
+                  onClick={() => { setFocusedSectionId(section.id); setFocusedImageId(null); }}
+                >
                   {/* 섹션 헤더 */}
                   <div data-toolbar className="flex items-center gap-1.5 px-3 py-2 rounded-t-xl select-none"
                     style={{ backgroundColor: hex + "30" }}>
@@ -964,14 +1000,16 @@ const Board: React.FC<BoardProps> = ({
                   width: img.width, height: img.height,
                   cursor: "grab",
                   zIndex: 2,
+                  outline: focusedImageId === img.id ? "2px solid #4F48ED" : "none",
+                  borderRadius: 12,
                 }}
-                onPointerDown={e => startImageDrag(e, img)}
+                onPointerDown={e => { setFocusedImageId(img.id); setFocusedSectionId(null); startImageDrag(e, img); }}
               >
                 <img
                   src={img.src}
                   alt="캔버스 이미지"
                   className="w-full h-full object-cover rounded-xl shadow-lg"
-                  style={{ border: "2px solid rgba(255,255,255,0.8)" }}
+                  style={{ border: focusedImageId === img.id ? "2px solid #4F48ED" : "2px solid rgba(255,255,255,0.8)" }}
                   draggable={false}
                 />
                 {/* 삭제 버튼 */}
