@@ -569,7 +569,7 @@ const Board: React.FC<BoardProps> = ({
         <div className="flex items-center gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2.5 mb-1">
-              <h1 className="text-base font-bold text-blue-600 tracking-tight whitespace-nowrap">협업 화이트보드</h1>
+              <a href="/" className="text-base font-bold text-blue-600 tracking-tight whitespace-nowrap hover:opacity-75 transition-opacity">협업 화이트보드</a>
               <span className="text-gray-300">|</span>
               <span className="text-xs text-gray-500 font-mono">{roomId}</span>
               <div className="flex items-center gap-1">
