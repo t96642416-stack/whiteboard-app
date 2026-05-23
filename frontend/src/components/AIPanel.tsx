@@ -276,22 +276,22 @@ const AIPanel: React.FC<AIPanelProps> = ({
           <button
             key={agent.type}
             onClick={() => handleAgentClick(agent.type)}
-            className={`w-full bg-white rounded-xl flex items-center gap-4 hover:shadow-md transition-all text-left ${compact ? "px-3 py-2.5" : "px-4 py-3.5"}`}
+            className={`w-full bg-white rounded-xl flex items-center gap-3 hover:shadow-sm transition-all text-left ${compact ? "px-3 py-2" : "px-3.5 py-3"}`}
           >
             <span
               className="flex-shrink-0 rounded-lg font-semibold"
               style={{
                 backgroundColor: badge.bg,
                 color: badge.text,
-                fontSize: compact ? 11 : 13,
-                padding: compact ? "4px 10px" : "6px 12px",
-                minWidth: compact ? 64 : 76,
+                fontSize: compact ? 11 : 12,
+                padding: compact ? "3px 8px" : "4px 10px",
+                minWidth: compact ? 58 : 68,
                 textAlign: "center",
               }}
             >
               {agent.name}
             </span>
-            <span className="text-gray-500 leading-snug" style={{ fontSize: compact ? 11 : 13 }}>
+            <span className="text-gray-500 leading-snug" style={{ fontSize: compact ? 11 : 12 }}>
               {agent.description}
             </span>
           </button>
@@ -579,24 +579,28 @@ const AIPanel: React.FC<AIPanelProps> = ({
               <div className="pt-2 space-y-3">
                 {/* Ai 아이콘 (카드 밖, 상단) */}
                 <div
-                  className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0"
-                  style={{ background: "linear-gradient(135deg, #9B6DFF 0%, #6366F1 100%)" }}
+                  className="flex items-center justify-center flex-shrink-0 relative"
+                  style={{
+                    width: 44, height: 44, borderRadius: 12,
+                    background: "linear-gradient(135deg, #9B6DFF 0%, #6366F1 100%)",
+                    boxShadow: "0 4px 12px rgba(99,102,241,0.35)",
+                  }}
                 >
-                  <span className="text-white font-bold text-base tracking-tight leading-none flex items-center gap-0.5">
-                    Ai
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="white" className="mb-1">
-                      <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
-                    </svg>
-                  </span>
+                  <span className="text-white font-bold" style={{ fontSize: 17, letterSpacing: "-0.5px" }}>Ai</span>
+                  {/* 4-point sparkle */}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="white"
+                    style={{ position: "absolute", top: 3, right: 3 }}>
+                    <path d="M12 2c0 0-1 5-4 8S2 12 2 12s5 1 6 4 4 6 4 6 1-5 4-6 6-4 6-4-5-1-6-4-4-6-4-6z"/>
+                  </svg>
                 </div>
 
                 {/* 메인 카드 */}
                 <div
-                  className="rounded-2xl p-6"
-                  style={{ backgroundColor: "#EEEEFF", border: "1.5px solid #C8C6F6" }}
+                  className="rounded-2xl"
+                  style={{ backgroundColor: "#EEEEFF", border: "1.5px solid #C8C6F6", padding: "20px 20px 20px 20px" }}
                 >
                   {/* 인삿말 */}
-                  <p className="font-bold text-gray-900 leading-relaxed mb-6" style={{ fontSize: 15 }}>
+                  <p className="font-bold text-gray-900 leading-relaxed mb-4" style={{ fontSize: 13 }}>
                     안녕하세요! 아이디어 분석을 도와드릴게요.<br />
                     원하는 에이전트가 있다면 에이전트를 선택해주세요!
                   </p>
@@ -604,28 +608,28 @@ const AIPanel: React.FC<AIPanelProps> = ({
                   {/* 에이전트 목록 */}
                   <AgentListItems />
 
-                  {/* 검색 토글 + 파일 첨부 (하단, 간소화) */}
-                  <div className="mt-5 pt-4 border-t space-y-2" style={{ borderColor: "#C8C6F6" }}>
+                  {/* 검색 토글 + 파일 첨부 (하단) */}
+                  <div className="mt-3 pt-3 border-t space-y-1.5" style={{ borderColor: "#C8C6F6" }}>
                     {/* 실시간 검색 토글 */}
                     <button
                       type="button"
                       onClick={() => setUseSearch((v) => !v)}
-                      className="w-full bg-white rounded-xl flex items-center gap-3 px-4 py-3 hover:shadow-sm transition-all text-left"
+                      className="w-full bg-white rounded-xl flex items-center gap-3 px-3.5 py-2.5 hover:shadow-sm transition-all text-left"
                     >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={useSearch ? "#16A34A" : "#6366f1"} strokeWidth="2">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={useSearch ? "#16A34A" : "#6366f1"} strokeWidth="2">
                         <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                       </svg>
                       <div className="flex-1">
-                        <div className="font-semibold text-gray-700" style={{ fontSize: 13 }}>
+                        <div className="font-semibold text-gray-700" style={{ fontSize: 12 }}>
                           실시간 검색 기반 분석
-                          {useSearch && <span className="ml-2 text-xs bg-green-500 text-white px-1.5 py-0.5 rounded-full">ON</span>}
+                          {useSearch && <span className="ml-1.5 bg-green-500 text-white px-1.5 py-0.5 rounded-full" style={{ fontSize: 10 }}>ON</span>}
                         </div>
-                        <div className="text-gray-400 mt-0.5" style={{ fontSize: 11 }}>
-                          {useSearch ? "네이버 검색 자료를 참고해 더 정확하게 분석해요" : "켜면 네이버 실시간 검색 결과를 참고해요"}
+                        <div className="text-gray-400 mt-0.5" style={{ fontSize: 10 }}>
+                          {useSearch ? "네이버 검색 자료를 참고해 분석해요" : "켜면 네이버 실시간 검색 결과를 참고해요"}
                         </div>
                       </div>
-                      <div className={`w-9 h-5 rounded-full transition-all flex items-center px-0.5 flex-shrink-0 ${useSearch ? "bg-green-500" : "bg-gray-300"}`}>
-                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-all ${useSearch ? "translate-x-4" : "translate-x-0"}`} />
+                      <div className={`w-8 h-4 rounded-full transition-all flex items-center px-0.5 flex-shrink-0 ${useSearch ? "bg-green-500" : "bg-gray-300"}`}>
+                        <div className={`w-3 h-3 rounded-full bg-white shadow-sm transition-all ${useSearch ? "translate-x-4" : "translate-x-0"}`} />
                       </div>
                     </button>
 
