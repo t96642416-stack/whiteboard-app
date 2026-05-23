@@ -303,6 +303,10 @@ const Board: React.FC<BoardProps> = ({
     if (target.closest("[data-card-wrapper]")) return;
     if (target.closest("[data-toolbar]")) return;
     if (target.closest("[data-canvas-image-wrapper]")) return;
+    // 모달/입력창 클릭은 무시
+    const tag = target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable) return;
+    if (target.closest("[data-modal]")) return;
     // 빈 캔버스 클릭 시 포커스 해제 + 캔버스에 DOM 포커스
     setFocusedImageId(null);
     setFocusedSectionId(null);
@@ -1125,7 +1129,14 @@ const Board: React.FC<BoardProps> = ({
                     outlineOffset: 3,
                     borderRadius: 10,
                   }}
-                  onClick={() => { setFocusedCardId(idea.id); setFocusedImageId(null); setFocusedSectionId(null); canvasRef.current?.focus(); }}
+                  onClick={(e) => {
+                    setFocusedCardId(idea.id); setFocusedImageId(null); setFocusedSectionId(null);
+                    // 버튼·입력창 클릭은 캔버스 포커스 이동 안 함
+                    const t = e.target as HTMLElement;
+                    if (t.tagName !== "INPUT" && t.tagName !== "TEXTAREA" && !t.closest("button") && !t.isContentEditable) {
+                      canvasRef.current?.focus();
+                    }
+                  }}
                 >
                   {/* 드래그 핸들 (선택 모드에서는 숨김) */}
                   {!isSelectMode && (

@@ -70,7 +70,7 @@ const AddIdeaModal: React.FC<AddIdeaModalProps> = ({ onClose, onAdd, defaultCate
   const removeAttachment = (idx: number) => setAttachments((prev) => prev.filter((_, i) => i !== idx));
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" onClick={handleBackdrop}>
+    <div data-modal className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50" onClick={handleBackdrop}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden max-h-[90vh] flex flex-col">
         {/* 헤더 */}
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
