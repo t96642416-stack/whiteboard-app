@@ -56,7 +56,7 @@ const LoginModal: React.FC<{ onJoin: (userName: string, roomId: string, color: s
                   className="w-8 h-8 rounded-full transition-all flex-shrink-0"
                   style={{
                     backgroundColor: opt.value,
-                    border: selectedColor === opt.value ? `3px solid #3b82f6` : `2px solid #d1d5db`,
+                    border: selectedColor === opt.value ? `3px solid #4F48ED` : `2px solid #d1d5db`,
                     boxShadow: selectedColor === opt.value ? "0 0 0 2px #93c5fd" : "none",
                   }} />
               ))}

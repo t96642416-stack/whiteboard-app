@@ -93,8 +93,8 @@ const AddIdeaModal: React.FC<AddIdeaModalProps> = ({ onClose, onAdd, defaultCate
                   className="w-8 h-8 rounded-full border-2 transition-transform hover:scale-110"
                   style={{
                     backgroundColor: color,
-                    borderColor: selectedColor === color ? "#3b82f6" : "transparent",
-                    boxShadow: selectedColor === color ? "0 0 0 2px #3b82f6" : "0 1px 3px rgba(0,0,0,0.15)",
+                    borderColor: selectedColor === color ? "#4F48ED" : "transparent",
+                    boxShadow: selectedColor === color ? "0 0 0 2px #4F48ED" : "0 1px 3px rgba(0,0,0,0.15)",
                   }} />
               ))}
             </div>

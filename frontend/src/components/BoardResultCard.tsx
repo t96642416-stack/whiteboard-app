@@ -119,7 +119,7 @@ const BoardResultCard: React.FC<Props> = ({ idea, onDelete }) => {
                 <span className="ml-auto text-xs font-bold text-indigo-600">{d.score}점</span>
               )}
             </div>
-            <ScoreBar label="실현 가능성" value={d.feasibility ?? 0} color="#3b82f6" />
+            <ScoreBar label="실현 가능성" value={d.feasibility ?? 0} color="#4F48ED" />
             <ScoreBar label="사용자 편의" value={d.userExperience ?? 0} color="#eab308" />
             <ScoreBar label="차별성" value={d.uniqueness ?? 0} color={d.uniqueness >= 50 ? "#16a34a" : "#ef4444"} />
           </div>

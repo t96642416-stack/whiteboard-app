@@ -661,7 +661,7 @@ const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onA
                     </div>
                     <div className="w-full bg-gray-100 rounded-full h-2">
                       <div className="h-2 rounded-full transition-all"
-                        style={{ width: `${idea.feasibility}%`, backgroundColor: "#3b82f6" }} />
+                        style={{ width: `${idea.feasibility}%`, backgroundColor: "#4F48ED" }} />
                     </div>
                   </div>
                   <div>
@@ -763,7 +763,7 @@ const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[] }>
                     <span className="text-xs font-medium text-gray-700">{idea.feasibility}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-1.5">
-                    <div className="h-1.5 rounded-full" style={{ width: `${idea.feasibility}%`, backgroundColor: "#3b82f6" }} />
+                    <div className="h-1.5 rounded-full" style={{ width: `${idea.feasibility}%`, backgroundColor: "#4F48ED" }} />
                   </div>
                 </div>
                 <div>

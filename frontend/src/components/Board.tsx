@@ -9,7 +9,7 @@ const COLS = 3;
 const COL_GAP = 24;
 const ROW_GAP = 16;
 
-const SECTION_COLORS = ["#6366f1", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6"];
+const SECTION_COLORS = ["#6366f1", "#ec4899", "#f59e0b", "#10b981", "#4F48ED", "#8b5cf6"];
 
 function getDefaultPosition(index: number) {
   return {
@@ -854,7 +854,7 @@ const Board: React.FC<BoardProps> = ({
                 style={{
                   left: selectBox.x, top: selectBox.y,
                   width: selectBox.w, height: selectBox.h,
-                  border: "2px dashed #3b82f6",
+                  border: "2px dashed #4F48ED",
                   borderRadius: 6,
                   backgroundColor: "rgba(59, 130, 246, 0.08)",
                 }}
@@ -906,7 +906,7 @@ const Board: React.FC<BoardProps> = ({
                   <div
                     key={dir}
                     className="absolute w-3 h-3 rounded-sm border-2 bg-white opacity-0 group-hover/cimg:opacity-100 transition-opacity hover:scale-125"
-                    style={{ ...style, borderColor: "#3b82f6", zIndex: 10 } as React.CSSProperties}
+                    style={{ ...style, borderColor: "#4F48ED", zIndex: 10 } as React.CSSProperties}
                     onPointerDown={e => startImageResize(e, img, dir)}
                   />
                 ))}
@@ -946,7 +946,7 @@ const Board: React.FC<BoardProps> = ({
                     <div
                       className="absolute inset-0 z-20 rounded-lg cursor-pointer transition-all"
                       style={{
-                        border: isSelected ? "2px solid #3b82f6" : "2px solid transparent",
+                        border: isSelected ? "2px solid #4F48ED" : "2px solid transparent",
                         backgroundColor: isSelected ? "rgba(59,130,246,0.12)" : "transparent",
                         borderRadius: 8,
                       }}

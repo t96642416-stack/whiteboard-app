@@ -125,7 +125,7 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
       className="relative rounded-lg p-4 shadow-md min-h-[140px] flex flex-col group"
       style={{
         backgroundColor: isEditing ? editColor : idea.color,
-        border: isEditing ? "2px solid #3b82f6" : "1px solid rgba(0,0,0,0.06)",
+        border: isEditing ? "2px solid #4F48ED" : "1px solid rgba(0,0,0,0.06)",
         boxShadow: isEditing
           ? "0 0 0 3px rgba(59,130,246,0.15), 2px 3px 8px rgba(0,0,0,0.12)"
           : "2px 3px 8px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)",
@@ -145,7 +145,7 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
                 className="w-5 h-5 rounded-full border-2 transition-all flex-shrink-0"
                 style={{
                   backgroundColor: c,
-                  borderColor: editColor === c ? "#3b82f6" : "rgba(0,0,0,0.15)",
+                  borderColor: editColor === c ? "#4F48ED" : "rgba(0,0,0,0.15)",
                   transform: editColor === c ? "scale(1.25)" : "scale(1)",
                 }}
               />
