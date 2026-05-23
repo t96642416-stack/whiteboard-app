@@ -626,12 +626,25 @@ const Board: React.FC<BoardProps> = ({
                 ))}
                 {users.length > 5 && <span className="text-xs text-gray-400 ml-1">+{users.length - 5}</span>}
               </div>
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {editingTopic ? (
+                <input autoFocus type="text" value={localTopic}
+                  onChange={e => setLocalTopic(e.target.value)}
+                  onBlur={handleTopicBlur} onKeyDown={handleTopicKeyDown}
+                  className="px-2 py-0.5 text-sm border border-blue-400 rounded focus:outline-none text-gray-800 w-64" />
+              ) : (
+                <button onClick={() => setEditingTopic(true)}
+                  className={`text-sm transition-colors ${localTopic ? "text-gray-700 font-medium hover:text-blue-600" : "text-gray-400 hover:text-blue-500"}`}>
+                  {localTopic || "회의 주제를 입력하세요..."}
+                </button>
+              )}
               {/* 파일 첨부 버튼 */}
               <input ref={topicFileInputRef} type="file" multiple accept=".txt,.md,.csv,.json,.pdf,image/*" className="hidden" onChange={handleTopicFileChange} />
               <button
                 onClick={() => topicFileInputRef.current?.click()}
                 disabled={topicFiles.length >= 3}
-                className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-500 disabled:opacity-30 transition-colors ml-1"
+                className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-500 disabled:opacity-30 transition-colors"
                 title="회의 참고 파일 첨부"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -650,19 +663,6 @@ const Board: React.FC<BoardProps> = ({
                   </button>
                 </span>
               ))}
-            </div>
-            <div className="flex items-center gap-1.5">
-              {editingTopic ? (
-                <input autoFocus type="text" value={localTopic}
-                  onChange={e => setLocalTopic(e.target.value)}
-                  onBlur={handleTopicBlur} onKeyDown={handleTopicKeyDown}
-                  className="px-2 py-0.5 text-sm border border-blue-400 rounded focus:outline-none text-gray-800 w-64" />
-              ) : (
-                <button onClick={() => setEditingTopic(true)}
-                  className={`text-sm transition-colors ${localTopic ? "text-gray-700 font-medium hover:text-blue-600" : "text-gray-400 hover:text-blue-500"}`}>
-                  {localTopic || "회의 주제를 입력하세요..."}
-                </button>
-              )}
             </div>
           </div>
         </div>
