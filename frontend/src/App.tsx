@@ -211,30 +211,6 @@ function App() {
       ]);
     });
 
-    // 이미지 스트리밍: 생성되는 대로 각 아이디어 카드에 반영
-    socket.on("analysis-image", ({ index, imageUrl }: { index: number; imageUrl: string; agentType: string }) => {
-      // 현재 결과에 반영
-      setAgentAnalysisResult(prev => {
-        if (!prev) return prev;
-        const result = prev as any;
-        if (!result.ideas?.[index]) return prev;
-        const newIdeas = [...result.ideas];
-        newIdeas[index] = { ...newIdeas[index], imageUrl };
-        return { ...result, ideas: newIdeas };
-      });
-      // 최신 히스토리 아이템에도 반영 (내역에서 이미지가 사라지지 않도록)
-      setAnalysisHistory(prev => {
-        if (!prev.length || !prev[0].agentResult) return prev;
-        const agentResult = prev[0].agentResult as any;
-        if (!agentResult.ideas?.[index]) return prev;
-        const newIdeas = [...agentResult.ideas];
-        newIdeas[index] = { ...newIdeas[index], imageUrl };
-        return [
-          { ...prev[0], agentResult: { ...agentResult, ideas: newIdeas } },
-          ...prev.slice(1),
-        ];
-      });
-    });
 
     socket.on("ai-response", ({ message, timestamp, isError }: { message: string; timestamp: string; isError?: boolean }) => {
       setIsAIResponding(false);
@@ -257,7 +233,6 @@ function App() {
       socket.off("user-left");
       socket.off("topic-changed");
       socket.off("chat-message");
-      socket.off("analysis-image");
       socket.off("ai-response");
     };
   }, [joined, showError]);

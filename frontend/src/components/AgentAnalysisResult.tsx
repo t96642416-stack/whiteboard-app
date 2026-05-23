@@ -75,137 +75,67 @@ const ET: React.FC<{
   );
 };
 
-// AI 이미지 (타임아웃 + 재시도 + 업로드 폴백)
+// 이미지 업로드 위젯
 const IdeaImage: React.FC<{
-  aiUrl?: string;
   alt: string;
   blue?: boolean;
-  delay?: number;
   onApplyImage?: (url: string) => void;
-}> = ({ aiUrl, alt, blue, delay = 0, onApplyImage }) => {
-  const [status, setStatus] = useState<"idle" | "loading" | "loaded" | "failed">("idle");
-  const [loadingSrc, setLoadingSrc] = useState<string | null>(null);
-  const [displaySrc, setDisplaySrc] = useState<string | null>(null);
-  const retryRef = React.useRef(0);
+}> = ({ alt, blue, onApplyImage }) => {
+  const [src, setSrc] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // delay 후 AI 이미지 로드 시작
-  React.useEffect(() => {
-    if (!aiUrl) { setStatus("failed"); return; }
-    const t = setTimeout(() => { setLoadingSrc(aiUrl); setStatus("loading"); }, delay);
-    return () => clearTimeout(t);
-  }, [aiUrl, delay]);
-
-  // 15초 타임아웃 → 재시도 or 실패
-  React.useEffect(() => {
-    if (status !== "loading" || !loadingSrc) return;
-    const t = setTimeout(() => retryOrFail(), 15000);
-    return () => clearTimeout(t);
-  }, [loadingSrc, status]);
-
-  const retryOrFail = () => {
-    if (retryRef.current < 2 && aiUrl) {
-      retryRef.current += 1;
-      const newUrl = aiUrl.replace(/seed=\d+/, `seed=${Math.floor(Math.random() * 99999)}`);
-      setLoadingSrc(null);
-      setTimeout(() => { setLoadingSrc(newUrl); setStatus("loading"); }, 1500);
-    } else {
-      setStatus("failed");
-    }
-  };
-
-  const handleLoad = () => { setDisplaySrc(loadingSrc); setStatus("loaded"); };
-  const handleError = () => retryOrFail();
-
-  // 직접 이미지 업로드
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      setDisplaySrc(dataUrl);
-      setStatus("loaded");
-    };
+    reader.onload = (ev) => setSrc(ev.target?.result as string);
     reader.readAsDataURL(file);
   };
 
   return (
-    <div className="flex-shrink-0 flex flex-col gap-1" style={{ width: 180 }}>
-      {/* 숨겨진 img 태그로 로딩 (레이아웃에 영향 없이) */}
-      {status === "loading" && loadingSrc && (
-        <img src={loadingSrc} alt="" className="hidden" onLoad={handleLoad} onError={handleError} />
-      )}
-
+    <div className="flex-shrink-0 flex flex-col gap-1" style={{ width: 160 }}>
       <div
-        className={`rounded-xl overflow-hidden shadow-md relative group/img ${blue ? "border-2 border-blue-200" : "border border-gray-200"}`}
-        style={{ height: 160 }}
+        className={`rounded-xl overflow-hidden relative group/img cursor-pointer ${blue ? "border-2 border-blue-200" : "border border-gray-200"} ${src ? "shadow-md" : "border-dashed hover:bg-gray-50"}`}
+        style={{ height: 140 }}
+        onClick={() => !src && fileInputRef.current?.click()}
       >
-        {/* 로딩 스켈레톤 */}
-        {(status === "idle" || status === "loading") && (
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-50 animate-pulse flex flex-col items-center justify-center gap-2">
-            <span className="text-2xl">🎨</span>
-            <span className="text-xs text-gray-400 font-medium">이미지 생성 중...</span>
-          </div>
-        )}
-
-        {/* 이미지 표시 */}
-        {status === "loaded" && displaySrc && (
+        {src ? (
           <>
-            <img src={displaySrc} alt={`${alt} 적용 예시`} className="w-full h-full object-cover" style={{ height: 160 }} />
-            {/* 호버 오버레이 */}
-            {onApplyImage && (
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover/img:bg-opacity-30 transition-all flex items-end justify-center pb-2 gap-1.5 opacity-0 group-hover/img:opacity-100">
+            <img src={src} alt={`${alt} 이미지`} className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover/img:bg-opacity-30 transition-all flex items-end justify-center pb-2 gap-1.5 opacity-0 group-hover/img:opacity-100">
+              {onApplyImage && (
                 <button
-                  onClick={() => onApplyImage(displaySrc)}
+                  onClick={(e) => { e.stopPropagation(); onApplyImage(src); }}
                   className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white text-gray-800 shadow-lg hover:bg-indigo-50 hover:text-indigo-700 transition-all flex items-center gap-1"
                 >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
                   보드에 적용
                 </button>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white text-gray-500 shadow-lg hover:bg-gray-100 transition-all"
-                  title="다른 이미지로 교체"
-                >
-                  🔄
-                </button>
-              </div>
-            )}
+              )}
+              <button
+                onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                className="p-1.5 rounded-lg text-xs bg-white text-gray-500 shadow-lg hover:bg-gray-100 transition-all"
+                title="이미지 교체"
+              >🔄</button>
+            </div>
           </>
-        )}
-
-        {/* 업로드 폴백 (AI 실패 시) */}
-        {status === "failed" && (
-          <div
-            className="absolute inset-0 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-gray-50 transition-colors"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <span className="text-3xl">🖼️</span>
-            <span className="text-xs text-gray-500 font-medium text-center px-3 leading-relaxed">
-              클릭해서<br />이미지 업로드
-            </span>
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
+            <span className="text-2xl">🖼️</span>
+            <span className="text-xs text-gray-400 text-center leading-relaxed">이미지 업로드</span>
           </div>
         )}
-
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
       </div>
-
-      {/* 하단 라벨 + 적용 버튼 */}
-      <div className="flex items-center justify-between gap-1 px-0.5">
-        <p className={`text-xs leading-tight ${blue ? "text-blue-400" : "text-gray-400"}`}>
-          {status === "loaded" ? "🤖 AI 예상 이미지" : status === "failed" ? "🖼️ 직접 업로드" : "🎨 생성 중..."}
-        </p>
-        {status === "loaded" && displaySrc && onApplyImage && (
-          <button
-            onClick={() => onApplyImage(displaySrc)}
-            className="text-xs text-indigo-500 hover:text-indigo-700 font-medium flex items-center gap-0.5 flex-shrink-0"
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            적용
-          </button>
-        )}
-      </div>
+      {src && onApplyImage && (
+        <button
+          onClick={() => onApplyImage(src)}
+          className="text-xs text-indigo-500 hover:text-indigo-700 font-medium flex items-center justify-end gap-0.5"
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          보드에 적용
+        </button>
+      )}
     </div>
   );
 };
@@ -490,7 +420,7 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
               </div>
 
               {/* 오른쪽: AI 생성 이미지 */}
-              <IdeaImage aiUrl={idea.imageUrl} alt={idea.name} delay={i * 1500}
+              <IdeaImage alt={idea.name}
                 onApplyImage={onApplyImage ? (url) => onApplyImage(idea.name, url) : undefined} />
             </div>
           </div>
@@ -639,7 +569,7 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
               </div>
                 </div>
                 {/* 오른쪽: AI 생성 이미지 */}
-                <IdeaImage aiUrl={idea.imageUrl} alt={idea.name} blue delay={idx * 1500}
+                <IdeaImage alt={idea.name} blue
                   onApplyImage={onApplyImage ? (url) => onApplyImage(idea.name, url) : undefined} />
               </div>
             </div>

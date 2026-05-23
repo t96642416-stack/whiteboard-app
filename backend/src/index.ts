@@ -4,7 +4,7 @@ import { Server } from "socket.io";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
-import { analyzeIdeas, chatWithAI, generateIdeaImage, IdeaInput, AnalysisFile } from "./claude";
+import { analyzeIdeas, chatWithAI, IdeaInput, AnalysisFile } from "./claude";
 
 dotenv.config();
 
@@ -190,19 +190,6 @@ io.on("connection", (socket) => {
         });
         console.log(`분석 완료 (방: ${currentRoom})`);
 
-        // 효과예측형·속성분석형: 이미지 URL 즉시 전송 (브라우저가 직접 로드)
-        if (
-          (agentType === "emphasis" || agentType === "attribute") &&
-          result.ideas &&
-          Array.isArray(result.ideas)
-        ) {
-          (result.ideas as any[]).forEach((idea: any, idx: number) => {
-            const matchingIdea = ideas.find(i => i.title === idea.name);
-            const imageUrl = generateIdeaImage(idea.name, matchingIdea?.content || idea.name, topic);
-            io.to(currentRoom).emit("analysis-image", { index: idx, imageUrl, agentType });
-          });
-          console.log(`🎨 이미지 URL ${(result.ideas as any[]).length}개 전송 완료`);
-        }
       } catch (error) {
         // 실제 에러 메시지를 그대로 전달 (API 키 오류, 모델 오류 등 디버깅용)
         let errorMessage = "알 수 없는 오류가 발생했습니다.";
