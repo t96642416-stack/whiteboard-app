@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { Idea, IdeaCategory, IdeaAttachment, CARD_COLORS, BoardSection, AgentType, AGENT_OPTIONS, CanvasImage } from "../types";
+import { Idea, IdeaCategory, IdeaAttachment, CARD_COLORS, BoardSection, AgentType, AGENT_OPTIONS, CanvasImage, AnalysisFile } from "../types";
 import IdeaCard from "./IdeaCard";
 import BoardResultCard from "./BoardResultCard";
 import AddIdeaModal from "./AddIdeaModal";
@@ -25,6 +25,7 @@ interface BoardProps {
   users: { name: string; color: string }[];
   topic: string;
   onTopicChange: (topic: string) => void;
+  onTopicFilesChange?: (files: AnalysisFile[]) => void;
   onAddIdea: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[], snapshot?: import("../types").AnalysisSnapshot) => void;
   onDeleteIdea: (id: string) => void;
   onEditIdea: (id: string, title: string, content: string, category: IdeaCategory, color: string, attachments?: IdeaAttachment[]) => void;
@@ -39,6 +40,7 @@ const Board: React.FC<BoardProps> = ({
   users,
   topic,
   onTopicChange,
+  onTopicFilesChange,
   onAddIdea,
   onDeleteIdea,
   onEditIdea,
@@ -48,6 +50,8 @@ const Board: React.FC<BoardProps> = ({
   const [showModal, setShowModal] = useState(false);
   const [editingTopic, setEditingTopic] = useState(false);
   const [localTopic, setLocalTopic] = useState(topic);
+  const [topicFiles, setTopicFiles] = useState<AnalysisFile[]>([]);
+  const topicFileInputRef = useRef<HTMLInputElement>(null);
 
   // 캔버스 상태
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -560,6 +564,42 @@ const Board: React.FC<BoardProps> = ({
   const handleTopicKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") { setEditingTopic(false); onTopicChange(localTopic); }
   };
+
+  const handleTopicFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    Array.from(files).forEach((file) => {
+      if (topicFiles.length >= 3) { alert("파일은 최대 3개까지 첨부할 수 있어요"); return; }
+      if (file.size > 5 * 1024 * 1024) { alert(`${file.name}: 5MB 이하 파일만 가능해요`); return; }
+      const isImage = file.type.startsWith("image/");
+      const reader = new FileReader();
+      reader.onload = () => {
+        setTopicFiles((prev) => {
+          if (prev.length >= 3) return prev;
+          const newFiles = [...prev, {
+            name: file.name,
+            type: isImage ? "image" : "text",
+            mimeType: file.type,
+            content: reader.result as string,
+          } as AnalysisFile];
+          onTopicFilesChange?.(newFiles);
+          return newFiles;
+        });
+      };
+      if (isImage) reader.readAsDataURL(file);
+      else reader.readAsText(file, "utf-8");
+    });
+    e.target.value = "";
+  };
+
+  const removeTopicFile = (idx: number) => {
+    setTopicFiles((prev) => {
+      const newFiles = prev.filter((_, i) => i !== idx);
+      onTopicFilesChange?.(newFiles);
+      return newFiles;
+    });
+  };
+
   const resetView = () => { setZoom(1); setOffset({ x: 0, y: 0 }); };
 
   return (
@@ -587,8 +627,8 @@ const Board: React.FC<BoardProps> = ({
                 {users.length > 5 && <span className="text-xs text-gray-400 ml-1">+{users.length - 5}</span>}
               </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0">
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
               </svg>
               {editingTopic ? (
@@ -602,6 +642,30 @@ const Board: React.FC<BoardProps> = ({
                   {localTopic || "회의 주제를 입력하세요..."}
                 </button>
               )}
+              {/* 파일 첨부 버튼 */}
+              <input ref={topicFileInputRef} type="file" multiple accept=".txt,.md,.csv,.json,.pdf,image/*" className="hidden" onChange={handleTopicFileChange} />
+              <button
+                onClick={() => topicFileInputRef.current?.click()}
+                disabled={topicFiles.length >= 3}
+                className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-500 disabled:opacity-30 transition-colors"
+                title="회의 주제에 참고 파일 첨부"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+                </svg>
+                {topicFiles.length === 0 ? "파일 첨부" : `${topicFiles.length}개`}
+              </button>
+              {/* 첨부된 파일 칩 */}
+              {topicFiles.map((f, idx) => (
+                <span key={idx} className="flex items-center gap-1 bg-blue-50 text-blue-600 border border-blue-200 rounded-full px-2 py-0.5 text-xs">
+                  {f.name.length > 12 ? f.name.slice(0, 12) + "…" : f.name}
+                  <button onClick={() => removeTopicFile(idx)} className="hover:text-red-500 transition-colors ml-0.5">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                </span>
+              ))}
             </div>
           </div>
         </div>

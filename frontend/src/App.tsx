@@ -85,6 +85,7 @@ function App() {
   const ideasRef = useRef<Idea[]>([]);
   const [users, setUsers] = useState<{ name: string; color: string }[]>([]);
   const [topic, setTopic] = useState("");
+  const [topicFiles, setTopicFiles] = useState<AnalysisFile[]>([]);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [agentAnalysisResult, setAgentAnalysisResult] = useState<AgentAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -306,12 +307,12 @@ function App() {
     getSocket().emit("analysis-requested", {
       agentType,
       userMessage: "",
-      files: files || [],
+      files: [...topicFiles, ...(files || [])],
       categoryFilter: null,
       useSearch: useSearch || false,
       topic,
     });
-  }, [topic]);
+  }, [topic, topicFiles]);
 
   // 섹션 분석 요청 - 특정 아이디어 ID만 필터링
   const handleSectionAnalysis = useCallback((sectionIdeas: Idea[], agentType: AgentType) => {
@@ -374,6 +375,7 @@ function App() {
           users={users}
           topic={topic}
           onTopicChange={handleTopicChange}
+          onTopicFilesChange={setTopicFiles}
           onAddIdea={handleAddIdea}
           onDeleteIdea={handleDeleteIdea}
           onEditIdea={handleEditIdea}
