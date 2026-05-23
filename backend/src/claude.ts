@@ -320,10 +320,14 @@ export async function analyzeIdeas(
 }
 
 // Pollinations.ai 이미지 URL 생성 (다운로드 없이 URL만 반환, 브라우저가 직접 로드)
-export function generateIdeaImage(ideaName: string, ideaContent: string): string {
-  const prompt = `realistic professional photo of "${ideaName}", ${ideaContent}, modern interior, natural lighting, people using the space, high quality, no text`;
+export function generateIdeaImage(ideaName: string, ideaContent: string, topic?: string): string {
+  // 주제 + 아이디어를 결합해서 구체적인 적용 이미지 생성
+  const contextPart = topic
+    ? `${topic} space with "${ideaName}" concept applied`
+    : `"${ideaName}" concept applied`;
+  const prompt = `realistic professional interior photo showing ${contextPart}: ${ideaContent}, modern design, natural lighting, people naturally using the space, photorealistic, no text, no labels`;
   const seed = Math.floor(Math.random() * 9999);
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=600&height=400&nologo=true&seed=${seed}&model=turbo`;
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=600&height=400&nologo=true&seed=${seed}&model=flux`;
 }
 
 export async function chatWithAI(

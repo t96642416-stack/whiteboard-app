@@ -300,8 +300,9 @@ function App() {
       files: files || [],
       categoryFilter: selectedCategory === "all" ? null : selectedCategory,
       useSearch: useSearch || false,
+      topic,
     });
-  }, [selectedCategory]);
+  }, [selectedCategory, topic]);
 
   // 섹션 분석 요청 - 특정 아이디어 ID만 필터링
   const handleSectionAnalysis = useCallback((sectionIdeas: Idea[], agentType: AgentType) => {
@@ -312,8 +313,9 @@ function App() {
       files: [],
       ideaIds: sectionIdeas.map(i => i.id),
       useSearch: false,
+      topic,
     });
-  }, []);
+  }, [topic]);
 
   const handleSendChat = useCallback((message: string, imageUrl?: string) => {
     getSocket().emit("chat-message", { message, imageUrl, userColor });

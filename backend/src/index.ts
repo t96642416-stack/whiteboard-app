@@ -139,6 +139,7 @@ io.on("connection", (socket) => {
       categoryFilter,
       useSearch,
       ideaIds,
+      topic,
     }: {
       agentType: string | null;
       userMessage?: string;
@@ -146,6 +147,7 @@ io.on("connection", (socket) => {
       categoryFilter?: string | null;
       useSearch?: boolean;
       ideaIds?: string[];
+      topic?: string;
     }) => {
       if (!currentRoom) return;
 
@@ -195,7 +197,7 @@ io.on("connection", (socket) => {
         ) {
           (result.ideas as any[]).forEach((idea: any, idx: number) => {
             const matchingIdea = ideas.find(i => i.title === idea.name);
-            const imageUrl = generateIdeaImage(idea.name, matchingIdea?.content || idea.name);
+            const imageUrl = generateIdeaImage(idea.name, matchingIdea?.content || idea.name, topic);
             io.to(currentRoom).emit("analysis-image", { index: idx, imageUrl, agentType });
           });
           console.log(`🎨 이미지 URL ${(result.ideas as any[]).length}개 전송 완료`);
