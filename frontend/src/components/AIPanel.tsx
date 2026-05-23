@@ -261,7 +261,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
   const AGENT_BADGE: Record<string, { bg: string; text: string }> = {
     suggestion: { bg: "#FEF3C7", text: "#D97706" },
     question:   { bg: "#EDE9FE", text: "#7C3AED" },
-    emphasis:   { bg: "#FFE4E1", text: "#EA580C" },
+    emphasis:   { bg: "#FED7AA", text: "#EA580C" },
     attribute:  { bg: "#DCFCE7", text: "#16A34A" },
     guide:      { bg: "#DBEAFE", text: "#2563EB" },
     advise:     { bg: "#F3E8FF", text: "#9333EA" },
@@ -389,66 +389,50 @@ const AIPanel: React.FC<AIPanelProps> = ({
       </div>
 
       {/* 헤더 */}
-      <div className="px-4 py-3 border-b border-gray-100">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="font-bold text-gray-800 text-sm flex items-center gap-2">
-            <span className="w-6 h-6 rounded bg-blue-100 flex items-center justify-center">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
-                <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </span>
-            AI 분석 패널
-          </h2>
-          {isAnalyzing ? (
-            <span className="text-xs text-orange-500 font-medium flex items-center gap-1.5">
-              <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              분석 중...
-            </span>
-          ) : showResult ? (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-green-600 font-medium flex items-center gap-1">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <polyline points="20 6 9 17 4 12" />
+      <div className="px-4 pt-3 pb-0 border-b border-gray-100">
+        {/* 상태 표시 (분석중 / 완료 / 내역) */}
+        {(isAnalyzing || showResult || analysisHistory.length > 0) && (
+          <div className="flex items-center justify-end mb-2">
+            {isAnalyzing ? (
+              <span className="text-xs text-orange-500 font-medium flex items-center gap-1.5">
+                <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                {(AGENT_OPTIONS.find((a) => a.type === (agentAnalysisResult as any)?.agentType) ||
-                  AGENT_OPTIONS.find((a) => a.type === analysisHistory[0]?.agentType))?.name || "속성 분석형"} 결과 완료
+                분석 중...
               </span>
-              <button
-                onClick={() => { setShowAnalysisHistory(true); setViewingHistoryItem(null); }}
-                className="text-xs text-gray-400 hover:text-purple-500 flex items-center gap-1 transition-colors"
-                title="분석 내역 보기"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                내역 {analysisHistory.length > 0 && <span className="bg-purple-100 text-purple-600 rounded-full px-1">{analysisHistory.length}</span>}
+            ) : showResult ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                  {(AGENT_OPTIONS.find((a) => a.type === (agentAnalysisResult as any)?.agentType) ||
+                    AGENT_OPTIONS.find((a) => a.type === analysisHistory[0]?.agentType))?.name || "속성 분석형"} 완료
+                </span>
+                <button onClick={() => { setShowAnalysisHistory(true); setViewingHistoryItem(null); }}
+                  className="text-xs text-gray-400 hover:text-purple-500 flex items-center gap-1 transition-colors">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  내역 {analysisHistory.length > 0 && <span className="bg-purple-100 text-purple-600 rounded-full px-1">{analysisHistory.length}</span>}
+                </button>
+              </div>
+            ) : analysisHistory.length > 0 ? (
+              <button onClick={() => { setShowAnalysisHistory(true); setViewingHistoryItem(null); }}
+                className="text-xs text-gray-400 hover:text-purple-500 flex items-center gap-1 transition-colors">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                분석 내역 <span className="bg-purple-100 text-purple-600 rounded-full px-1">{analysisHistory.length}</span>
               </button>
-            </div>
-          ) : analysisHistory.length > 0 ? (
-            <button
-              onClick={() => { setShowAnalysisHistory(true); setViewingHistoryItem(null); }}
-              className="text-xs text-gray-400 hover:text-purple-500 flex items-center gap-1 transition-colors"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              분석 내역 <span className="bg-purple-100 text-purple-600 rounded-full px-1">{analysisHistory.length}</span>
-            </button>
-          ) : null}
-        </div>
+            ) : null}
+          </div>
+        )}
 
         {/* 탭 */}
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-3">
           <button
             onClick={() => { setActiveTab("analysis"); setShowAnalysisHistory(false); setViewingHistoryItem(null); }}
             className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all relative ${
               activeTab === "analysis" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
             }`}
           >
-            분석 결과
+            AI 대화
             {analysisHistory.length > 0 && activeTab !== "analysis" && (
               <span className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full text-white text-xs flex items-center justify-center">
                 {analysisHistory.length > 9 ? "9+" : analysisHistory.length}
@@ -587,10 +571,10 @@ const AIPanel: React.FC<AIPanelProps> = ({
                   }}
                 >
                   <span className="text-white font-bold" style={{ fontSize: 17, letterSpacing: "-0.5px" }}>Ai</span>
-                  {/* 4-point sparkle */}
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="white"
+                  {/* 4-point sparkle ✦ */}
+                  <svg width="10" height="10" viewBox="0 0 16 16" fill="white"
                     style={{ position: "absolute", top: 3, right: 3 }}>
-                    <path d="M12 2c0 0-1 5-4 8S2 12 2 12s5 1 6 4 4 6 4 6 1-5 4-6 6-4 6-4-5-1-6-4-4-6-4-6z"/>
+                    <path d="M8 0 L9.5 6.5 L16 8 L9.5 9.5 L8 16 L6.5 9.5 L0 8 L6.5 6.5 Z"/>
                   </svg>
                 </div>
 
