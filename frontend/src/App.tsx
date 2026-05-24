@@ -117,7 +117,7 @@ function App() {
     if (!joined) return;
     const socket = getSocket();
 
-    socket.on("connect", () => {
+    const rejoinRoom = () => {
       if (joinInfoRef.current) {
         const { roomId: r, userName: u, userColor: c } = joinInfoRef.current;
         socket.emit("join-room", { roomId: r, userName: u, userColor: c });
@@ -125,7 +125,10 @@ function App() {
           socket.emit("ideas-sync", ideasRef.current);
         }
       }
-    });
+    };
+
+    socket.on("connect", rejoinRoom);
+    socket.on("reconnect", rejoinRoom);
 
     socket.on("room-state", ({ ideas: roomIdeas, users: roomUsers, messages: roomMessages }: { ideas: Idea[]; users: { name: string; color: string }[]; messages?: ChatMessage[] }) => {
       setIdeas(roomIdeas);
@@ -217,6 +220,7 @@ function App() {
 
     return () => {
       socket.off("connect");
+      socket.off("reconnect");
       socket.off("room-state");
       socket.off("idea-added");
       socket.off("idea-deleted");
@@ -295,7 +299,7 @@ function App() {
   }, []);
 
   // 분석 요청 (AI가 보드에 추가한 카드는 분석 대상에서 제외)
-  const handleRequestAnalysis = useCallback((agentType: AgentType, files?: AnalysisFile[], useSearch?: boolean) => {
+  const handleRequestAnalysis = useCallback((agentType: AgentType, files?: AnalysisFile[], useSearch?: boolean, filesOnly?: boolean) => {
     const excludeIds = ideas.filter((i: any) => i.analysisSnapshot).map((i: any) => i.id);
     getSocket().emit("analysis-requested", {
       agentType,
@@ -305,6 +309,7 @@ function App() {
       useSearch: useSearch || false,
       topic,
       excludeIds,
+      filesOnly: filesOnly || false,
     });
   }, [topic, topicFiles, ideas]);
 
