@@ -38,7 +38,6 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
   const editCategory: IdeaCategory = idea.category ?? "brainstorm";
   const [editColor, setEditColor] = useState(idea.color);
   const [editAttachments, setEditAttachments] = useState<IdeaAttachment[]>(idea.attachments ?? []);
-  const [linkInput, setLinkInput] = useState("");
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const commentInputRef = useRef<HTMLInputElement>(null);
@@ -201,53 +200,16 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
               />
             </div>
 
-            {/* 링크 입력 */}
-            <div className="flex gap-1 mb-1.5">
-              <input
-                type="text"
-                value={linkInput}
-                onChange={e => setLinkInput(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const url = linkInput.trim();
-                    if (!url) return;
-                    const withProtocol = url.startsWith("http") ? url : `https://${url}`;
-                    setEditAttachments(prev => prev.length >= 5 ? prev : [...prev, { name: withProtocol, type: "link", content: withProtocol }]);
-                    setLinkInput("");
-                  }
-                }}
-                placeholder="링크 URL (Enter)"
-                className="flex-1 px-2 py-1 bg-white bg-opacity-60 rounded-md text-xs text-gray-700 border border-blue-200 focus:outline-none focus:border-blue-400 min-w-0"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  const url = linkInput.trim();
-                  if (!url) return;
-                  const withProtocol = url.startsWith("http") ? url : `https://${url}`;
-                  setEditAttachments(prev => prev.length >= 5 ? prev : [...prev, { name: withProtocol, type: "link", content: withProtocol }]);
-                  setLinkInput("");
-                }}
-                className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-md text-xs font-semibold flex-shrink-0 transition-colors"
-              >추가</button>
-            </div>
-
             {editAttachments.length > 0 ? (
               <div className="space-y-1">
                 {editAttachments.map((att, idx) => (
                   <div key={idx} className="flex items-center gap-1.5 px-2 py-1 bg-white bg-opacity-60 rounded-lg border border-blue-100 group/att">
                     {att.type === "image" ? (
                       <img src={att.content} alt={att.name} className="w-5 h-5 rounded object-cover flex-shrink-0 border border-gray-200" />
-                    ) : att.type === "link" ? (
-                      <span className="text-indigo-400 flex-shrink-0">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-                      </span>
                     ) : (
                       <span className="text-gray-400 flex-shrink-0"><FileIcon mimeType={att.mimeType} size={12} /></span>
                     )}
-                    <span className="text-xs text-gray-600 flex-1 truncate">{att.type === "link" ? att.content : att.name}</span>
+                    <span className="text-xs text-gray-600 flex-1 truncate">{att.name}</span>
                     <button
                       type="button"
                       onClick={() => setEditAttachments(prev => prev.filter((_, i) => i !== idx))}
@@ -373,22 +335,6 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
                   ))}
                 </div>
               )}
-              {/* 링크는 외부 링크로 */}
-              {attachments.filter((a) => a.type === "link").map((att, i) => (
-                <a
-                  key={i}
-                  href={att.content}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white bg-opacity-60 border border-black border-opacity-10 hover:bg-opacity-80 transition-all max-w-full"
-                >
-                  <span className="text-indigo-400 flex-shrink-0">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-                  </span>
-                  <span className="text-xs text-indigo-600 truncate">{att.content}</span>
-                </a>
-              ))}
               {/* 비이미지 파일은 칩으로 */}
               {attachments.filter((a) => a.type === "file").map((att, i) => (
                 <a

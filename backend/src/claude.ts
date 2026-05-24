@@ -16,9 +16,9 @@ function getClient() {
 
 export interface IdeaAttachment {
   name: string;
-  type: "image" | "file" | "link";
+  type: "image" | "file";
   mimeType?: string;
-  content: string; // base64 data URL (image/file) 또는 URL 문자열 (link)
+  content: string; // base64 data URL
 }
 
 export interface IdeaInput {
@@ -220,9 +220,7 @@ export async function analyzeIdeas(
       const label = String.fromCharCode(65 + idx);
       let text = `아이디어 ${label} (ID: ${idea.id})\n제목: ${idea.title}\n내용: ${idea.content}\n작성자: ${idea.author}`;
       if (idea.attachments && idea.attachments.length > 0) {
-        const links = idea.attachments.filter(a => a.type === "link").map(a => a.content);
         const imageCount = idea.attachments.filter(a => a.type === "image").length;
-        if (links.length > 0) text += `\n참고 링크: ${links.join(", ")}`;
         if (imageCount > 0) text += `\n첨부 이미지: ${imageCount}개 (아래 이미지 참조)`;
 
         // 텍스트 계열 파일: base64 디코딩 후 내용 포함
