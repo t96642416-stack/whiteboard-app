@@ -225,6 +225,7 @@ export interface AnalysisFile {
 
 export interface AnalysisHistoryItem {
   id: string;
+  dbId?: number;
   agentType: AgentType;
   requester: string;
   timestamp: string;

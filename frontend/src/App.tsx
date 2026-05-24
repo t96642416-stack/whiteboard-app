@@ -132,7 +132,7 @@ function App() {
     socket.on("connect", rejoinRoom);
     socket.on("reconnect", rejoinRoom);
 
-    socket.on("room-state", ({ ideas: roomIdeas, users: roomUsers, messages: roomMessages, sections: roomSections }: { ideas: Idea[]; users: { name: string; color: string }[]; messages?: ChatMessage[]; sections?: any[] }) => {
+    socket.on("room-state", ({ ideas: roomIdeas, users: roomUsers, messages: roomMessages, sections: roomSections, analysisResults }: { ideas: Idea[]; users: { name: string; color: string }[]; messages?: ChatMessage[]; sections?: any[]; analysisResults?: AnalysisHistoryItem[] }) => {
       setIdeas(roomIdeas);
       setUsers(roomUsers);
       if (roomMessages && roomMessages.length > 0) {
@@ -140,6 +140,13 @@ function App() {
       }
       if (roomSections && roomSections.length > 0) {
         setInitialSections(roomSections);
+      }
+      if (analysisResults && analysisResults.length > 0) {
+        setAnalysisHistory(analysisResults);
+        // 가장 최근 결과를 현재 결과로 표시
+        const latest = analysisResults[0];
+        if (latest.agentResult) setAgentAnalysisResult(latest.agentResult);
+        else if (latest.result) setAnalysisResult(latest.result);
       }
     });
 
@@ -168,12 +175,13 @@ function App() {
       pendingAnalysisRef.current = { requester, agentType };
     });
 
-    socket.on("analysis-result", (result: AnalysisResult & { agentType?: string; _meta?: { requester: string; agentType: string | null; timestamp: string } }) => {
+    socket.on("analysis-result", (result: AnalysisResult & { agentType?: string; _meta?: { requester: string; agentType: string | null; timestamp: string; dbId?: number } }) => {
       setIsAnalyzing(false);
       const meta = result._meta || pendingAnalysisRef.current;
       const isAgent = !!(result.agentType);
       const historyItem: AnalysisHistoryItem = {
         id: `${Date.now()}-${Math.random()}`,
+        dbId: result._meta?.dbId,
         agentType: (meta.agentType || result.agentType || null) as AgentType,
         requester: meta.requester || "",
         timestamp: (result._meta?.timestamp) || new Date().toISOString(),
@@ -186,6 +194,10 @@ function App() {
       } else {
         setAnalysisResult(result);
       }
+    });
+
+    socket.on("analysis-result-deleted", ({ dbId }: { dbId: number }) => {
+      setAnalysisHistory((prev) => prev.filter((item) => item.dbId !== dbId));
     });
 
     socket.on("analysis-error", ({ message }: { message: string }) => {
@@ -232,6 +244,7 @@ function App() {
       socket.off("idea-updated");
       socket.off("analysis-started");
       socket.off("analysis-result");
+      socket.off("analysis-result-deleted");
       socket.off("analysis-error");
       socket.off("user-joined");
       socket.off("user-left");
@@ -277,6 +290,12 @@ function App() {
     setAnalysisHistory(prev => prev.map(item =>
       item.id === id ? { ...item, agentResult: updated } : item
     ));
+  }, []);
+
+  const handleDeleteHistory = useCallback((dbId: number) => {
+    getSocket().emit("analysis-result-delete", { dbId });
+    // 낙관적 업데이트 (서버 응답 기다리지 않고 즉시 제거)
+    setAnalysisHistory(prev => prev.filter(item => item.dbId !== dbId));
   }, []);
 
   // AI 분석 이미지를 보드 카드에 적용
@@ -416,6 +435,7 @@ function App() {
         onAddIdea={handleAddIdea}
         onApplyImage={handleApplyImage}
         onUpdateHistory={handleUpdateHistory}
+        onDeleteHistory={handleDeleteHistory}
       />
     </div>
   );

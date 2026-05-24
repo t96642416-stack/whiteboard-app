@@ -18,6 +18,9 @@ import {
   dbUpdateSection,
   dbDeleteSection,
   dbInsertMessage,
+  dbGetAnalysisResults,
+  dbInsertAnalysisResult,
+  dbDeleteAnalysisResult,
 } from "./db";
 
 dotenv.config();
@@ -47,6 +50,7 @@ const roomIdeas: Record<string, IdeaInput[]> = {};
 const roomUsers: Record<string, Map<string, string>> = {}; // userName -> color
 const roomMessages: Record<string, any[]> = {};
 const roomSections: Record<string, any[]> = {};
+const roomAnalysisResults: Record<string, any[]> = {};
 
 // 헬스 체크
 app.get("/health", (_req, res) => {
@@ -80,22 +84,25 @@ io.on("connection", (socket) => {
       // DB에서 불러오기 (캐시가 비어있을 때만)
       if (!roomIdeas[roomId] || roomIdeas[roomId].length === 0) {
         try {
-          const [ideas, sections, messages] = await Promise.all([
+          const [ideas, sections, messages, analysisResults] = await Promise.all([
             dbGetIdeas(roomId),
             dbGetSections(roomId),
             dbGetMessages(roomId),
+            dbGetAnalysisResults(roomId),
           ]);
           roomIdeas[roomId] = ideas;
           roomSections[roomId] = sections;
           roomMessages[roomId] = messages;
+          roomAnalysisResults[roomId] = analysisResults;
           if (ideas.length > 0 || sections.length > 0) {
-            console.log(`DB에서 불러옴: 방 ${roomId} — 아이디어 ${ideas.length}개, 섹션 ${sections.length}개`);
+            console.log(`DB에서 불러옴: 방 ${roomId} — 아이디어 ${ideas.length}개, 섹션 ${sections.length}개, 분석 내역 ${analysisResults.length}개`);
           }
         } catch (e) {
           console.error("DB 로드 실패 (메모리 모드 유지):", e);
           roomIdeas[roomId] = roomIdeas[roomId] || [];
           roomSections[roomId] = roomSections[roomId] || [];
           roomMessages[roomId] = roomMessages[roomId] || [];
+          roomAnalysisResults[roomId] = roomAnalysisResults[roomId] || [];
         }
       }
 
@@ -107,6 +114,7 @@ io.on("connection", (socket) => {
         users: usersArray,
         messages: roomMessages[roomId] || [],
         sections: roomSections[roomId] || [],
+        analysisResults: roomAnalysisResults[roomId] || [],
       });
 
       // 다른 유저들에게 알림
@@ -288,9 +296,28 @@ io.on("connection", (socket) => {
           filesOnly ? undefined : sectionGroups  // 파일 기반 분석 시 보드 섹션 제외
         );
 
+        const timestamp = new Date().toISOString();
+        const resultAny = result as any;
+        const historyItem = {
+          id: `${Date.now()}-${Math.random()}`,
+          agentType,
+          requester: currentUser,
+          timestamp,
+          result: resultAny.agentType ? null : result,
+          agentResult: resultAny.agentType ? result : null,
+        };
+
+        // DB에 저장 후 dbId 첨부
+        const dbId = await dbInsertAnalysisResult(currentRoom, historyItem).catch(e => {
+          console.error("분석 결과 저장 실패:", e);
+          return -1;
+        });
+        if (!roomAnalysisResults[currentRoom]) roomAnalysisResults[currentRoom] = [];
+        roomAnalysisResults[currentRoom].unshift({ dbId, ...historyItem });
+
         io.to(currentRoom).emit("analysis-result", {
           ...result,
-          _meta: { requester: currentUser, agentType, timestamp: new Date().toISOString() },
+          _meta: { requester: currentUser, agentType, timestamp, dbId },
         });
         console.log(`분석 완료 (방: ${currentRoom})`);
 
@@ -403,6 +430,16 @@ io.on("connection", (socket) => {
         dbUpsertIdea(currentRoom, idea).catch(e => console.error("sync upsert 실패:", e));
       }
     }
+  });
+
+  // 분석 내역 삭제
+  socket.on("analysis-result-delete", async ({ dbId }: { dbId: number }) => {
+    if (!currentRoom) return;
+    if (roomAnalysisResults[currentRoom]) {
+      roomAnalysisResults[currentRoom] = roomAnalysisResults[currentRoom].filter((r: any) => r.dbId !== dbId);
+    }
+    dbDeleteAnalysisResult(currentRoom, dbId).catch(e => console.error("분석 내역 삭제 실패:", e));
+    io.to(currentRoom).emit("analysis-result-deleted", { dbId });
   });
 
   // 연결 해제

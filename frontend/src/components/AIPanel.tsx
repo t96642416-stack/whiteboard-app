@@ -22,6 +22,7 @@ interface AIPanelProps {
   onAddIdea?: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[], snapshot?: AnalysisSnapshot) => void;
   onApplyImage?: (ideaName: string, imageUrl: string) => void;
   onUpdateHistory?: (id: string, updated: AgentAnalysisResult) => void;
+  onDeleteHistory?: (dbId: number) => void;
 }
 
 const AIPanel: React.FC<AIPanelProps> = ({
@@ -39,6 +40,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
   onAddIdea,
   onApplyImage,
   onUpdateHistory,
+  onDeleteHistory,
 }) => {
   const [inputText, setInputText] = useState("");
   const [aiInputText, setAiInputText] = useState("");
@@ -527,20 +529,31 @@ const AIPanel: React.FC<AIPanelProps> = ({
                     {analysisHistory.map((item) => {
                       const agent = AGENT_OPTIONS.find((a) => a.type === item.agentType);
                       return (
-                        <button key={item.id} onClick={() => setViewingHistoryItem(item)}
-                          className="w-full text-left px-4 py-3 rounded-xl border border-gray-100 hover:border-purple-200 hover:bg-purple-50 transition-all group">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-semibold text-purple-600 flex items-center gap-1">
-                              {agent?.name || "속성 분석형"}
-                            </span>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" className="group-hover:stroke-purple-400"><path d="M9 18l6-6-6-6" /></svg>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500">{item.requester || "알 수 없음"}</span>
-                            <span className="text-gray-200">·</span>
-                            <span className="text-xs text-gray-400">{new Date(item.timestamp).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span>
-                          </div>
-                        </button>
+                        <div key={item.id} className="relative group/item">
+                          <button onClick={() => setViewingHistoryItem(item)}
+                            className="w-full text-left px-4 py-3 rounded-xl border border-gray-100 hover:border-purple-200 hover:bg-purple-50 transition-all group pr-10">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-semibold text-purple-600 flex items-center gap-1">
+                                {agent?.name || "속성 분석형"}
+                              </span>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" className="group-hover:stroke-purple-400"><path d="M9 18l6-6-6-6" /></svg>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500">{item.requester || "알 수 없음"}</span>
+                              <span className="text-gray-200">·</span>
+                              <span className="text-xs text-gray-400">{new Date(item.timestamp).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span>
+                            </div>
+                          </button>
+                          {onDeleteHistory && item.dbId != null && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); if (confirm("이 분석 내역을 삭제할까요?")) onDeleteHistory(item.dbId!); }}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg opacity-0 group-hover/item:opacity-100 hover:bg-red-50 transition-all"
+                              title="내역 삭제"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                            </button>
+                          )}
+                        </div>
                       );
                     })}
                   </div>

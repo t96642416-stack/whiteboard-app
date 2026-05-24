@@ -40,9 +40,17 @@ export async function initDb() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS analysis_results (
+      id SERIAL PRIMARY KEY,
+      room_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
     CREATE INDEX IF NOT EXISTS idx_ideas_room ON ideas(room_id);
     CREATE INDEX IF NOT EXISTS idx_sections_room ON sections(room_id);
     CREATE INDEX IF NOT EXISTS idx_messages_room ON messages(room_id);
+    CREATE INDEX IF NOT EXISTS idx_analysis_results_room ON analysis_results(room_id);
   `);
   console.log("✅ DB 테이블 준비 완료");
 }
@@ -143,5 +151,33 @@ export async function dbInsertMessage(roomId: string, msg: any): Promise<void> {
   await pool.query(
     "INSERT INTO messages (room_id, data) VALUES ($1, $2)",
     [roomId, JSON.stringify(msg)]
+  );
+}
+
+// ─── Analysis Results ────────────────────────────────
+
+export async function dbGetAnalysisResults(roomId: string): Promise<any[]> {
+  if (!pool) return [];
+  const res = await pool.query(
+    "SELECT id, data FROM analysis_results WHERE room_id = $1 ORDER BY created_at DESC LIMIT 50",
+    [roomId]
+  );
+  return res.rows.map((r) => ({ dbId: r.id, ...r.data }));
+}
+
+export async function dbInsertAnalysisResult(roomId: string, item: any): Promise<number> {
+  if (!pool) return -1;
+  const res = await pool.query(
+    "INSERT INTO analysis_results (room_id, data) VALUES ($1, $2) RETURNING id",
+    [roomId, JSON.stringify(item)]
+  );
+  return res.rows[0]?.id ?? -1;
+}
+
+export async function dbDeleteAnalysisResult(roomId: string, dbId: number): Promise<void> {
+  if (!pool) return;
+  await pool.query(
+    "DELETE FROM analysis_results WHERE id = $1 AND room_id = $2",
+    [dbId, roomId]
   );
 }
