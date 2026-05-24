@@ -7,13 +7,13 @@ function getClient() {
 }
 
 // 시도할 Gemini 모델 목록 (앞에서부터 순서대로 시도, 429/404면 다음 모델로)
-// 각 모델마다 무료 20회/일 → 5개 모델 = 최대 100회/일
+// 빠른 모델 먼저, 무거운 모델은 나중에 — 각 모델 무료 20회/일
 const GEMINI_MODELS = [
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent",
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent",
-  "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent",
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent", // 가장 빠름
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",      // 균형
+  "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent",     // 중간
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent",   // 경량
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",      // 무겁지만 최고 품질
 ];
 
 // Gemini REST API 직접 호출 — 여러 모델 cascade (429 시 다음 모델로 자동 전환)
@@ -31,7 +31,7 @@ async function callGemini(systemPrompt: string, userPrompt: string): Promise<str
   for (const baseUrl of GEMINI_MODELS) {
     const url = `${baseUrl}?key=${key}`;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000); // 20초 타임아웃
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
     let res: Response;
     try {
       res = await fetch(url, {
