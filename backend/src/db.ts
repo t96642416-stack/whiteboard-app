@@ -165,13 +165,13 @@ export async function dbGetAnalysisResults(roomId: string): Promise<any[]> {
   return res.rows.map((r) => ({ dbId: r.id, ...r.data }));
 }
 
-export async function dbInsertAnalysisResult(roomId: string, item: any): Promise<number> {
-  if (!pool) return -1;
+export async function dbInsertAnalysisResult(roomId: string, item: any): Promise<number | null> {
+  if (!pool) return null;
   const res = await pool.query(
     "INSERT INTO analysis_results (room_id, data) VALUES ($1, $2) RETURNING id",
     [roomId, JSON.stringify(item)]
   );
-  return res.rows[0]?.id ?? -1;
+  return res.rows[0]?.id ?? null;
 }
 
 export async function dbDeleteAnalysisResult(roomId: string, dbId: number): Promise<void> {

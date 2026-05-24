@@ -1,6 +1,28 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { searchForIdeas, SearchResult } from "./search";
 
+// 짤린 JSON 복구: 열린 괄호/따옴표를 자동으로 닫음 (모듈 레벨에 한 번만 정의)
+function repairJSON(text: string): string {
+  const stack: string[] = [];
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) { escape = false; continue; }
+    if (ch === "\\" && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") stack.push("}");
+    else if (ch === "[") stack.push("]");
+    else if (ch === "}" || ch === "]") stack.pop();
+  }
+  let repaired = inString ? text + '"' : text;
+  repaired = repaired.replace(/,\s*$/, "");           // 끝 trailing comma 제거
+  repaired = repaired + stack.reverse().join("");      // 열린 괄호 닫기
+  repaired = repaired.replace(/,(\s*[}\]])/g, "$1");  // ,} ,] trailing comma 제거
+  return repaired;
+}
+
 // Claude 클라이언트
 function getClient() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -545,34 +567,6 @@ export async function analyzeIdeas(
   if (!jsonMatch) {
     console.error("[JSON 파싱 실패] 응답 원문 (앞 500자):", responseText.slice(0, 500));
     throw new Error("JSON 형식의 응답을 찾을 수 없습니다.");
-  }
-
-  // 짤린 JSON 복구: 열린 괄호/따옴표를 자동으로 닫음
-  function repairJSON(text: string): string {
-    const stack: string[] = [];
-    let inString = false;
-    let escape = false;
-    let lastValidPos = 0;
-    for (let i = 0; i < text.length; i++) {
-      const ch = text[i];
-      if (escape) { escape = false; lastValidPos = i; continue; }
-      if (ch === "\\" && inString) { escape = true; continue; }
-      if (ch === '"') { inString = !inString; lastValidPos = i; continue; }
-      if (inString) continue;
-      lastValidPos = i;
-      if (ch === "{") stack.push("}");
-      else if (ch === "[") stack.push("]");
-      else if (ch === "}" || ch === "]") stack.pop();
-    }
-    // 문자열 중간에 잘린 경우 따옴표 닫기
-    let repaired = inString ? text + '"' : text;
-    // 마지막 콤마 뒤 불완전한 항목 제거 (끝 trailing comma)
-    repaired = repaired.replace(/,\s*$/, "");
-    // 열린 괄호 닫기
-    repaired = repaired + stack.reverse().join("");
-    // 닫는 괄호 앞 trailing comma 제거: ,} 또는 ,] 패턴
-    repaired = repaired.replace(/,(\s*[}\]])/g, "$1");
-    return repaired;
   }
 
   let jsonText = jsonMatch[0];
