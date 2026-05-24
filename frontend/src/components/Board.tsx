@@ -3,6 +3,7 @@ import { Idea, IdeaCategory, IdeaAttachment, CARD_COLORS, BoardSection, AgentTyp
 import IdeaCard from "./IdeaCard";
 import BoardResultCard from "./BoardResultCard";
 import AddIdeaModal from "./AddIdeaModal";
+import { getSocket } from "../socket";
 
 const CARD_WIDTH = 240;
 const COLS = 3;
@@ -124,6 +125,16 @@ const Board: React.FC<BoardProps> = ({
 
   // BoardResultCard 너비 상태
   const [cardWidths, setCardWidths] = useState<Record<string, number>>({});
+
+  // 상대방 카드 위치 동기화 수신
+  useEffect(() => {
+    const socket = getSocket();
+    const handler = ({ ideaId, x, y }: { ideaId: string; x: number; y: number }) => {
+      setCardPositions(prev => ({ ...prev, [ideaId]: { x, y } }));
+    };
+    socket.on("idea-moved", handler);
+    return () => { socket.off("idea-moved", handler); };
+  }, []);
 
   // 포커스 선택 상태 (Delete 키용)
   const [focusedImageId, setFocusedImageId] = useState<string | null>(null);
@@ -578,6 +589,15 @@ const Board: React.FC<BoardProps> = ({
       setDrawingPreview(null);
       setIsSectionMode(false);
       return;
+    }
+
+    // 카드 드래그 완료 시 위치를 다른 유저에게 동기화
+    if (dragState.current?.type === "card" && dragState.current.moved && dragState.current.cardId) {
+      const movedId = dragState.current.cardId;
+      const pos = (window as any).__boardCardPositions?.[movedId];
+      if (pos) {
+        getSocket().emit("idea-moved", { ideaId: movedId, x: pos.x, y: pos.y });
+      }
     }
 
     dragState.current = null;

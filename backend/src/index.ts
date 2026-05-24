@@ -17,6 +17,8 @@ const io = new Server(httpServer, {
     origin: "*",
     methods: ["GET", "POST"],
   },
+  // 이미지 첨부 파일(base64) 포함 패킷 허용 (기본 1MB → 50MB)
+  maxHttpBufferSize: 50 * 1024 * 1024,
 });
 
 app.use(cors({ origin: "*" }));
@@ -93,10 +95,15 @@ io.on("connection", (socket) => {
       roomIdeas[currentRoom] = [];
     }
 
-    roomIdeas[currentRoom].push(idea);
+    // 서버 메모리에는 attachment content(base64) 제외하고 저장 (OOM 방지)
+    const ideaToStore: IdeaInput = {
+      ...idea,
+      attachments: idea.attachments?.map(a => ({ ...a, content: "" })) ?? [],
+    };
+    roomIdeas[currentRoom].push(ideaToStore);
 
-    // 같은 방의 모든 유저에게 브로드캐스트
-    io.to(currentRoom).emit("idea-added", idea);
+    // 발신자 제외하고 브로드캐스트 (발신자는 이미 낙관적 업데이트로 반영됨)
+    socket.to(currentRoom).emit("idea-added", idea);
     console.log(`아이디어 추가: ${idea.title} (방: ${currentRoom})`);
   });
 
@@ -115,6 +122,12 @@ io.on("connection", (socket) => {
       }
     }
     socket.to(currentRoom).emit("idea-updated", { ideaId, title, content, category, color, aiImageUrl, attachments });
+  });
+
+  // 카드 위치 이동 동기화 (드래그 완료 시)
+  socket.on("idea-moved", ({ ideaId, x, y }: { ideaId: string; x: number; y: number }) => {
+    if (!currentRoom) return;
+    socket.to(currentRoom).emit("idea-moved", { ideaId, x, y });
   });
 
   // 아이디어 삭제
@@ -143,6 +156,7 @@ io.on("connection", (socket) => {
       ideaIds,
       topic,
       excludeIds,
+      filesOnly,
     }: {
       agentType: string | null;
       userMessage?: string;
@@ -152,26 +166,33 @@ io.on("connection", (socket) => {
       ideaIds?: string[];
       topic?: string;
       excludeIds?: string[];
+      filesOnly?: boolean;
     }) => {
       if (!currentRoom) return;
 
-      const allIdeas = roomIdeas[currentRoom] || [];
+      // filesOnly 모드: 보드 아이디어 무시, 파일만으로 분석
+      let ideas: any[] = [];
+      if (!filesOnly) {
+        const allIdeas = roomIdeas[currentRoom] || [];
+        ideas = (ideaIds
+          ? allIdeas.filter((i: any) => ideaIds.includes(i.id))
+          : categoryFilter
+            ? allIdeas.filter((i: any) => (i.category ?? "brainstorm") === categoryFilter)
+            : allIdeas
+        ).filter((i: any) => !i.analysisSnapshot && !(excludeIds ?? []).includes(i.id));
+      }
 
-      // ideaIds 우선, 없으면 카테고리 필터, 없으면 전체 (AI 결과 카드 제외)
-      const ideas = (ideaIds
-        ? allIdeas.filter((i: any) => ideaIds.includes(i.id))
-        : categoryFilter
-          ? allIdeas.filter((i: any) => (i.category ?? "brainstorm") === categoryFilter)
-          : allIdeas
-      ).filter((i: any) => !i.analysisSnapshot && !(excludeIds ?? []).includes(i.id));
-
-      if (ideas.length === 0) {
+      if (!filesOnly && ideas.length === 0) {
         const msg = ideaIds
           ? "선택된 섹션에 분석할 아이디어가 없습니다."
           : categoryFilter
             ? `'${categoryFilter}' 카테고리에 분석할 아이디어가 없습니다.`
             : "분석할 아이디어가 없습니다. 먼저 아이디어를 추가해주세요.";
         socket.emit("analysis-error", { message: msg });
+        return;
+      }
+      if (filesOnly && (!files || files.length === 0)) {
+        socket.emit("analysis-error", { message: "파일만으로 분석하려면 파일을 먼저 첨부해주세요." });
         return;
       }
 
