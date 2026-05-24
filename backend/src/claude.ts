@@ -6,7 +6,7 @@ function getClient() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 }
 
-// Gemini REST API 직접 호출 (SDK 없이)
+// Gemini REST API 직접 호출 (SDK 없이) — 429 시 retryDelay만큼 대기 후 1회 재시도
 async function callGemini(systemPrompt: string, userPrompt: string): Promise<string> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY 없음");
@@ -17,11 +17,30 @@ async function callGemini(systemPrompt: string, userPrompt: string): Promise<str
     generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
   };
 
-  const res = await fetch(url, {
+  const doRequest = () => fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+
+  let res = await doRequest();
+
+  // 429 rate limit → retryDelay 파싱 후 대기, 1회 재시도
+  if (res.status === 429) {
+    const errText = await res.text();
+    let waitMs = 20000; // 기본 20초
+    try {
+      const errJson = JSON.parse(errText);
+      const retryInfo = errJson?.error?.details?.find((d: any) => d["@type"]?.includes("RetryInfo"));
+      if (retryInfo?.retryDelay) {
+        const seconds = parseInt(retryInfo.retryDelay.replace("s", ""), 10);
+        if (!isNaN(seconds)) waitMs = (seconds + 1) * 1000;
+      }
+    } catch { /* 파싱 실패 시 기본값 사용 */ }
+    console.log(`⏳ Gemini 429 rate limit → ${waitMs / 1000}초 대기 후 재시도...`);
+    await new Promise(resolve => setTimeout(resolve, waitMs));
+    res = await doRequest();
+  }
 
   if (!res.ok) {
     const err = await res.text();
@@ -87,15 +106,14 @@ type AgentType =
 // 공통 근거 규칙 (모든 프롬프트에 적용)
 const EVIDENCE_RULE = `
 [근거 작성 필수 규칙 — 반드시 지켜야 함]
-- 전사지는 아이디어가 도출된 맥락을 파악하는 용도입니다. 전사지를 근거로 인용하지 마세요.
-- 근거 출처는 반드시 아이디어 파일(각 안의 파일)이어야 합니다.
-1. 아이디어 파일에 관련 문장이 있으면 반드시 원문을 직접 인용하세요.
-   형식: [파일명]: "원문 그대로 발췌" → 따라서 ~한 효과/의미가 있음
-   예시: [A안_소셜존.txt]: "카페처럼 자유롭게 대화할 수 있는 공간이 필요하다" → 소음 허용 공간 분리가 이 안의 핵심임
-2. 아이디어 파일에도 없는 근거는 반드시 앞에 "추가 근거: "를 붙이세요.
-   예시: 추가 근거: 공간 분리는 집중도 향상에 효과적임 (일반 원칙)
-3. 파일 내용 없이 그럴듯한 문장을 만들어 채우는 것은 엄격히 금지합니다.
-4. description/evidence 필드는 반드시 위 두 형식 중 하나로만 작성하세요. 출처 없는 평서문은 쓰지 마세요.`;
+- 전사지는 맥락 파악 전용입니다. 근거로 인용하지 마세요.
+- 근거는 아이디어 파일 내용에서 가져오세요.
+1. 아이디어 파일에 관련 문장이 있으면 원문을 직접 인용하세요. 파일명은 쓰지 마세요.
+   형식: "원문 그대로 발췌" → 해석/의미
+   예시: "카페처럼 자유롭게 대화할 수 있는 공간이 필요하다" → 소음 허용 공간 분리가 핵심임을 보여줌
+2. 아이디어 파일에 없는 근거는 반드시 "추가 근거: "를 앞에 붙이세요. 파일 없음 언급은 하지 마세요.
+   예시: 추가 근거: 공간 분리는 집중도 향상에 효과적임
+3. 출처 없는 평서문, 파일 내용 없이 만들어낸 문장은 엄격히 금지합니다.`;
 
 // attribute용 - 장단점 2열 비교 분석
 const ATTRIBUTE_SYSTEM_PROMPT = `당신은 팀의 의사결정을 돕는 AI 퍼실리테이터입니다.
@@ -112,12 +130,12 @@ ${EVIDENCE_RULE}
       "id": "아이디어 ID",
       "name": "아이디어 이름",
       "pros": [
-        {"point": "핵심 장점 (15자 이내)", "evidence": "[파일명]: \"원문 인용\" → 해석, 또는 추가 근거: ..."},
-        {"point": "장점 2", "evidence": "[파일명]: \"원문 인용\" → 해석, 또는 추가 근거: ..."}
+        {"point": "핵심 장점 (15자 이내)", "evidence": "\"아이디어 파일 원문 인용\" → 해석, 또는 추가 근거: ..."},
+        {"point": "장점 2", "evidence": "\"아이디어 파일 원문 인용\" → 해석, 또는 추가 근거: ..."}
       ],
       "cons": [
-        {"point": "핵심 단점 (15자 이내)", "evidence": "[파일명]: \"원문 인용\" → 해석, 또는 추가 근거: ..."},
-        {"point": "단점 2", "evidence": "[파일명]: \"원문 인용\" → 해석, 또는 추가 근거: ..."}
+        {"point": "핵심 단점 (15자 이내)", "evidence": "\"아이디어 파일 원문 인용\" → 해석, 또는 추가 근거: ..."},
+        {"point": "단점 2", "evidence": "\"아이디어 파일 원문 인용\" → 해석, 또는 추가 근거: ..."}
       ]
     }
   ],
@@ -199,10 +217,10 @@ ${EVIDENCE_RULE}
       "name": "아이디어 이름",
       "label": "아이디어 A",
       "effects": [
-        {"label": "예상효과 1", "title": "소음 갈등 완화", "description": "[인터뷰A.txt]: \"휴게실 소음 때문에 집중이 안 돼요\" → 공간 분리 시 소음 민원 감소 기대", "note": ""},
+        {"label": "예상효과 1", "title": "소음 갈등 완화", "description": "\"소음 관련 민원 2021년 68건 → 2024년 156건\" → 소셜존 지정으로 역방향 감소 기대", "note": ""},
         {"label": "예상효과 2", "title": "협업 공간 확보", "description": "추가 근거: 그룹 활동 전용 공간은 팀 커뮤니케이션 효율을 높임", "note": ""}
       ],
-      "similarCase": "[전사지B.txt]: \"도서관 스터디룸 분리 후 민원이 줄었다\" → 유사 사례로 볼 수 있음"
+      "similarCase": "추가 근거: 대학 도서관의 그룹 스터디룸 분리 운영 사례는 소음 갈등 감소에 효과적"
     }
   ],
   "commonalities": ["공통점1", "공통점2"],
