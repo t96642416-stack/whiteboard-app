@@ -127,15 +127,15 @@ io.on("connection", (socket) => {
       roomIdeas[currentRoom] = [];
     }
 
-    // 서버 메모리에는 attachment content(base64) 제외하고 저장 (OOM 방지)
-    const ideaToStore: IdeaInput = {
+    // RAM에는 이미지 content 제외 (OOM 방지)
+    const ideaForRam: IdeaInput = {
       ...idea,
       attachments: idea.attachments?.map(a => ({ ...a, content: "" })) ?? [],
     };
-    roomIdeas[currentRoom].push(ideaToStore);
+    roomIdeas[currentRoom].push(ideaForRam);
 
-    // DB에 저장
-    dbUpsertIdea(currentRoom, ideaToStore).catch(e => console.error("idea upsert 실패:", e));
+    // DB에는 이미지 포함 원본 저장 (재접속 시 복원용)
+    dbUpsertIdea(currentRoom, idea).catch(e => console.error("idea upsert 실패:", e));
 
     // 발신자 제외하고 브로드캐스트 (발신자는 이미 낙관적 업데이트로 반영됨)
     socket.to(currentRoom).emit("idea-added", idea);

@@ -60,11 +60,8 @@ export async function dbGetIdeas(roomId: string): Promise<any[]> {
 
 export async function dbUpsertIdea(roomId: string, idea: any): Promise<void> {
   if (!pool) return;
-  // attachment content는 저장하지 않음 (OOM 방지)
-  const toStore = {
-    ...idea,
-    attachments: idea.attachments?.map((a: any) => ({ ...a, content: "" })) ?? [],
-  };
+  // DB에는 이미지 포함 전체 저장 (RAM에는 안 올림 — index.ts에서 별도 처리)
+  const toStore = { ...idea };
   await pool.query(
     `INSERT INTO ideas (id, room_id, data)
      VALUES ($1, $2, $3)
