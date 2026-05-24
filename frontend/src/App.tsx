@@ -138,9 +138,7 @@ function App() {
       if (roomMessages && roomMessages.length > 0) {
         setChatMessages(roomMessages);
       }
-      if (roomSections && roomSections.length > 0) {
-        setInitialSections(roomSections);
-      }
+      setInitialSections(roomSections || []);
       if (analysisResults && analysisResults.length > 0) {
         setAnalysisHistory(analysisResults);
         // 가장 최근 결과를 현재 결과로 표시

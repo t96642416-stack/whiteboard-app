@@ -132,16 +132,23 @@ const Board: React.FC<BoardProps> = ({
   // BoardResultCard 너비 상태
   const [cardWidths, setCardWidths] = useState<Record<string, number>>({});
 
-  // ideas 로드 시 저장된 x/y 위치 복원
+  // ideas 로드 시 저장된 x/y 위치 및 너비 복원
   useEffect(() => {
-    const saved: Record<string, { x: number; y: number }> = {};
+    const savedPos: Record<string, { x: number; y: number }> = {};
+    const savedWidths: Record<string, number> = {};
     ideas.forEach((idea: any) => {
       if (typeof idea.x === "number" && typeof idea.y === "number") {
-        saved[idea.id] = { x: idea.x, y: idea.y };
+        savedPos[idea.id] = { x: idea.x, y: idea.y };
+      }
+      if (typeof idea.width === "number") {
+        savedWidths[idea.id] = idea.width;
       }
     });
-    if (Object.keys(saved).length > 0) {
-      setCardPositions(prev => ({ ...saved, ...prev }));
+    if (Object.keys(savedPos).length > 0) {
+      setCardPositions(prev => ({ ...savedPos, ...prev }));
+    }
+    if (Object.keys(savedWidths).length > 0) {
+      setCardWidths(prev => ({ ...savedWidths, ...prev }));
     }
   }, [ideas]);
 
@@ -150,6 +157,9 @@ const Board: React.FC<BoardProps> = ({
     const socket = getSocket();
     const onMoved = ({ ideaId, x, y }: { ideaId: string; x: number; y: number }) => {
       setCardPositions(prev => ({ ...prev, [ideaId]: { x, y } }));
+    };
+    const onResized = ({ ideaId, width }: { ideaId: string; width: number }) => {
+      setCardWidths(prev => ({ ...prev, [ideaId]: width }));
     };
     const onSectionAdded = (section: BoardSection) => {
       setSections(prev => prev.find(s => s.id === section.id) ? prev : [...prev, section]);
@@ -161,11 +171,13 @@ const Board: React.FC<BoardProps> = ({
       setSections(prev => prev.filter(s => s.id !== id));
     };
     socket.on("idea-moved", onMoved);
+    socket.on("idea-resized", onResized);
     socket.on("section-added", onSectionAdded);
     socket.on("section-updated", onSectionUpdated);
     socket.on("section-deleted", onSectionDeleted);
     return () => {
       socket.off("idea-moved", onMoved);
+      socket.off("idea-resized", onResized);
       socket.off("section-added", onSectionAdded);
       socket.off("section-updated", onSectionUpdated);
       socket.off("section-deleted", onSectionDeleted);
@@ -189,9 +201,7 @@ const Board: React.FC<BoardProps> = ({
 
   // 서버에서 받아온 섹션 초기값 복원
   useEffect(() => {
-    if (initialSections && initialSections.length > 0) {
-      setSections(initialSections);
-    }
+    setSections(initialSections ?? []);
   }, [initialSections]);
 
   // 섹션별 아이디어 그룹핑 → App으로 전달 (분석 단위)
@@ -1367,14 +1377,16 @@ const Board: React.FC<BoardProps> = ({
                             e.currentTarget.setPointerCapture(e.pointerId);
                             const startX = e.clientX;
                             const startW = cardWidths[idea.id] ?? 280;
+                            let latestW = startW;
                             const onMove = (ev: PointerEvent) => {
                               const delta = (ev.clientX - startX) / zoom;
-                              const newW = Math.max(200, Math.min(600, startW + delta));
-                              setCardWidths(prev => ({ ...prev, [idea.id]: newW }));
+                              latestW = Math.max(200, Math.min(600, startW + delta));
+                              setCardWidths(prev => ({ ...prev, [idea.id]: latestW }));
                             };
                             const onUp = () => {
                               window.removeEventListener("pointermove", onMove);
                               window.removeEventListener("pointerup", onUp);
+                              getSocket().emit("idea-resized", { ideaId: idea.id, width: Math.round(latestW) });
                             };
                             window.addEventListener("pointermove", onMove);
                             window.addEventListener("pointerup", onUp);
@@ -1395,14 +1407,16 @@ const Board: React.FC<BoardProps> = ({
                             e.currentTarget.setPointerCapture(e.pointerId);
                             const startX = e.clientX;
                             const startW = cardWidths[idea.id] ?? CARD_WIDTH;
+                            let latestW = startW;
                             const onMove = (ev: PointerEvent) => {
                               const delta = (ev.clientX - startX) / zoom;
-                              const newW = Math.max(180, Math.min(500, startW + delta));
-                              setCardWidths(prev => ({ ...prev, [idea.id]: newW }));
+                              latestW = Math.max(180, Math.min(500, startW + delta));
+                              setCardWidths(prev => ({ ...prev, [idea.id]: latestW }));
                             };
                             const onUp = () => {
                               window.removeEventListener("pointermove", onMove);
                               window.removeEventListener("pointerup", onUp);
+                              getSocket().emit("idea-resized", { ideaId: idea.id, width: Math.round(latestW) });
                             };
                             window.addEventListener("pointermove", onMove);
                             window.addEventListener("pointerup", onUp);

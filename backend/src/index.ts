@@ -189,6 +189,17 @@ io.on("connection", (socket) => {
     socket.to(currentRoom).emit("idea-moved", { ideaId, x, y });
   });
 
+  // 카드 너비 변경
+  socket.on("idea-resized", async ({ ideaId, width }: { ideaId: string; width: number }) => {
+    if (!currentRoom) return;
+    if (roomIdeas[currentRoom]) {
+      const idea = roomIdeas[currentRoom].find((i: any) => i.id === ideaId) as any;
+      if (idea) idea.width = width;
+    }
+    dbUpdateIdea(currentRoom, ideaId, { width }).catch(e => console.error("idea resize 저장 실패:", e));
+    socket.to(currentRoom).emit("idea-resized", { ideaId, width });
+  });
+
   // 섹션 동기화 + 서버 저장
   socket.on("section-added", async (section: any) => {
     if (!currentRoom) return;
