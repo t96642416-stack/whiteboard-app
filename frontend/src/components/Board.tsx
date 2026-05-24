@@ -130,6 +130,19 @@ const Board: React.FC<BoardProps> = ({
   // BoardResultCard 너비 상태
   const [cardWidths, setCardWidths] = useState<Record<string, number>>({});
 
+  // ideas 로드 시 저장된 x/y 위치 복원
+  useEffect(() => {
+    const saved: Record<string, { x: number; y: number }> = {};
+    ideas.forEach((idea: any) => {
+      if (typeof idea.x === "number" && typeof idea.y === "number") {
+        saved[idea.id] = { x: idea.x, y: idea.y };
+      }
+    });
+    if (Object.keys(saved).length > 0) {
+      setCardPositions(prev => ({ ...saved, ...prev }));
+    }
+  }, [ideas]);
+
   // 상대방 카드 위치 동기화 수신
   useEffect(() => {
     const socket = getSocket();
