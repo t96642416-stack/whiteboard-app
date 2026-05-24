@@ -10,9 +10,9 @@ export type IdeaCategory = typeof IDEA_CATEGORIES[number]["id"];
 
 export interface IdeaAttachment {
   name: string;
-  type: "image" | "file";
+  type: "image" | "file" | "link";
   mimeType?: string;
-  content: string; // base64 data URL
+  content: string; // base64 data URL (image/file) 또는 URL 문자열 (link)
 }
 
 export interface IdeaComment {

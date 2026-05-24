@@ -14,8 +14,17 @@ const AddIdeaModal: React.FC<AddIdeaModalProps> = ({ onClose, onAdd, defaultCate
   const selectedCategory: IdeaCategory = defaultCategory ?? "brainstorm";
   const [attachments, setAttachments] = useState<IdeaAttachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [linkInput, setLinkInput] = useState("");
   const titleRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAddLink = () => {
+    const url = linkInput.trim();
+    if (!url) return;
+    const withProtocol = url.startsWith("http") ? url : `https://${url}`;
+    setAttachments(prev => prev.length >= 5 ? prev : [...prev, { name: withProtocol, type: "link", content: withProtocol }]);
+    setLinkInput("");
+  };
 
   useEffect(() => {
     titleRef.current?.focus();
@@ -149,7 +158,23 @@ const AddIdeaModal: React.FC<AddIdeaModalProps> = ({ onClose, onAdd, defaultCate
                 className="hidden" onChange={handleFileChange} />
             </div>
 
-            {/* 첨부된 파일 목록 */}
+            {/* 링크 입력 */}
+            <div className="mt-3 flex gap-2">
+              <input
+                type="text"
+                value={linkInput}
+                onChange={e => setLinkInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddLink(); }}}
+                placeholder="링크 URL 붙여넣기 (Enter)"
+                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+              />
+              <button type="button" onClick={handleAddLink}
+                className="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-xs font-semibold transition-colors flex-shrink-0">
+                추가
+              </button>
+            </div>
+
+            {/* 첨부된 파일/링크 목록 */}
             {attachments.length > 0 && (
               <div className="mt-2 space-y-1.5">
                 {attachments.map((att, idx) => (
@@ -157,12 +182,16 @@ const AddIdeaModal: React.FC<AddIdeaModalProps> = ({ onClose, onAdd, defaultCate
                     {att.type === "image" ? (
                       <img src={att.content} alt={att.name}
                         className="w-8 h-8 rounded object-cover flex-shrink-0 border border-gray-200" />
+                    ) : att.type === "link" ? (
+                      <span className="text-indigo-400 flex-shrink-0">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+                      </span>
                     ) : (
                       <span className="text-gray-400 flex-shrink-0">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              </span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      </span>
                     )}
-                    <span className="text-xs text-gray-700 flex-1 truncate">{att.name}</span>
+                    <span className="text-xs text-gray-700 flex-1 truncate">{att.type === "link" ? att.content : att.name}</span>
                     <button type="button" onClick={() => removeAttachment(idx)}
                       className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

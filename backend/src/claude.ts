@@ -14,11 +14,19 @@ function getClient() {
   });
 }
 
+export interface IdeaAttachment {
+  name: string;
+  type: "image" | "file" | "link";
+  mimeType?: string;
+  content: string; // base64 data URL (image/file) 또는 URL 문자열 (link)
+}
+
 export interface IdeaInput {
   id: string;
   title: string;
   content: string;
   author: string;
+  attachments?: IdeaAttachment[];
 }
 
 export interface AnalysisFile {
@@ -208,11 +216,36 @@ export async function analyzeIdeas(
   }
 
   const ideasText = ideas
-    .map(
-      (idea, idx) =>
-        `아이디어 ${String.fromCharCode(65 + idx)} (ID: ${idea.id})\n제목: ${idea.title}\n내용: ${idea.content}\n작성자: ${idea.author}`
-    )
+    .map((idea, idx) => {
+      const label = String.fromCharCode(65 + idx);
+      let text = `아이디어 ${label} (ID: ${idea.id})\n제목: ${idea.title}\n내용: ${idea.content}\n작성자: ${idea.author}`;
+      if (idea.attachments && idea.attachments.length > 0) {
+        const links = idea.attachments.filter(a => a.type === "link").map(a => a.content);
+        const imageCount = idea.attachments.filter(a => a.type === "image").length;
+        if (links.length > 0) text += `\n참고 링크: ${links.join(", ")}`;
+        if (imageCount > 0) text += `\n첨부 이미지: ${imageCount}개 (아래 이미지 참조)`;
+      }
+      return text;
+    })
     .join("\n\n");
+
+  // 아이디어 카드에 첨부된 이미지 vision blocks
+  type ValidMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+  const VALID_MEDIA_TYPES: ValidMediaType[] = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+  const ideaImageBlocks: Array<{ type: "image"; source: { type: "base64"; media_type: ValidMediaType; data: string } }> = [];
+  ideas.forEach((idea) => {
+    if (!idea.attachments) return;
+    idea.attachments
+      .filter(a => a.type === "image" && a.content && a.mimeType)
+      .forEach(a => {
+        const base64Data = a.content.includes(",") ? a.content.split(",")[1] : a.content;
+        const rawMime = (a.mimeType || "image/jpeg").toLowerCase();
+        const mediaType: ValidMediaType = VALID_MEDIA_TYPES.includes(rawMime as ValidMediaType)
+          ? rawMime as ValidMediaType
+          : "image/jpeg";
+        ideaImageBlocks.push({ type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } });
+      });
+  });
 
   const userMessageInstruction = userMessage
     ? `\n\n사용자 추가 요청: ${userMessage}`
@@ -276,14 +309,20 @@ export async function analyzeIdeas(
 
   const fullTextPrompt = userPrompt + textFilesContext + (textFilesContext ? "\n\n위 첨부 파일 내용도 참고하여 분석해주세요." : "");
 
+  // 모든 이미지 블록 합산 (분석용 파일 + 아이디어 카드 첨부 이미지)
+  const allImageBlocks = [...ideaImageBlocks, ...imageBlocks];
+  const hasImages = allImageBlocks.length > 0;
+  const imageNote = hasImages
+    ? `\n\n위 첨부 이미지${ideaImageBlocks.length > 0 ? "(아이디어 카드 포함)" : ""}도 시각적으로 분석에 반영해주세요.`
+    : "";
+
   // 이미지가 있으면 content block 배열, 없으면 단순 문자열
-  const userContent =
-    imageBlocks.length > 0
-      ? [
-          ...imageBlocks,
-          { type: "text" as const, text: fullTextPrompt + "\n\n위 첨부 이미지도 참고하여 분석해주세요." },
-        ]
-      : fullTextPrompt;
+  const userContent = hasImages
+    ? [
+        ...allImageBlocks,
+        { type: "text" as const, text: fullTextPrompt + imageNote },
+      ]
+    : fullTextPrompt;
 
   const message = await getClient().messages.create({
     model: "claude-opus-4-5",
