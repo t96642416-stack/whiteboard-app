@@ -32,6 +32,7 @@ app.use(express.static(frontendDist));
 const roomIdeas: Record<string, IdeaInput[]> = {};
 const roomUsers: Record<string, Map<string, string>> = {}; // userName -> color
 const roomMessages: Record<string, any[]> = {};
+const roomSections: Record<string, any[]> = {};
 
 // 헬스 체크
 app.get("/health", (_req, res) => {
@@ -66,6 +67,9 @@ io.on("connection", (socket) => {
       if (!roomMessages[roomId]) {
         roomMessages[roomId] = [];
       }
+      if (!roomSections[roomId]) {
+        roomSections[roomId] = [];
+      }
       roomUsers[roomId].set(userName, userColor || "#E5E7EB");
 
       const usersArray = Array.from(roomUsers[roomId].entries()).map(([name, color]) => ({ name, color }));
@@ -75,6 +79,7 @@ io.on("connection", (socket) => {
         ideas: roomIdeas[roomId],
         users: usersArray,
         messages: roomMessages[roomId] || [],
+        sections: roomSections[roomId] || [],
       });
 
       // 다른 유저들에게 알림
@@ -130,17 +135,28 @@ io.on("connection", (socket) => {
     socket.to(currentRoom).emit("idea-moved", { ideaId, x, y });
   });
 
-  // 섹션 동기화
+  // 섹션 동기화 + 서버 저장
   socket.on("section-added", (section: any) => {
     if (!currentRoom) return;
+    if (!roomSections[currentRoom]) roomSections[currentRoom] = [];
+    if (!roomSections[currentRoom].find((s: any) => s.id === section.id)) {
+      roomSections[currentRoom].push(section);
+    }
     socket.to(currentRoom).emit("section-added", section);
   });
   socket.on("section-updated", (update: any) => {
     if (!currentRoom) return;
+    if (roomSections[currentRoom]) {
+      const idx = roomSections[currentRoom].findIndex((s: any) => s.id === update.id);
+      if (idx !== -1) roomSections[currentRoom][idx] = { ...roomSections[currentRoom][idx], ...update };
+    }
     socket.to(currentRoom).emit("section-updated", update);
   });
   socket.on("section-deleted", ({ id }: { id: string }) => {
     if (!currentRoom) return;
+    if (roomSections[currentRoom]) {
+      roomSections[currentRoom] = roomSections[currentRoom].filter((s: any) => s.id !== id);
+    }
     socket.to(currentRoom).emit("section-deleted", { id });
   });
 

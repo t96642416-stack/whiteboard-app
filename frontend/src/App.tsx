@@ -82,6 +82,7 @@ function App() {
   const [topic, setTopic] = useState("");
   const [topicFiles, setTopicFiles] = useState<AnalysisFile[]>([]);
   const [sectionGroups, setSectionGroups] = useState<{ title: string; ideaIds: string[] }[]>([]);
+  const [initialSections, setInitialSections] = useState<any[]>([]);
   const [pendingCanvasImage, setPendingCanvasImage] = useState<string | null>(null);
   const [focusedIdea, setFocusedIdea] = useState<Idea | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -131,11 +132,14 @@ function App() {
     socket.on("connect", rejoinRoom);
     socket.on("reconnect", rejoinRoom);
 
-    socket.on("room-state", ({ ideas: roomIdeas, users: roomUsers, messages: roomMessages }: { ideas: Idea[]; users: { name: string; color: string }[]; messages?: ChatMessage[] }) => {
+    socket.on("room-state", ({ ideas: roomIdeas, users: roomUsers, messages: roomMessages, sections: roomSections }: { ideas: Idea[]; users: { name: string; color: string }[]; messages?: ChatMessage[]; sections?: any[] }) => {
       setIdeas(roomIdeas);
       setUsers(roomUsers);
       if (roomMessages && roomMessages.length > 0) {
         setChatMessages(roomMessages);
+      }
+      if (roomSections && roomSections.length > 0) {
+        setInitialSections(roomSections);
       }
     });
 
@@ -391,6 +395,7 @@ function App() {
           onAddComment={handleAddComment}
           onSectionAnalysis={handleSectionAnalysis}
           onSectionGroupsChange={setSectionGroups}
+          initialSections={initialSections}
         />
       </div>
 
