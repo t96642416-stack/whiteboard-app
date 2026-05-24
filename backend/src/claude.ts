@@ -6,49 +6,62 @@ function getClient() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 }
 
-// Gemini REST API 직접 호출 (SDK 없이) — 429 시 retryDelay만큼 대기 후 1회 재시도
+// 시도할 Gemini 모델 목록 (앞에서부터 순서대로 시도, 429면 다음 모델로)
+const GEMINI_MODELS = [
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent",
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+  "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent",
+];
+
+// Gemini REST API 직접 호출 — 여러 모델 cascade (429 시 다음 모델로 자동 전환)
 async function callGemini(systemPrompt: string, userPrompt: string): Promise<string> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY 없음");
 
-  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key=${key}`;
   const body = {
     contents: [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + userPrompt }] }],
     generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
   };
 
-  const doRequest = () => fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let lastError = "";
 
-  let res = await doRequest();
+  for (const baseUrl of GEMINI_MODELS) {
+    const url = `${baseUrl}?key=${key}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
 
-  // 429 rate limit → retryDelay 파싱 후 대기, 1회 재시도
-  if (res.status === 429) {
-    const errText = await res.text();
-    let waitMs = 20000; // 기본 20초
-    try {
-      const errJson = JSON.parse(errText);
-      const retryInfo = errJson?.error?.details?.find((d: any) => d["@type"]?.includes("RetryInfo"));
-      if (retryInfo?.retryDelay) {
-        const seconds = parseInt(retryInfo.retryDelay.replace("s", ""), 10);
-        if (!isNaN(seconds)) waitMs = (seconds + 1) * 1000;
-      }
-    } catch { /* 파싱 실패 시 기본값 사용 */ }
-    console.log(`⏳ Gemini 429 rate limit → ${waitMs / 1000}초 대기 후 재시도...`);
-    await new Promise(resolve => setTimeout(resolve, waitMs));
-    res = await doRequest();
+    if (res.status === 429) {
+      const errText = await res.text();
+      const modelName = baseUrl.match(/models\/([^:]+)/)?.[1] ?? baseUrl;
+      console.warn(`⚠️ Gemini ${modelName} 429 quota → 다음 모델 시도`);
+      lastError = `Gemini API 429: ${errText}`;
+      continue; // 다음 모델로
+    }
+
+    if (res.status === 404) {
+      const modelName = baseUrl.match(/models\/([^:]+)/)?.[1] ?? baseUrl;
+      console.warn(`⚠️ Gemini ${modelName} 404 → 다음 모델 시도`);
+      lastError = `Gemini API 404`;
+      continue; // 다음 모델로
+    }
+
+    if (!res.ok) {
+      const err = await res.text();
+      lastError = `Gemini API ${res.status}: ${err}`;
+      continue;
+    }
+
+    const data = await res.json() as any;
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const modelName = baseUrl.match(/models\/([^:]+)/)?.[1] ?? "gemini";
+    console.log(`✅ Gemini (${modelName}) 분석 완료`);
+    return text;
   }
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Gemini API ${res.status}: ${err}`);
-  }
-
-  const data = await res.json() as any;
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  throw new Error(lastError || "모든 Gemini 모델 실패");
 }
 
 export interface IdeaAttachment {
