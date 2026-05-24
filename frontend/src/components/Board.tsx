@@ -148,7 +148,7 @@ const Board: React.FC<BoardProps> = ({
       setCardPositions(prev => ({ ...savedPos, ...prev }));
     }
     if (Object.keys(savedWidths).length > 0) {
-      setCardWidths(prev => ({ ...savedWidths, ...prev }));
+      setCardWidths(prev => ({ ...prev, ...savedWidths }));
     }
   }, [ideas]);
 

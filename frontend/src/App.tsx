@@ -156,6 +156,14 @@ function App() {
       setIdeas((prev) => prev.filter((i) => i.id !== ideaId));
     });
 
+    socket.on("idea-moved", ({ ideaId, x, y }: { ideaId: string; x: number; y: number }) => {
+      setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, x, y } : i));
+    });
+
+    socket.on("idea-resized", ({ ideaId, width }: { ideaId: string; width: number }) => {
+      setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, width } : i));
+    });
+
     socket.on("idea-updated", ({ ideaId, title, content, category, color, aiImageUrl, attachments }: { ideaId: string; title: string; content: string; category?: IdeaCategory; color?: string; aiImageUrl?: string; attachments?: IdeaAttachment[] }) => {
       setIdeas((prev) => prev.map((i) => i.id === ideaId ? { ...i, title, content, ...(category ? { category } : {}), ...(color ? { color } : {}), ...(aiImageUrl !== undefined ? { aiImageUrl } : {}), ...(attachments !== undefined ? { attachments } : {}) } : i));
     });
@@ -243,6 +251,8 @@ function App() {
       socket.off("room-state");
       socket.off("idea-added");
       socket.off("idea-deleted");
+      socket.off("idea-moved");
+      socket.off("idea-resized");
       socket.off("idea-updated");
       socket.off("analysis-started");
       socket.off("analysis-result");

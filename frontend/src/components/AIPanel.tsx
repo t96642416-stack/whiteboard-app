@@ -41,6 +41,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
   onApplyImage,
   onUpdateHistory,
   onDeleteHistory,
+  onClearChat,
 }) => {
   const [inputText, setInputText] = useState("");
   const [aiInputText, setAiInputText] = useState("");
@@ -140,7 +141,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
     setInputText("");
   };
 
-  // 새 채팅 시작 (현재 내용 저장 후 초기화)
+  // 새 채팅 시작 (현재 내용 저장 후 초기화 + DB 삭제)
   const handleNewChat = () => {
     const current = chatMessages.slice(sessionStartIndex);
     if (current.length > 0) {
@@ -148,9 +149,11 @@ const AIPanel: React.FC<AIPanelProps> = ({
       const label = now.toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
       setSavedSessions((prev) => [...prev, { id: Date.now().toString(), label, messages: current }]);
     }
-    setSessionStartIndex(chatMessages.length);
+    setSessionStartIndex(0);
     setShowHistory(false);
     setViewingSession(null);
+    // DB에서도 삭제 (새로고침 후 복원 방지)
+    onClearChat?.();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
