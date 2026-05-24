@@ -548,7 +548,7 @@ export async function analyzeIdeas(
   // Gemini 미사용 or 실패 시 Claude
   if (!responseText) {
     const message = await getClient().messages.create({
-      model: "claude-sonnet-4-5",
+      model: "claude-3-5-haiku-20241022",
       max_tokens: 8192,
       system: systemPrompt,
       messages: [{ role: "user", content: userContent }],
