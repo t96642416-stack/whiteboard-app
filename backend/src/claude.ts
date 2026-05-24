@@ -348,63 +348,34 @@ export async function analyzeIdeas(
   const ideaFiles = files.filter((f) => f.role === "idea");
   const referenceFiles = files.filter((f) => f.role !== "idea");
 
-  // 아이디어 파일 요약: 2000자 이상이면 haiku로 먼저 압축
-  const IDEA_FILE_THRESHOLD = 2000;
-  const summarizedIdeaFiles = await Promise.all(
-    ideaFiles.filter(f => f.type === "text").map(async (f, idx) => {
-      const label = String.fromCharCode(65 + idx) + "안";
-      if (f.content.length <= IDEA_FILE_THRESHOLD) return { label, name: f.name, text: f.content };
-      try {
-        const summary = await getClient().messages.create({
-          model: "claude-haiku-4-5",
-          max_tokens: 800,
-          messages: [{
-            role: "user",
-            content: `다음은 하나의 아이디어 안(案)에 대한 문서입니다. 분석에 활용할 수 있도록 핵심만 요약해주세요.\n포함 내용: 아이디어의 핵심 내용, 주요 특징, 기대 효과, 근거나 배경.\n분량: 600자 이내. 한국어로.\n\n[파일명: ${f.name}]\n${f.content}`,
-          }],
-        });
-        const summaryText = summary.content[0].type === "text" ? summary.content[0].text : f.content.slice(0, IDEA_FILE_THRESHOLD);
-        console.log(`아이디어 파일 요약: ${f.name} (${f.content.length}자 → ${summaryText.length}자)`);
-        return { label, name: f.name, text: summaryText };
-      } catch {
-        return { label, name: f.name, text: f.content.slice(0, IDEA_FILE_THRESHOLD) + "\n...(이하 생략)" };
-      }
-    })
-  );
+  // 아이디어 파일: 3000자 초과분은 잘라냄 (비용 0)
+  const IDEA_FILE_LIMIT = 3000;
+  const trimmedIdeaFiles = ideaFiles.filter(f => f.type === "text").map((f, idx) => ({
+    label: String.fromCharCode(65 + idx) + "안",
+    name: f.name,
+    text: f.content.length > IDEA_FILE_LIMIT
+      ? f.content.slice(0, IDEA_FILE_LIMIT) + "\n...(이하 생략)"
+      : f.content,
+  }));
 
-  const ideaFilesText = summarizedIdeaFiles.length > 0
+  const ideaFilesText = trimmedIdeaFiles.length > 0
     ? "\n\n[파일 기반 아이디어 안(案)들 — 각각을 독립적인 아이디어로 분석하세요]\n" +
-      summarizedIdeaFiles.map((f) => `\n--- ${f.label}: ${f.name} ---\n${f.text}`).join("")
+      trimmedIdeaFiles.map((f) => `\n--- ${f.label}: ${f.name} ---\n${f.text}`).join("")
     : "";
 
-  // 전사지 요약: 2000자 이상이면 haiku로 먼저 압축 (토큰 절약)
-  const TRANSCRIPT_THRESHOLD = 2000;
+  // 전사지: 4000자 초과분은 잘라냄 (비용 0)
+  const TRANSCRIPT_LIMIT = 4000;
   const refTextFiles = referenceFiles.filter(f => f.type === "text");
-  const summarizedRefs = await Promise.all(
-    refTextFiles.map(async (f) => {
-      if (f.content.length <= TRANSCRIPT_THRESHOLD) return { name: f.name, text: f.content };
-      try {
-        const summary = await getClient().messages.create({
-          model: "claude-haiku-4-5",
-          max_tokens: 1000,
-          messages: [{
-            role: "user",
-            content: `다음 전사지를 아이디어 분석에 활용할 수 있도록 핵심만 요약해주세요.\n요약 포함 내용: 논의된 주요 주제, 각 아이디어가 나온 배경과 맥락, 참여자들의 주요 의견과 우려사항, 논의 흐름.\n분량: 500자 이내. 한국어로.\n\n[전사지: ${f.name}]\n${f.content}`,
-          }],
-        });
-        const summaryText = summary.content[0].type === "text" ? summary.content[0].text : f.content.slice(0, TRANSCRIPT_THRESHOLD);
-        console.log(`전사지 요약 완료: ${f.name} (${f.content.length}자 → ${summaryText.length}자)`);
-        return { name: f.name, text: summaryText };
-      } catch {
-        // 요약 실패 시 앞부분만 잘라서 사용
-        return { name: f.name, text: f.content.slice(0, TRANSCRIPT_THRESHOLD) + "\n...(이하 생략)" };
-      }
-    })
-  );
+  const trimmedRefs = refTextFiles.map((f) => ({
+    name: f.name,
+    text: f.content.length > TRANSCRIPT_LIMIT
+      ? f.content.slice(0, TRANSCRIPT_LIMIT) + "\n...(이하 생략)"
+      : f.content,
+  }));
 
-  const referenceFilesText = summarizedRefs.length > 0
-    ? "\n\n[전사지 / 논의 원본 요약 — 위 아이디어들이 어떤 맥락과 흐름에서 나왔는지를 보여줍니다. 각 아이디어의 배경·의도·논의 과정을 파악하여 분석에 반영하세요. 전사지 자체는 아이디어가 아닙니다]\n" +
-      summarizedRefs.map((r) => `\n--- 전사지 요약: ${r.name} ---\n${r.text}`).join("")
+  const referenceFilesText = trimmedRefs.length > 0
+    ? "\n\n[전사지 / 논의 원본 — 위 아이디어들이 어떤 맥락과 흐름에서 나왔는지를 보여줍니다. 각 아이디어의 배경·의도·논의 과정을 파악하여 분석에 반영하세요. 전사지 자체는 아이디어가 아닙니다]\n" +
+      trimmedRefs.map((r) => `\n--- 전사지: ${r.name} ---\n${r.text}`).join("")
     : "";
 
   const textFilesContext = ideaFilesText + referenceFilesText;
