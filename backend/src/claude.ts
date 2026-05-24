@@ -207,7 +207,8 @@ export async function analyzeIdeas(
   files: AnalysisFile[] = [],
   useSearch: boolean = false
 ): Promise<AnalysisResult | Record<string, unknown>> {
-  if (ideas.length === 0) {
+  // 아이디어도 없고 파일도 없으면 빈 결과 반환
+  if (ideas.length === 0 && files.length === 0) {
     return {
       ideas: [],
       commonalities: [],
@@ -215,37 +216,39 @@ export async function analyzeIdeas(
     };
   }
 
-  const ideasText = ideas
-    .map((idea, idx) => {
-      const label = String.fromCharCode(65 + idx);
-      let text = `아이디어 ${label} (ID: ${idea.id})\n제목: ${idea.title}\n내용: ${idea.content}\n작성자: ${idea.author}`;
-      if (idea.attachments && idea.attachments.length > 0) {
-        const imageCount = idea.attachments.filter(a => a.type === "image").length;
-        if (imageCount > 0) text += `\n첨부 이미지: ${imageCount}개 (아래 이미지 참조)`;
+  const ideasText = ideas.length === 0
+    ? "첨부된 파일을 기반으로 분석해주세요. 아이디어 카드는 없습니다."
+    : ideas
+        .map((idea, idx) => {
+          const label = String.fromCharCode(65 + idx);
+          let text = `아이디어 ${label} (ID: ${idea.id})\n제목: ${idea.title}\n내용: ${idea.content}\n작성자: ${idea.author}`;
+          if (idea.attachments && idea.attachments.length > 0) {
+            const imageCount = idea.attachments.filter(a => a.type === "image").length;
+            if (imageCount > 0) text += `\n첨부 이미지: ${imageCount}개 (아래 이미지 참조)`;
 
-        // 텍스트 계열 파일: base64 디코딩 후 내용 포함
-        const TEXT_MIMES = ["text/plain", "text/csv", "text/markdown", "text/html", "application/json", "text/javascript"];
-        const TEXT_EXTS = [".txt", ".md", ".csv", ".json", ".tsv", ".log"];
-        idea.attachments.filter(a => a.type === "file").forEach(a => {
-          const isTextMime = TEXT_MIMES.some(m => (a.mimeType || "").startsWith(m));
-          const isTextExt = TEXT_EXTS.some(e => a.name.toLowerCase().endsWith(e));
-          if (isTextMime || isTextExt) {
-            try {
-              const base64 = a.content.includes(",") ? a.content.split(",")[1] : a.content;
-              const decoded = Buffer.from(base64, "base64").toString("utf-8").slice(0, 3000);
-              text += `\n\n[첨부 파일: ${a.name}]\n${decoded}`;
-            } catch { /* 디코딩 실패 시 무시 */ }
-          } else if ((a.mimeType || "").toLowerCase() === "application/pdf" || a.name.toLowerCase().endsWith(".pdf")) {
-            // PDF는 document 블록으로 별도 전달 → 여기서는 참조 메모만
-            text += `\n첨부 PDF: ${a.name} (아래 문서 블록 참조)`;
-          } else {
-            text += `\n첨부 파일: ${a.name}`;
+            // 텍스트 계열 파일: base64 디코딩 후 내용 포함
+            const TEXT_MIMES = ["text/plain", "text/csv", "text/markdown", "text/html", "application/json", "text/javascript"];
+            const TEXT_EXTS = [".txt", ".md", ".csv", ".json", ".tsv", ".log"];
+            idea.attachments.filter(a => a.type === "file").forEach(a => {
+              const isTextMime = TEXT_MIMES.some(m => (a.mimeType || "").startsWith(m));
+              const isTextExt = TEXT_EXTS.some(e => a.name.toLowerCase().endsWith(e));
+              if (isTextMime || isTextExt) {
+                try {
+                  const base64 = a.content.includes(",") ? a.content.split(",")[1] : a.content;
+                  const decoded = Buffer.from(base64, "base64").toString("utf-8").slice(0, 3000);
+                  text += `\n\n[첨부 파일: ${a.name}]\n${decoded}`;
+                } catch { /* 디코딩 실패 시 무시 */ }
+              } else if ((a.mimeType || "").toLowerCase() === "application/pdf" || a.name.toLowerCase().endsWith(".pdf")) {
+                // PDF는 document 블록으로 별도 전달 → 여기서는 참조 메모만
+                text += `\n첨부 PDF: ${a.name} (아래 문서 블록 참조)`;
+              } else {
+                text += `\n첨부 파일: ${a.name}`;
+              }
+            });
           }
-        });
-      }
-      return text;
-    })
-    .join("\n\n");
+          return text;
+        })
+        .join("\n\n");
 
   // 아이디어 카드에 첨부된 이미지 / PDF vision blocks
   type ValidMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
