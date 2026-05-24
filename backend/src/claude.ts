@@ -514,9 +514,15 @@ export async function analyzeIdeas(
     console.log("✅ Claude sonnet으로 분석 완료");
   }
 
-  // JSON 파싱 시도
-  const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+  // JSON 파싱 시도 (코드블록 제거 후 추출)
+  let cleanedText = responseText
+    .replace(/^```(?:json)?\s*/i, "")  // 앞 ```json 제거
+    .replace(/\s*```\s*$/i, "")        // 뒤 ``` 제거
+    .trim();
+
+  const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
+    console.error("[JSON 파싱 실패] 응답 원문 (앞 500자):", responseText.slice(0, 500));
     throw new Error("JSON 형식의 응답을 찾을 수 없습니다.");
   }
 
