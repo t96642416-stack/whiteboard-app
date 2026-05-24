@@ -124,16 +124,15 @@ const EVIDENCE_RULE = `
 [근거 작성 필수 규칙 — 반드시 지켜야 함]
 - 전사지는 맥락 파악 전용입니다. 근거로 인용하지 마세요.
 - 근거는 아이디어 파일 내용에서 가져오세요.
-모든 근거는 반드시 아래 두 형식 중 하나로 작성하세요. → 해석은 쓰지 마세요.
+모든 근거는 반드시 아래 두 형식 중 하나로 작성하세요. → 해석은 쓰지 마세요. 각 근거는 60자 이내로 간결하게 작성하세요.
 1. 아이디어 파일에 관련 문장이 있으면 원문을 직접 인용하세요. 파일명은 쓰지 마세요.
-   파일 안에 출처명·기관명·날짜가 언급되어 있으면 괄호에 넣으세요. 없으면 괄호 생략.
-   형식: "원문 그대로 발췌" (파일 내 출처명, 연도)
-   예시: "소음 관련 공식 민원: 2021년 68건 → 2024년 156건 (4년간 129% 증가)" (학내 시설기획팀 설문조사, 2024)
-   예시(출처 없을 때): "카페처럼 자유롭게 대화할 수 있는 공간이 필요하다"
-2. 아이디어 파일에 없는 근거는 반드시 "추가 근거: "를 앞에 붙이고, 끝에 출처·분야·연도를 괄호로 표기하세요.
-   형식: 추가 근거: 내용 (출처 또는 분야, 연도)
-   예시: 추가 근거: 파티션만으론 음압 차단 한계, 천장 개방 시 음 누출 가능 (건축음향학, 2023)
-3. 출처 없는 평서문, 파일 내용 없이 만들어낸 문장은 엄격히 금지합니다.`;
+   파일 안에 출처명·날짜가 있으면 괄호에 넣으세요. 없으면 괄호 생략.
+   형식: "핵심 원문 발췌" (출처명, 연도)
+   예시: "소음 민원 2021년 68건→2024년 156건" (학내 시설기획팀, 2024)
+2. 아이디어 파일에 없는 근거는 "추가 근거: "를 앞에 붙이고 괄호로 출처 표기하세요.
+   형식: 추가 근거: 내용 (분야, 연도)
+   예시: 추가 근거: 파티션만으론 음압 차단 한계 (건축음향학, 2023)
+3. 출처 없는 평서문은 엄격히 금지합니다.`;
 
 // attribute용 - 장단점 2열 비교 분석
 const ATTRIBUTE_SYSTEM_PROMPT = `당신은 팀의 의사결정을 돕는 AI 퍼실리테이터입니다.
@@ -514,19 +513,60 @@ export async function analyzeIdeas(
     console.log("✅ Claude sonnet으로 분석 완료");
   }
 
-  // JSON 파싱 시도 (코드블록 제거 후 추출)
+  // JSON 파싱 시도 (코드블록 제거 → 짤린 JSON 복구 → 파싱)
   let cleanedText = responseText
-    .replace(/^```(?:json)?\s*/i, "")  // 앞 ```json 제거
-    .replace(/\s*```\s*$/i, "")        // 뒤 ``` 제거
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
     .trim();
 
-  const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+  const jsonMatch = cleanedText.match(/\{[\s\S]*/);  // 닫힘 없어도 시작 부분 추출
   if (!jsonMatch) {
     console.error("[JSON 파싱 실패] 응답 원문 (앞 500자):", responseText.slice(0, 500));
     throw new Error("JSON 형식의 응답을 찾을 수 없습니다.");
   }
 
-  const result = JSON.parse(jsonMatch[0]);
+  // 짤린 JSON 복구: 열린 괄호/따옴표를 자동으로 닫음
+  function repairJSON(text: string): string {
+    const stack: string[] = [];
+    let inString = false;
+    let escape = false;
+    let lastValidPos = 0;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (escape) { escape = false; lastValidPos = i; continue; }
+      if (ch === "\\" && inString) { escape = true; continue; }
+      if (ch === '"') { inString = !inString; lastValidPos = i; continue; }
+      if (inString) continue;
+      lastValidPos = i;
+      if (ch === "{") stack.push("}");
+      else if (ch === "[") stack.push("]");
+      else if (ch === "}" || ch === "]") stack.pop();
+    }
+    // 문자열 중간에 잘린 경우 따옴표 닫기
+    let repaired = inString ? text + '"' : text;
+    // 마지막 콤마 뒤 불완전한 항목 제거
+    repaired = repaired.replace(/,\s*$/, "");
+    // 열린 괄호 닫기
+    return repaired + stack.reverse().join("");
+  }
+
+  let jsonText = jsonMatch[0];
+  let result: any;
+  try {
+    // 먼저 원본 그대로 파싱 시도
+    const fullMatch = cleanedText.match(/\{[\s\S]*\}/);
+    result = JSON.parse(fullMatch ? fullMatch[0] : jsonText);
+  } catch {
+    // 실패하면 복구 후 재시도
+    console.warn("[JSON 복구 시도] 응답이 잘린 것으로 보임, 자동 복구 중...");
+    try {
+      result = JSON.parse(repairJSON(jsonText));
+      console.log("[JSON 복구 성공]");
+    } catch (e2) {
+      console.error("[JSON 파싱 실패] 응답 원문 (앞 500자):", responseText.slice(0, 500));
+      throw new Error("JSON 형식의 응답을 찾을 수 없습니다.");
+    }
+  }
   // agentType이 없으면 요청한 타입으로 강제 주입 (Claude가 빠뜨리는 경우 대비)
   if (agentType && !result.agentType) {
     result.agentType = agentType;
