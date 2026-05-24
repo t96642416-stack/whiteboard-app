@@ -1,5 +1,4 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import dotenv from "dotenv";
 import path from "path";
 import { searchForIdeas, SearchResult } from "./search";
@@ -13,24 +12,31 @@ function getClient() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 }
 
-// Gemini 클라이언트 (GEMINI_API_KEY 있을 때만 활성)
-function getGeminiClient() {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) return null;
-  return new GoogleGenerativeAI(key);
-}
-
-// Gemini로 텍스트 생성 (이미지 없는 경우)
+// Gemini REST API 직접 호출 (SDK 없이)
 async function callGemini(systemPrompt: string, userPrompt: string): Promise<string> {
-  const genAI = getGeminiClient();
-  if (!genAI) throw new Error("GEMINI_API_KEY 없음");
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("GEMINI_API_KEY 없음");
 
-  const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
-    systemInstruction: systemPrompt,
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+  const body = {
+    system_instruction: { parts: [{ text: systemPrompt }] },
+    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
+  };
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
-  const result = await model.generateContent(userPrompt);
-  return result.response.text();
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Gemini API ${res.status}: ${err}`);
+  }
+
+  const data = await res.json() as any;
+  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
 export interface IdeaAttachment {
@@ -435,7 +441,7 @@ export async function analyzeIdeas(
   let responseText = "";
 
   // 이미지 없으면 Gemini 우선 시도, 실패 시 Claude fallback
-  if (!hasImages && getGeminiClient()) {
+  if (!hasImages && process.env.GEMINI_API_KEY) {
     try {
       responseText = await callGemini(systemPrompt, fullTextPrompt);
       console.log("✅ Gemini로 분석 완료");
