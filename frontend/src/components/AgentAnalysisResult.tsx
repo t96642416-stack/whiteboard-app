@@ -536,12 +536,11 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                               {pro.evidence && (
                                 src ? (
                                   <a href={src.link} target="_blank" rel="noopener noreferrer" draggable={false}
-                                    className="text-xs text-green-700 hover:text-green-800 hover:underline mt-0.5 flex items-start gap-1 leading-relaxed">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>{evText}
+                                    className="text-xs text-green-700 hover:text-green-800 hover:underline mt-0.5 leading-relaxed">
+                                    {evText}
                                   </a>
                                 ) : (
-                                  <p className="text-xs text-gray-400 mt-0.5 flex items-start gap-1 leading-relaxed">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                  <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
                                     <ET value={evText || pro.evidence} className="leading-relaxed"
                                       onSave={onUpdateResult ? v => upd(["ideas", idx, "pros", j, "evidence"], v) : undefined} />
                                   </p>
@@ -570,12 +569,11 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                               {con.evidence && (
                                 src ? (
                                   <a href={src.link} target="_blank" rel="noopener noreferrer" draggable={false}
-                                    className="text-xs text-green-700 hover:text-green-800 hover:underline mt-0.5 flex items-start gap-1 leading-relaxed">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>{evText}
+                                    className="text-xs text-green-700 hover:text-green-800 hover:underline mt-0.5 leading-relaxed">
+                                    {evText}
                                   </a>
                                 ) : (
-                                  <p className="text-xs text-gray-400 mt-0.5 flex items-start gap-1 leading-relaxed">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                  <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
                                     <ET value={evText || con.evidence} className="leading-relaxed"
                                       onSave={onUpdateResult ? v => upd(["ideas", idx, "cons", j, "evidence"], v) : undefined} />
                                   </p>
