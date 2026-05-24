@@ -232,12 +232,14 @@ export async function analyzeIdeas(
           if (isTextMime || isTextExt) {
             try {
               const base64 = a.content.includes(",") ? a.content.split(",")[1] : a.content;
-              const decoded = Buffer.from(base64, "base64").toString("utf-8").slice(0, 3000); // 최대 3000자
+              const decoded = Buffer.from(base64, "base64").toString("utf-8").slice(0, 3000);
               text += `\n\n[첨부 파일: ${a.name}]\n${decoded}`;
             } catch { /* 디코딩 실패 시 무시 */ }
+          } else if ((a.mimeType || "").toLowerCase() === "application/pdf" || a.name.toLowerCase().endsWith(".pdf")) {
+            // PDF는 document 블록으로 별도 전달 → 여기서는 참조 메모만
+            text += `\n첨부 PDF: ${a.name} (아래 문서 블록 참조)`;
           } else {
-            // PDF, doc 등 바이너리 → 파일명만 언급
-            text += `\n첨부 파일: ${a.name} (내용 직접 읽기 불가, 파일명 참고)`;
+            text += `\n첨부 파일: ${a.name}`;
           }
         });
       }
@@ -245,22 +247,30 @@ export async function analyzeIdeas(
     })
     .join("\n\n");
 
-  // 아이디어 카드에 첨부된 이미지 vision blocks
+  // 아이디어 카드에 첨부된 이미지 / PDF vision blocks
   type ValidMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
   const VALID_MEDIA_TYPES: ValidMediaType[] = ["image/jpeg", "image/png", "image/gif", "image/webp"];
-  const ideaImageBlocks: Array<{ type: "image"; source: { type: "base64"; media_type: ValidMediaType; data: string } }> = [];
+  type IdeaBlock =
+    | { type: "image"; source: { type: "base64"; media_type: ValidMediaType; data: string } }
+    | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } };
+  const ideaImageBlocks: IdeaBlock[] = [];
   ideas.forEach((idea) => {
     if (!idea.attachments) return;
-    idea.attachments
-      .filter(a => a.type === "image" && a.content && a.mimeType)
-      .forEach(a => {
-        const base64Data = a.content.includes(",") ? a.content.split(",")[1] : a.content;
-        const rawMime = (a.mimeType || "image/jpeg").toLowerCase();
+    idea.attachments.forEach(a => {
+      if (!a.content) return;
+      const base64Data = a.content.includes(",") ? a.content.split(",")[1] : a.content;
+      const mime = (a.mimeType || "").toLowerCase();
+
+      if (a.type === "image") {
+        const rawMime = mime || "image/jpeg";
         const mediaType: ValidMediaType = VALID_MEDIA_TYPES.includes(rawMime as ValidMediaType)
-          ? rawMime as ValidMediaType
-          : "image/jpeg";
+          ? rawMime as ValidMediaType : "image/jpeg";
         ideaImageBlocks.push({ type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } });
-      });
+      } else if (a.type === "file" && (mime === "application/pdf" || a.name.toLowerCase().endsWith(".pdf"))) {
+        // PDF는 document 블록으로 직접 전달 → Claude가 내용 읽음
+        ideaImageBlocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: base64Data } });
+      }
+    });
   });
 
   const userMessageInstruction = userMessage
@@ -329,7 +339,7 @@ export async function analyzeIdeas(
   const allImageBlocks = [...ideaImageBlocks, ...imageBlocks];
   const hasImages = allImageBlocks.length > 0;
   const imageNote = hasImages
-    ? `\n\n위 첨부 이미지${ideaImageBlocks.length > 0 ? "(아이디어 카드 포함)" : ""}도 시각적으로 분석에 반영해주세요.`
+    ? `\n\n위 첨부 파일(이미지/PDF 포함)의 내용도 분석에 반영해주세요.`
     : "";
 
   // 이미지가 있으면 content block 배열, 없으면 단순 문자열
