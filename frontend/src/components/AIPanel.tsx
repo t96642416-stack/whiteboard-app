@@ -49,7 +49,9 @@ const AIPanel: React.FC<AIPanelProps> = ({
   const [showInitial, setShowInitial] = useState(false);
   const [showAnalysisHistory, setShowAnalysisHistory] = useState(false);
   const [viewingHistoryItem, setViewingHistoryItem] = useState<AnalysisHistoryItem | null>(null);
-  const [analysisFiles, setAnalysisFiles] = useState<AnalysisFile[]>([]);
+  const [ideaFiles, setIdeaFiles] = useState<AnalysisFile[]>([]); // role: "idea"
+  const [referenceFiles, setReferenceFiles] = useState<AnalysisFile[]>([]); // role: "reference" (전사지)
+  const analysisFiles = [...ideaFiles, ...referenceFiles]; // 합산 (에이전트 전달용)
   const [transcriptLines, setTranscriptLines] = useState<string[]>([]);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [panelWidth, setPanelWidth] = useState(400);
@@ -63,7 +65,8 @@ const AIPanel: React.FC<AIPanelProps> = ({
   const chatEndRef = useRef<HTMLDivElement>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const analysisFileInputRef = useRef<HTMLInputElement>(null);
+  const analysisFileInputRef = useRef<HTMLInputElement>(null); // 아이디어 파일
+  const referenceFileInputRef = useRef<HTMLInputElement>(null); // 전사지
   const isResizing = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(400);
@@ -182,58 +185,47 @@ const AIPanel: React.FC<AIPanelProps> = ({
     e.target.value = "";
   };
 
-  // 분석용 파일 업로드
-  const handleAnalysisFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 아이디어 파일 업로드 (role: "idea")
+  const handleIdeaFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-
     Array.from(files).forEach((file) => {
-      if (analysisFiles.length >= 3) {
-        alert("파일은 최대 3개까지 첨부할 수 있어요");
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        alert(`${file.name}: 5MB 이하 파일만 업로드 가능해요`);
-        return;
-      }
-
-      const isImage = file.type.startsWith("image/");
-
+      if (ideaFiles.length >= 6) { alert("아이디어 파일은 최대 6개까지 첨부할 수 있어요"); return; }
+      if (file.size > 5 * 1024 * 1024) { alert(`${file.name}: 5MB 이하 파일만 업로드 가능해요`); return; }
       const reader = new FileReader();
-      if (isImage) {
-        reader.onload = () => {
-          setAnalysisFiles((prev) => {
-            if (prev.length >= 3) return prev;
-            return [...prev, {
-              name: file.name,
-              type: "image",
-              mimeType: file.type,
-              content: reader.result as string,
-            }];
-          });
-        };
+      if (file.type.startsWith("image/")) {
+        reader.onload = () => setIdeaFiles((prev) => prev.length >= 6 ? prev : [...prev, { name: file.name, type: "image", mimeType: file.type, content: reader.result as string, role: "idea" }]);
         reader.readAsDataURL(file);
       } else {
-        reader.onload = () => {
-          setAnalysisFiles((prev) => {
-            if (prev.length >= 3) return prev;
-            return [...prev, {
-              name: file.name,
-              type: "text",
-              content: reader.result as string,
-            }];
-          });
-        };
+        reader.onload = () => setIdeaFiles((prev) => prev.length >= 6 ? prev : [...prev, { name: file.name, type: "text", content: reader.result as string, role: "idea" }]);
         reader.readAsText(file, "utf-8");
       }
     });
-
     e.target.value = "";
   };
 
-  const removeAnalysisFile = (index: number) => {
-    setAnalysisFiles((prev) => prev.filter((_, i) => i !== index));
+  // 전사지/참고자료 파일 업로드 (role: "reference")
+  const handleReferenceFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    Array.from(files).forEach((file) => {
+      if (referenceFiles.length >= 2) { alert("참고자료는 최대 2개까지 첨부할 수 있어요"); return; }
+      if (file.size > 10 * 1024 * 1024) { alert(`${file.name}: 10MB 이하 파일만 업로드 가능해요`); return; }
+      const reader = new FileReader();
+      if (file.type.startsWith("image/")) {
+        reader.onload = () => setReferenceFiles((prev) => prev.length >= 2 ? prev : [...prev, { name: file.name, type: "image", mimeType: file.type, content: reader.result as string, role: "reference" }]);
+        reader.readAsDataURL(file);
+      } else {
+        reader.onload = () => setReferenceFiles((prev) => prev.length >= 2 ? prev : [...prev, { name: file.name, type: "text", content: reader.result as string, role: "reference" }]);
+        reader.readAsText(file, "utf-8");
+      }
+    });
+    e.target.value = "";
   };
+
+  const removeIdeaFile = (index: number) => setIdeaFiles((prev) => prev.filter((_, i) => i !== index));
+  const removeReferenceFile = (index: number) => setReferenceFiles((prev) => prev.filter((_, i) => i !== index));
+
 
   // 에이전트 클릭 핸들러
   const handleAgentClick = (agentType: AgentType) => {
@@ -301,69 +293,104 @@ const AIPanel: React.FC<AIPanelProps> = ({
     </div>
   );
 
-  // 파일 첨부 섹션
+  // 파일 목록 렌더러 (공용)
+  const FileList = ({ files, onRemove, addMore, accent }: {
+    files: AnalysisFile[];
+    onRemove: (i: number) => void;
+    addMore: () => void;
+    accent: string;
+  }) => (
+    <div className="mt-2 space-y-1.5">
+      {files.map((f, i) => (
+        <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-lg" style={{ backgroundColor: accent + "18" }}>
+          <span style={{ color: accent }} className="flex-shrink-0">
+            {f.type === "image"
+              ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
+          </span>
+          <span className="text-gray-700 flex-1 truncate" style={{ fontSize: 11 }}>{f.name}</span>
+          <button onClick={() => onRemove(i)} className="text-gray-300 hover:text-red-400 transition-colors">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      ))}
+      <button type="button" onClick={addMore}
+        className="w-full text-center hover:opacity-80 transition-colors flex items-center justify-center gap-1"
+        style={{ fontSize: 11, color: accent }}>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+        </svg>파일 더 추가
+      </button>
+    </div>
+  );
+
+  // 파일 첨부 섹션 (아이디어 파일 + 전사지 두 구역)
   const FileAttachSection = () => (
-    <div className="w-full bg-white rounded-xl px-4 py-3 hover:shadow-sm transition-all">
-      <input ref={analysisFileInputRef} type="file" accept=".txt,.md,.csv,.json,.pdf,image/*" multiple className="hidden" onChange={handleAnalysisFileUpload} />
-      <div className="flex items-center justify-between">
-        <span className="font-semibold text-gray-700 flex items-center gap-2" style={{ fontSize: 13 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2">
-            <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
-          </svg>
-          참고 파일 첨부
-          <span className="text-gray-400 font-normal" style={{ fontSize: 11 }}>(선택사항)</span>
-        </span>
-        <button
-          type="button"
-          onClick={() => analysisFileInputRef.current?.click()}
-          disabled={analysisFiles.length >= 3}
-          className="text-indigo-500 hover:text-indigo-700 font-semibold disabled:text-gray-300 transition-colors flex items-center gap-1"
-          style={{ fontSize: 12 }}
-        >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          파일 추가
-        </button>
+    <div className="space-y-2">
+      {/* hidden inputs */}
+      <input ref={analysisFileInputRef} type="file" accept=".txt,.md,.csv,.json,.pdf,image/*" multiple className="hidden" onChange={handleIdeaFileUpload} />
+      <input ref={referenceFileInputRef} type="file" accept=".txt,.md,.csv,.json,.pdf,image/*" multiple className="hidden" onChange={handleReferenceFileUpload} />
+
+      {/* ① 아이디어 파일 구역 */}
+      <div className="w-full bg-white rounded-xl px-3.5 py-3 hover:shadow-sm transition-all">
+        <div className="flex items-center justify-between">
+          <span className="font-semibold text-gray-700 flex items-center gap-2" style={{ fontSize: 12 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2">
+              <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+            </svg>
+            아이디어 파일
+            <span className="text-gray-400 font-normal" style={{ fontSize: 10 }}>각 파일 = 하나의 안(案)</span>
+          </span>
+          <button type="button" onClick={() => analysisFileInputRef.current?.click()}
+            disabled={ideaFiles.length >= 6}
+            className="font-semibold disabled:text-gray-300 transition-colors flex items-center gap-1"
+            style={{ fontSize: 11, color: "#6366f1" }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            </svg>추가
+          </button>
+        </div>
+        {ideaFiles.length === 0 ? (
+          <button type="button" onClick={() => analysisFileInputRef.current?.click()}
+            className="mt-1.5 w-full text-left text-gray-400 hover:text-indigo-400 transition-colors" style={{ fontSize: 10 }}>
+            아이디어당 1개 파일씩 첨부 (최대 6개)
+          </button>
+        ) : (
+          <FileList files={ideaFiles} onRemove={removeIdeaFile} addMore={() => analysisFileInputRef.current?.click()} accent="#6366f1" />
+        )}
       </div>
 
-      {analysisFiles.length === 0 ? (
-        <button
-          type="button"
-          onClick={() => analysisFileInputRef.current?.click()}
-          className="mt-2 w-full flex items-center gap-1.5 text-gray-400 hover:text-indigo-400 transition-colors"
-          style={{ fontSize: 11 }}
-        >
-          이미지, 텍스트 파일 등 AI가 참고할 파일을 추가해요
-        </button>
-      ) : (
-        <div className="mt-2 space-y-1.5">
-          {analysisFiles.map((f, i) => (
-            <div key={i} className="flex items-center gap-2 px-2 py-1.5 bg-indigo-50 rounded-lg">
-              <span className="text-indigo-400 flex-shrink-0">
-                {f.type === "image"
-                  ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                  : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
-              </span>
-              <span className="text-gray-700 flex-1 truncate" style={{ fontSize: 11 }}>{f.name}</span>
-              <button onClick={() => removeAnalysisFile(i)} className="text-gray-300 hover:text-red-400 transition-colors">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-          ))}
-          {analysisFiles.length < 3 && (
-            <button type="button" onClick={() => analysisFileInputRef.current?.click()}
-              className="w-full text-center text-indigo-400 hover:text-indigo-600 transition-colors flex items-center justify-center gap-1"
-              style={{ fontSize: 11 }}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-              </svg>파일 더 추가
-            </button>
-          )}
+      {/* ② 전사지/참고자료 구역 */}
+      <div className="w-full bg-white rounded-xl px-3.5 py-3 hover:shadow-sm transition-all">
+        <div className="flex items-center justify-between">
+          <span className="font-semibold text-gray-700 flex items-center gap-2" style={{ fontSize: 12 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>
+            </svg>
+            전사지 / 참고자료
+            <span className="text-gray-400 font-normal" style={{ fontSize: 10 }}>분석 근거로만 활용</span>
+          </span>
+          <button type="button" onClick={() => referenceFileInputRef.current?.click()}
+            disabled={referenceFiles.length >= 2}
+            className="font-semibold disabled:text-gray-300 transition-colors flex items-center gap-1"
+            style={{ fontSize: 11, color: "#10b981" }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            </svg>추가
+          </button>
         </div>
-      )}
+        {referenceFiles.length === 0 ? (
+          <button type="button" onClick={() => referenceFileInputRef.current?.click()}
+            className="mt-1.5 w-full text-left text-gray-400 hover:text-emerald-400 transition-colors" style={{ fontSize: 10 }}>
+            전사지, 인터뷰 자료 등 근거 문서 (최대 2개)
+          </button>
+        ) : (
+          <FileList files={referenceFiles} onRemove={removeReferenceFile} addMore={() => referenceFileInputRef.current?.click()} accent="#10b981" />
+        )}
+      </div>
     </div>
   );
 

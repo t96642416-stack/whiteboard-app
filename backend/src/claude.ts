@@ -34,6 +34,7 @@ export interface AnalysisFile {
   type: "text" | "image";
   mimeType?: string;
   content: string; // text content 또는 base64 data URL
+  role?: "idea" | "reference"; // idea: 아이디어 파일, reference: 전사지/참고자료
 }
 
 export interface ProCon {
@@ -340,11 +341,32 @@ export async function analyzeIdeas(
 
   const userPrompt = `다음 아이디어들을 분석해주세요:\n\n${ideasText}${groupingInstruction}${agentInstruction ? "\n\n" + agentInstruction : ""}${userMessageInstruction}${searchPromptText}`;
 
-  // 첨부 파일 처리: 텍스트 파일은 프롬프트에 추가, 이미지는 content block으로
-  const textFilesContext = files
-    .filter((f) => f.type === "text")
-    .map((f) => `\n\n[첨부 파일: ${f.name}]\n${f.content}`)
-    .join("");
+  // 첨부 파일 처리: role별로 구분
+  // role="idea" → 각 파일이 하나의 아이디어 안(案)
+  // role="reference" → 전사지/참고자료 (아이디어로 착각하면 안 됨)
+  // role 없는 기존 파일 → 참고자료로 처리
+  const ideaFiles = files.filter((f) => f.role === "idea");
+  const referenceFiles = files.filter((f) => f.role !== "idea");
+
+  // 아이디어 파일 텍스트: 각 파일을 별개 안으로 표시
+  const ideaFilesText = ideaFiles.length > 0
+    ? "\n\n[파일 기반 아이디어 안(案)들 — 각각을 독립적인 아이디어로 분석하세요]\n" +
+      ideaFiles.map((f, idx) => {
+        const label = String.fromCharCode(65 + idx) + "안";
+        return `\n--- ${label}: ${f.name} ---\n${f.type === "text" ? f.content : "(이미지 파일 — 아래 이미지 블록 참조)"}`;
+      }).join("")
+    : "";
+
+  // 참고자료(전사지) 텍스트: 분석 근거용임을 명시
+  const referenceFilesText = referenceFiles.filter(f => f.type === "text").length > 0
+    ? "\n\n[참고 전사지/자료 — 아이디어 분석의 근거로만 활용하세요. 이 파일 자체는 아이디어가 아닙니다]\n" +
+      referenceFiles
+        .filter((f) => f.type === "text")
+        .map((f) => `\n--- 참고자료: ${f.name} ---\n${f.content}`)
+        .join("")
+    : "";
+
+  const textFilesContext = ideaFilesText + referenceFilesText;
 
   const imageBlocks = files
     .filter((f) => f.type === "image" && f.mimeType && f.content)
@@ -362,7 +384,7 @@ export async function analyzeIdeas(
       };
     });
 
-  const fullTextPrompt = userPrompt + textFilesContext + (textFilesContext ? "\n\n위 첨부 파일 내용도 참고하여 분석해주세요." : "");
+  const fullTextPrompt = userPrompt + textFilesContext + (textFilesContext ? "\n\n위 파일들을 참고하여 분석해주세요." : "");
 
   // 모든 이미지 블록 합산 (분석용 파일 + 아이디어 카드 첨부 이미지)
   const allImageBlocks = [...ideaImageBlocks, ...imageBlocks];

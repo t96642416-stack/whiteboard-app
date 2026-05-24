@@ -220,6 +220,7 @@ export interface AnalysisFile {
   type: "text" | "image";
   mimeType?: string;
   content: string; // text content 또는 base64 data URL
+  role?: "idea" | "reference"; // idea: 아이디어 파일, reference: 전사지/참고자료
 }
 
 export interface AnalysisHistoryItem {
