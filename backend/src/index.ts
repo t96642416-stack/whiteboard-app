@@ -273,6 +273,11 @@ io.on("connection", (socket) => {
         ).filter((i: any) => !i.analysisSnapshot && !(excludeIds ?? []).includes(i.id));
       }
 
+      // filesOnly인데 파일도 없으면 오류
+      if (filesOnly && (!files || files.length === 0)) {
+        socket.emit("analysis-error", { message: "분석할 파일이 없습니다. 아이디어 파일을 첨부해주세요." });
+        return;
+      }
       if (!filesOnly && ideas.length === 0) {
         const msg = ideaIds
           ? "선택된 섹션에 분석할 아이디어가 없습니다."
@@ -310,7 +315,7 @@ io.on("connection", (socket) => {
         // DB에 저장 후 dbId 첨부
         const dbId = await dbInsertAnalysisResult(currentRoom, historyItem).catch(e => {
           console.error("분석 결과 저장 실패:", e);
-          return -1;
+          return null; // null이면 프론트에서 삭제 버튼 비노출
         });
         if (!roomAnalysisResults[currentRoom]) roomAnalysisResults[currentRoom] = [];
         roomAnalysisResults[currentRoom].unshift({ dbId, ...historyItem });

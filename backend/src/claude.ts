@@ -11,7 +11,7 @@ function getClient() {
 const GEMINI_MODELS = [
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent", // 가장 빠름
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",      // 균형
-  "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent",     // 중간
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",  // 중간
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent",   // 경량
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",      // 무겁지만 최고 품질
 ];
@@ -31,7 +31,7 @@ async function callGemini(systemPrompt: string, userPrompt: string): Promise<str
   for (const baseUrl of GEMINI_MODELS) {
     const url = `${baseUrl}?key=${key}`;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+    const timeout = setTimeout(() => controller.abort(), 15000); // 15초 타임아웃 (빠른 모델 먼저라 충분)
     let res: Response;
     try {
       res = await fetch(url, {
@@ -73,6 +73,15 @@ async function callGemini(systemPrompt: string, userPrompt: string): Promise<str
     const data = await res.json() as any;
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     const modelName = baseUrl.match(/models\/([^:]+)/)?.[1] ?? "gemini";
+    const finishReason = data.candidates?.[0]?.finishReason ?? "";
+
+    // 빈 응답 또는 안전 필터 → 다음 모델로
+    if (!text || text.trim() === "") {
+      console.warn(`⚠️ Gemini ${modelName} 빈 응답 (finishReason: ${finishReason}) → 다음 모델 시도`);
+      lastError = `빈 응답 (${finishReason || "unknown"})`;
+      continue;
+    }
+
     console.log(`✅ Gemini (${modelName}) 분석 완료`);
     return text;
   }
