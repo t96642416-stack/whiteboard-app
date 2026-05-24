@@ -29,6 +29,7 @@ interface BoardProps {
   onTopicFilesChange?: (files: AnalysisFile[]) => void;
   pendingCanvasImage?: string | null;
   onCanvasImageAdded?: () => void;
+  initialCanvasImages?: CanvasImage[];
   onAddIdea: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[], snapshot?: import("../types").AnalysisSnapshot) => void;
   onDeleteIdea: (id: string) => void;
   onRestoreIdeas?: (items: Array<{ idea: Idea; pos: { x: number; y: number } }>) => void;
@@ -50,6 +51,7 @@ const Board: React.FC<BoardProps> = ({
   onTopicFilesChange,
   pendingCanvasImage,
   onCanvasImageAdded,
+  initialCanvasImages,
   onAddIdea,
   onDeleteIdea,
   onRestoreIdeas,
@@ -129,6 +131,11 @@ const Board: React.FC<BoardProps> = ({
   const [canvasImages, setCanvasImages] = useState<CanvasImage[]>([]);
   const canvasImageInputRef = useRef<HTMLInputElement>(null);
 
+  // initialCanvasImages 로드
+  useEffect(() => {
+    if (initialCanvasImages) setCanvasImages(initialCanvasImages);
+  }, [initialCanvasImages]);
+
   // BoardResultCard 너비 상태
   const [cardWidths, setCardWidths] = useState<Record<string, number>>({});
 
@@ -170,17 +177,33 @@ const Board: React.FC<BoardProps> = ({
     const onSectionDeleted = ({ id }: { id: string }) => {
       setSections(prev => prev.filter(s => s.id !== id));
     };
+    const onCanvasImageAdded = (img: CanvasImage) => {
+      setCanvasImages(prev => prev.find(i => i.id === img.id) ? prev : [...prev, img]);
+    };
+    const onCanvasImageUpdated = (patch: Partial<CanvasImage> & { id: string }) => {
+      setCanvasImages(prev => prev.map(i => i.id === patch.id ? { ...i, ...patch } : i));
+    };
+    const onCanvasImageDeleted = ({ id }: { id: string }) => {
+      setCanvasImages(prev => prev.filter(i => i.id !== id));
+    };
+
     socket.on("idea-moved", onMoved);
     socket.on("idea-resized", onResized);
     socket.on("section-added", onSectionAdded);
     socket.on("section-updated", onSectionUpdated);
     socket.on("section-deleted", onSectionDeleted);
+    socket.on("canvas-image-added", onCanvasImageAdded);
+    socket.on("canvas-image-updated", onCanvasImageUpdated);
+    socket.on("canvas-image-deleted", onCanvasImageDeleted);
     return () => {
       socket.off("idea-moved", onMoved);
       socket.off("idea-resized", onResized);
       socket.off("section-added", onSectionAdded);
       socket.off("section-updated", onSectionUpdated);
       socket.off("section-deleted", onSectionDeleted);
+      socket.off("canvas-image-added", onCanvasImageAdded);
+      socket.off("canvas-image-updated", onCanvasImageUpdated);
+      socket.off("canvas-image-deleted", onCanvasImageDeleted);
     };
   }, []);
 
@@ -280,6 +303,7 @@ const Board: React.FC<BoardProps> = ({
           const img = canvasImages.find(i => i.id === focusedImageId);
           if (img) pushUndo({ type: "delete-image", image: img });
           setCanvasImages(prev => prev.filter(i => i.id !== focusedImageId));
+          getSocket().emit("canvas-image-deleted", { id: focusedImageId });
           setFocusedImageId(null);
         }
         // 포커스된 섹션
@@ -730,6 +754,20 @@ const Board: React.FC<BoardProps> = ({
       if (sec) getSocket().emit("section-updated", { id: sid, x: sec.x, y: sec.y, width: sec.width, height: sec.height });
     }
 
+    // 캔버스 이미지 이동 완료 시 동기화
+    if (dragState.current?.type === "image" && dragState.current.moved && dragState.current.imageId) {
+      const imgId = dragState.current.imageId;
+      const img = (window as any).__boardCanvasImages?.find((i: any) => i.id === imgId);
+      if (img) getSocket().emit("canvas-image-updated", { id: imgId, x: img.x, y: img.y });
+    }
+
+    // 캔버스 이미지 리사이즈 완료 시 동기화
+    if (dragState.current?.type === "image-resize" && dragState.current.moved && dragState.current.imageId) {
+      const imgId = dragState.current.imageId;
+      const img = (window as any).__boardCanvasImages?.find((i: any) => i.id === imgId);
+      if (img) getSocket().emit("canvas-image-updated", { id: imgId, x: img.x, y: img.y, width: img.width, height: img.height });
+    }
+
     // 카드 드래그 완료 시 위치를 다른 유저에게 동기화
     if (dragState.current?.type === "card" && dragState.current.moved && dragState.current.cardId) {
       const movedId = dragState.current.cardId;
@@ -749,7 +787,8 @@ const Board: React.FC<BoardProps> = ({
     (window as any).__boardIdeas = ideas;
     (window as any).__boardCardPositions = cardPositions;
     (window as any).__boardSections = sections;
-  }, [ideas, cardPositions, sections]);
+    (window as any).__boardCanvasImages = canvasImages;
+  }, [ideas, cardPositions, sections, canvasImages]);
 
   const handlePointerLeave = useCallback(() => {
     if (sectionDrawState.current) {
@@ -819,6 +858,7 @@ const Board: React.FC<BoardProps> = ({
           height: h,
         };
         setCanvasImages(prev => [...prev, newImg]);
+        getSocket().emit("canvas-image-added", newImg);
       };
       imgEl.src = src;
     };
@@ -838,14 +878,16 @@ const Board: React.FC<BoardProps> = ({
       const rect = canvasRef.current?.getBoundingClientRect();
       const centerX = rect ? (rect.width / 2 - offset.x) / zoom : 200;
       const centerY = rect ? (rect.height / 2 - offset.y) / zoom : 200;
-      setCanvasImages(prev => [...prev, {
+      const newImg = {
         id: `img-${Date.now()}`,
         src: pendingCanvasImage,
         x: centerX - w / 2,
         y: centerY - h / 2,
         width: w,
         height: h,
-      }]);
+      };
+      setCanvasImages(prev => [...prev, newImg]);
+      getSocket().emit("canvas-image-added", newImg);
       onCanvasImageAdded?.();
     };
     imgEl.src = pendingCanvasImage;
@@ -1264,7 +1306,7 @@ const Board: React.FC<BoardProps> = ({
                 {/* 삭제 버튼 */}
                 <button
                   onPointerDown={e => e.stopPropagation()}
-                  onClick={() => setCanvasImages(prev => prev.filter(i => i.id !== img.id))}
+                  onClick={() => { setCanvasImages(prev => prev.filter(i => i.id !== img.id)); getSocket().emit("canvas-image-deleted", { id: img.id }); }}
                   className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black bg-opacity-60 text-white flex items-center justify-center opacity-0 group-hover/cimg:opacity-100 transition-opacity hover:bg-opacity-80"
                 >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

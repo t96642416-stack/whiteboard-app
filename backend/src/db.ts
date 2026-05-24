@@ -47,10 +47,19 @@ export async function initDb() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS canvas_images (
+      id TEXT NOT NULL,
+      room_id TEXT NOT NULL,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (id, room_id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_ideas_room ON ideas(room_id);
     CREATE INDEX IF NOT EXISTS idx_sections_room ON sections(room_id);
     CREATE INDEX IF NOT EXISTS idx_messages_room ON messages(room_id);
     CREATE INDEX IF NOT EXISTS idx_analysis_results_room ON analysis_results(room_id);
+    CREATE INDEX IF NOT EXISTS idx_canvas_images_room ON canvas_images(room_id);
   `);
   console.log("✅ DB 테이블 준비 완료");
 }
@@ -157,6 +166,40 @@ export async function dbInsertMessage(roomId: string, msg: any): Promise<void> {
 export async function dbClearMessages(roomId: string): Promise<void> {
   if (!pool) return;
   await pool.query("DELETE FROM messages WHERE room_id = $1", [roomId]);
+}
+
+// ─── Canvas Images ──────────────────────────────────
+
+export async function dbGetCanvasImages(roomId: string): Promise<any[]> {
+  if (!pool) return [];
+  const res = await pool.query(
+    "SELECT data FROM canvas_images WHERE room_id = $1 ORDER BY created_at ASC",
+    [roomId]
+  );
+  return res.rows.map((r) => r.data);
+}
+
+export async function dbUpsertCanvasImage(roomId: string, img: any): Promise<void> {
+  if (!pool) return;
+  await pool.query(
+    `INSERT INTO canvas_images (id, room_id, data)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (id, room_id) DO UPDATE SET data = EXCLUDED.data`,
+    [img.id, roomId, JSON.stringify(img)]
+  );
+}
+
+export async function dbUpdateCanvasImage(roomId: string, id: string, patch: any): Promise<void> {
+  if (!pool) return;
+  await pool.query(
+    `UPDATE canvas_images SET data = data || $1::jsonb WHERE id = $2 AND room_id = $3`,
+    [JSON.stringify(patch), id, roomId]
+  );
+}
+
+export async function dbDeleteCanvasImage(roomId: string, id: string): Promise<void> {
+  if (!pool) return;
+  await pool.query("DELETE FROM canvas_images WHERE id = $1 AND room_id = $2", [id, roomId]);
 }
 
 // ─── Analysis Results ────────────────────────────────

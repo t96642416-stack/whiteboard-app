@@ -83,6 +83,7 @@ function App() {
   const [topicFiles, setTopicFiles] = useState<AnalysisFile[]>([]);
   const [sectionGroups, setSectionGroups] = useState<{ title: string; ideaIds: string[] }[]>([]);
   const [initialSections, setInitialSections] = useState<any[]>([]);
+  const [initialCanvasImages, setInitialCanvasImages] = useState<any[]>([]);
   const [pendingCanvasImage, setPendingCanvasImage] = useState<string | null>(null);
   const [focusedIdea, setFocusedIdea] = useState<Idea | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -132,13 +133,14 @@ function App() {
     socket.on("connect", rejoinRoom);
     socket.on("reconnect", rejoinRoom);
 
-    socket.on("room-state", ({ ideas: roomIdeas, users: roomUsers, messages: roomMessages, sections: roomSections, analysisResults }: { ideas: Idea[]; users: { name: string; color: string }[]; messages?: ChatMessage[]; sections?: any[]; analysisResults?: AnalysisHistoryItem[] }) => {
+    socket.on("room-state", ({ ideas: roomIdeas, users: roomUsers, messages: roomMessages, sections: roomSections, analysisResults, canvasImages: roomCanvasImages }: { ideas: Idea[]; users: { name: string; color: string }[]; messages?: ChatMessage[]; sections?: any[]; analysisResults?: AnalysisHistoryItem[]; canvasImages?: any[] }) => {
       setIdeas(roomIdeas);
       setUsers(roomUsers);
       if (roomMessages && roomMessages.length > 0) {
         setChatMessages(roomMessages);
       }
       setInitialSections(roomSections || []);
+      setInitialCanvasImages(roomCanvasImages || []);
       if (analysisResults && analysisResults.length > 0) {
         setAnalysisHistory(analysisResults);
         // 가장 최근 결과를 현재 결과로 표시
@@ -429,6 +431,7 @@ function App() {
           onSectionAnalysis={handleSectionAnalysis}
           onSectionGroupsChange={setSectionGroups}
           initialSections={initialSections}
+          initialCanvasImages={initialCanvasImages}
         />
       </div>
 

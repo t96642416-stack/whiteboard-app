@@ -19,6 +19,10 @@ import {
   dbDeleteSection,
   dbInsertMessage,
   dbClearMessages,
+  dbGetCanvasImages,
+  dbUpsertCanvasImage,
+  dbUpdateCanvasImage,
+  dbDeleteCanvasImage,
   dbGetAnalysisResults,
   dbInsertAnalysisResult,
   dbDeleteAnalysisResult,
@@ -52,6 +56,7 @@ const roomUsers: Record<string, Map<string, string>> = {}; // userName -> color
 const roomMessages: Record<string, any[]> = {};
 const roomSections: Record<string, any[]> = {};
 const roomAnalysisResults: Record<string, any[]> = {};
+const roomCanvasImages: Record<string, any[]> = {};
 
 // 헬스 체크
 app.get("/health", (_req, res) => {
@@ -85,18 +90,20 @@ io.on("connection", (socket) => {
       // DB에서 불러오기 (캐시가 비어있을 때만)
       if (!roomIdeas[roomId] || roomIdeas[roomId].length === 0) {
         try {
-          const [ideas, sections, messages, analysisResults] = await Promise.all([
+          const [ideas, sections, messages, analysisResults, canvasImages] = await Promise.all([
             dbGetIdeas(roomId),
             dbGetSections(roomId),
             dbGetMessages(roomId),
             dbGetAnalysisResults(roomId),
+            dbGetCanvasImages(roomId),
           ]);
           roomIdeas[roomId] = ideas;
           roomSections[roomId] = sections;
           roomMessages[roomId] = messages;
           roomAnalysisResults[roomId] = analysisResults;
+          roomCanvasImages[roomId] = canvasImages;
           if (ideas.length > 0 || sections.length > 0) {
-            console.log(`DB에서 불러옴: 방 ${roomId} — 아이디어 ${ideas.length}개, 섹션 ${sections.length}개, 분석 내역 ${analysisResults.length}개`);
+            console.log(`DB에서 불러옴: 방 ${roomId} — 아이디어 ${ideas.length}개, 섹션 ${sections.length}개, 이미지 ${canvasImages.length}개`);
           }
         } catch (e) {
           console.error("DB 로드 실패 (메모리 모드 유지):", e);
@@ -104,6 +111,7 @@ io.on("connection", (socket) => {
           roomSections[roomId] = roomSections[roomId] || [];
           roomMessages[roomId] = roomMessages[roomId] || [];
           roomAnalysisResults[roomId] = roomAnalysisResults[roomId] || [];
+          roomCanvasImages[roomId] = roomCanvasImages[roomId] || [];
         }
       }
 
@@ -116,6 +124,7 @@ io.on("connection", (socket) => {
         messages: roomMessages[roomId] || [],
         sections: roomSections[roomId] || [],
         analysisResults: roomAnalysisResults[roomId] || [],
+        canvasImages: roomCanvasImages[roomId] || [],
       });
 
       // 다른 유저들에게 알림
@@ -187,6 +196,38 @@ io.on("connection", (socket) => {
     // DB 업데이트
     dbMoveIdea(currentRoom, ideaId, x, y).catch(e => console.error("idea move 실패:", e));
     socket.to(currentRoom).emit("idea-moved", { ideaId, x, y });
+  });
+
+  // 캔버스 이미지 추가
+  socket.on("canvas-image-added", async (img: any) => {
+    if (!currentRoom) return;
+    if (!roomCanvasImages[currentRoom]) roomCanvasImages[currentRoom] = [];
+    if (!roomCanvasImages[currentRoom].find((i: any) => i.id === img.id)) {
+      roomCanvasImages[currentRoom].push(img);
+    }
+    dbUpsertCanvasImage(currentRoom, img).catch(e => console.error("canvas-image upsert 실패:", e));
+    socket.to(currentRoom).emit("canvas-image-added", img);
+  });
+
+  // 캔버스 이미지 이동/리사이즈
+  socket.on("canvas-image-updated", async (patch: any) => {
+    if (!currentRoom) return;
+    if (roomCanvasImages[currentRoom]) {
+      const idx = roomCanvasImages[currentRoom].findIndex((i: any) => i.id === patch.id);
+      if (idx !== -1) roomCanvasImages[currentRoom][idx] = { ...roomCanvasImages[currentRoom][idx], ...patch };
+    }
+    dbUpdateCanvasImage(currentRoom, patch.id, patch).catch(e => console.error("canvas-image update 실패:", e));
+    socket.to(currentRoom).emit("canvas-image-updated", patch);
+  });
+
+  // 캔버스 이미지 삭제
+  socket.on("canvas-image-deleted", async ({ id }: { id: string }) => {
+    if (!currentRoom) return;
+    if (roomCanvasImages[currentRoom]) {
+      roomCanvasImages[currentRoom] = roomCanvasImages[currentRoom].filter((i: any) => i.id !== id);
+    }
+    dbDeleteCanvasImage(currentRoom, id).catch(e => console.error("canvas-image delete 실패:", e));
+    socket.to(currentRoom).emit("canvas-image-deleted", { id });
   });
 
   // 카드 너비 변경
