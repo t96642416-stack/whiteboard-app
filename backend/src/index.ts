@@ -285,7 +285,7 @@ io.on("connection", (socket) => {
           userMessage || "",
           files || [],
           useSearch || false,
-          sectionGroups
+          filesOnly ? undefined : sectionGroups  // 파일 기반 분석 시 보드 섹션 제외
         );
 
         io.to(currentRoom).emit("analysis-result", {
