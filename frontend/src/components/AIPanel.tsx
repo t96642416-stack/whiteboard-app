@@ -239,8 +239,8 @@ const AIPanel: React.FC<AIPanelProps> = ({
   const handleAgentClick = (agentType: AgentType) => {
     if (agentType === null) return;
     onAgentChange(agentType);
-    // 에이전트는 보드 아이디어 제외하고 항상 파일/주제 기반으로만 분석
-    onRequestAnalysis(agentType, analysisFiles.length > 0 ? analysisFiles : undefined, useSearch, true);
+    // 에이전트는 보드 아이디어 + 참고 파일 함께 분석 (수렴형)
+    onRequestAnalysis(agentType, analysisFiles.length > 0 ? analysisFiles : undefined, useSearch, false);
     setShowAgentList(false);
     setShowInitial(false);
   };
