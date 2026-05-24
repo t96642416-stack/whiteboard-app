@@ -236,8 +236,8 @@ const EMPHASIS_SYSTEM_PROMPT = `당신은 팀의 의사결정을 돕는 AI 퍼�
 ${EVIDENCE_RULE}
 
 추가 필드 규칙:
-- title: 효과 이름 (15자 이내 간결한 명사형). 첨부 자료에 수치가 있을 때만 수치 포함. 없으면 서술형.
-- description: 반드시 [파일명]: "원문 인용" → 해석 형식 또는 "추가 근거: ..." 형식으로만 작성. 출처 없는 평서문 금지.
+- title: 효과 이름 (15자 이내 간결한 명사형). 파일에 수치가 있으면 예측값을 반영해 구체적으로 작성. 예: "소음 갈등 129% 감소"처럼 파일 수치를 활용한 예측 제목.
+- description: 반드시 근거 작성 규칙에 따라 "원문 인용" (출처, 연도) 또는 추가 근거: 내용 (분야, 연도) 형식으로만 작성. 파일명 쓰지 마세요.
 - note: 파일에 언급된 유사 사례나 출처. 없으면 빈 문자열("").
 - similarCase: 파일/전사지에서 직접 언급된 유사 사례만. 없으면 "추가 근거: " 접두어 붙인 일반 사례.
 
@@ -435,8 +435,8 @@ export async function analyzeIdeas(
   const ideaFiles = files.filter((f) => f.role === "idea");
   const referenceFiles = files.filter((f) => f.role !== "idea");
 
-  // 아이디어 파일: 1500자 초과분은 잘라냄 (속도 개선)
-  const IDEA_FILE_LIMIT = 1500;
+  // 아이디어 파일: 2500자 초과분은 잘라냄 (품질과 속도 균형)
+  const IDEA_FILE_LIMIT = 2500;
   const trimmedIdeaFiles = ideaFiles.filter(f => f.type === "text").map((f, idx) => ({
     label: String.fromCharCode(65 + idx) + "안",
     name: f.name,
