@@ -66,7 +66,7 @@ const ET: React.FC<{
   return (
     <span
       className={`${className} cursor-text hover:bg-amber-50 hover:ring-1 hover:ring-amber-300 rounded px-0.5 transition-colors relative group/et`}
-      onClick={() => setEditing(true)}
+      onClick={(e) => { e.stopPropagation(); setEditing(true); }}
       title="클릭하여 편집"
     >
       {value || <span className="text-gray-400 italic">{placeholder}</span>}
@@ -148,8 +148,9 @@ const CollapsibleBlock: React.FC<{
   name: string;        // 아이디어명
   badge?: { bg: string; text: string };
   defaultOpen?: boolean;
+  onEditName?: (v: string) => void;
   children: React.ReactNode;
-}> = ({ label, name, badge, defaultOpen = true, children }) => {
+}> = ({ label, name, badge, defaultOpen = true, onEditName, children }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="border border-gray-100 rounded-xl overflow-hidden mb-4 last:mb-0">
@@ -161,7 +162,10 @@ const CollapsibleBlock: React.FC<{
         style={{ backgroundColor: open ? "#F6F7F9" : "white" }}
       >
         <span className="text-xs font-bold text-gray-500 flex-shrink-0">{label}</span>
-        <span className="text-xs font-bold text-gray-800 flex-1 text-left truncate">{name}</span>
+        {onEditName
+          ? <ET value={name} className="text-xs font-bold text-gray-800 flex-1 text-left" onSave={onEditName} />
+          : <span className="text-xs font-bold text-gray-800 flex-1 text-left truncate">{name}</span>
+        }
         {badge && (
           <span className="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0"
             style={{ backgroundColor: badge.bg, color: badge.text }}>
@@ -394,6 +398,7 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
             label={String.fromCharCode(65 + i)}
             name={idea.name}
             badge={IDEA_BADGE_COLORS[i % Object.keys(IDEA_BADGE_COLORS).length]}
+            onEditName={onUpdateResult ? v => upd(["ideas", i, "name"], v) : undefined}
           >
             {/* 이미지 (상단) */}
             <IdeaImage alt={idea.name}
@@ -461,7 +466,8 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
               {result.commonalities.map((item, i) => (
                 <div key={i} className="flex items-start gap-2 text-xs text-gray-600">
                   <span className="font-bold text-gray-400 flex-shrink-0">{i + 1}</span>
-                  <span className="leading-relaxed">{item}</span>
+                  <ET value={item} className="leading-relaxed flex-1" multiline
+                    onSave={onUpdateResult ? v => upd(["commonalities", i], v) : undefined} />
                 </div>
               ))}
             </div>
@@ -477,7 +483,8 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
               {result.differences.map((item, i) => (
                 <div key={i} className="flex items-start gap-2 text-xs text-gray-600">
                   <span className="font-bold text-gray-400 flex-shrink-0">{i + 1}</span>
-                  <span className="leading-relaxed">{item}</span>
+                  <ET value={item} className="leading-relaxed flex-1" multiline
+                    onSave={onUpdateResult ? v => upd(["differences", i], v) : undefined} />
                 </div>
               ))}
             </div>
@@ -510,7 +517,8 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
             idea.cons.length > 0 ? `단점: ${idea.cons.map(c => c.point).join(", ")}` : "",
           ].filter(Boolean).join("\n");
           return (
-            <CollapsibleBlock key={idea.id} label={label} name={idea.name} badge={badge}>
+            <CollapsibleBlock key={idea.id} label={label} name={idea.name} badge={badge}
+              onEditName={onUpdateResult ? v => upd(["ideas", idx, "name"], v) : undefined}>
               <DraggableCard title={idea.name} content={ideaSummary} snapshot={{ agentType: 'attribute', itemData: { ...idea, index: idx } }} onAdd={onAddIdea}>
                 <div>
                   {/* 이미지 (상단) */}
@@ -600,7 +608,8 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
               {result.commonalities.map((item, i) => (
                 <div key={i} className="flex items-start gap-2 text-xs text-gray-600">
                   <span className="font-bold text-gray-400 flex-shrink-0">{i + 1}</span>
-                  <span className="leading-relaxed">{item}</span>
+                  <ET value={item} className="leading-relaxed flex-1" multiline
+                    onSave={onUpdateResult ? v => upd(["commonalities", i], v) : undefined} />
                 </div>
               ))}
             </div>
@@ -616,7 +625,8 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
               {result.differences.map((item, i) => (
                 <div key={i} className="flex items-start gap-2 text-xs text-gray-600">
                   <span className="font-bold text-gray-400 flex-shrink-0">{i + 1}</span>
-                  <span className="leading-relaxed">{item}</span>
+                  <ET value={item} className="leading-relaxed flex-1" multiline
+                    onSave={onUpdateResult ? v => upd(["differences", i], v) : undefined} />
                 </div>
               ))}
             </div>
@@ -625,7 +635,8 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
 
         {result.agentResponse && (
           <div className="rounded-xl p-3" style={{ backgroundColor: "#EEF2FF" }}>
-            <p className="text-xs font-semibold text-indigo-700 leading-relaxed">{result.agentResponse}</p>
+            <ET value={result.agentResponse} className="text-xs font-semibold text-indigo-700 leading-relaxed" multiline
+              onSave={onUpdateResult ? v => upd(["agentResponse"], v) : undefined} />
           </div>
         )}
       </div>
@@ -637,25 +648,30 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
 const clampScore = (v: unknown): number => Math.max(0, Math.min(100, Number(v) || 0));
 
 // 결과 강조형 UI
-const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void }> = ({ result, sources, onAddIdea }) => {
+const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void; onUpdateResult?: (u: GuideAnalysis) => void }> = ({ result, sources, onAddIdea, onUpdateResult }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "결과 강조형";
+  const upd = (path: (string | number)[], v: string) => onUpdateResult?.(setIn(result, path, v));
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm font-bold text-gray-800">{agentName}, 검토 완료</p>
-          <button className="text-gray-400 hover:text-gray-600 text-lg leading-none">···</button>
+          {onUpdateResult
+            ? <span className="text-xs text-amber-500 flex items-center gap-1">✏ 클릭해서 편집</span>
+            : <button className="text-gray-400 hover:text-gray-600 text-lg leading-none">···</button>}
         </div>
 
         <div className="rounded-xl p-4 mb-5" style={{ backgroundColor: "#F0EFFD" }}>
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-sm font-bold text-gray-800">{result.recommendedIdea}</span>
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold"
+            <ET value={result.recommendedIdea} className="text-sm font-bold text-gray-800"
+              onSave={onUpdateResult ? v => upd(["recommendedIdea"], v) : undefined} />
+            <span className="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0"
               style={{ backgroundColor: "#4F48ED", color: "white" }}>
               ✓ 추천
             </span>
           </div>
-          <p className="text-xs text-gray-600 leading-relaxed">{result.recommendReason}</p>
+          <ET value={result.recommendReason} className="text-xs text-gray-600 leading-relaxed" multiline
+            onSave={onUpdateResult ? v => upd(["recommendReason"], v) : undefined} />
         </div>
 
         <div className="mb-5">
@@ -663,7 +679,8 @@ const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onA
             const src = sources && sources.length > 0 ? sources[i % sources.length] : null;
             const badge = IDEA_BADGE_COLORS[i % Object.keys(IDEA_BADGE_COLORS).length];
             return (
-              <CollapsibleBlock key={i} label={String.fromCharCode(65 + i)} name={idea.name} badge={badge}>
+              <CollapsibleBlock key={i} label={String.fromCharCode(65 + i)} name={idea.name} badge={badge}
+                onEditName={onUpdateResult ? v => upd(["ideas", i, "name"], v) : undefined}>
                 <DraggableCard title={idea.name} content={idea.name} snapshot={{ agentType: 'guide', itemData: { ...idea, index: i, score: (idea as any).score } }} onAdd={onAddIdea}>
                   <div className="space-y-2">
                     {src && <div className="flex justify-end"><SrcLink source={src} label={`${i % sources!.length + 1}`} /></div>}
@@ -693,7 +710,8 @@ const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onA
         {result.limitNote && (
           <div className="rounded-xl p-3" style={{ backgroundColor: "#fff1f2" }}>
             <p className="text-xs font-bold text-rose-600 mb-1">분석 한계 안내</p>
-            <p className="text-xs text-rose-700 leading-relaxed">{result.limitNote}</p>
+            <ET value={result.limitNote} className="text-xs text-rose-700 leading-relaxed" multiline
+              onSave={onUpdateResult ? v => upd(["limitNote"], v) : undefined} />
           </div>
         )}
       </div>
@@ -702,12 +720,16 @@ const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onA
 };
 
 // 결과 안내형 UI
-const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[] }> = ({ result, sources }) => (
+const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[]; onUpdateResult?: (u: AdviseAnalysis) => void }> = ({ result, sources, onUpdateResult }) => {
+  const upd = (path: (string | number)[], v: string) => onUpdateResult?.(setIn(result, path, v));
+  return (
   <div className="space-y-4">
     <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm font-bold text-gray-800">결과 안내형, 검토 완료</p>
-        <button className="text-gray-400 hover:text-gray-600 text-lg leading-none">···</button>
+        {onUpdateResult
+          ? <span className="text-xs text-amber-500 flex items-center gap-1">✏ 클릭해서 편집</span>
+          : <button className="text-gray-400 hover:text-gray-600 text-lg leading-none">···</button>}
       </div>
 
       <div className="bg-gray-50 rounded-xl p-3 mb-4">
@@ -718,9 +740,10 @@ const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[] }>
             const badge = IDEA_BADGE_COLORS[winnerIdx % Object.keys(IDEA_BADGE_COLORS).length];
             const src = sources && sources.length > 0 ? sources[i % sources.length] : null;
             return (
-              <div key={i} className="flex items-center justify-between">
-                <span className="text-xs text-gray-600">{c.criterion}</span>
-                <div className="flex items-center gap-2">
+              <div key={i} className="flex items-center justify-between gap-2">
+                <ET value={c.criterion} className="text-xs text-gray-600 flex-1"
+                  onSave={onUpdateResult ? v => upd(["criteriaResults", i, "criterion"], v) : undefined} />
+                <div className="flex items-center gap-2 flex-shrink-0">
                   {src ? (
                     <a href={src.link} target="_blank" rel="noopener noreferrer"
                       className="text-xs text-gray-500 hover:text-green-700 hover:underline">
@@ -750,7 +773,8 @@ const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[] }>
                   style={{ backgroundColor: badge.bg, color: badge.text }}>
                   {String.fromCharCode(65 + i)}
                 </span>
-                <span className="text-xs font-semibold text-gray-700 truncate">{idea.name}</span>
+                <ET value={idea.name} className="text-xs font-semibold text-gray-700"
+                  onSave={onUpdateResult ? v => upd(["ideas", i, "name"], v) : undefined} />
               </div>
               <div className="space-y-1.5">
                 {[
@@ -775,18 +799,21 @@ const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[] }>
       </div>
 
       <div className="rounded-xl p-3 mb-3" style={{ backgroundColor: "#EEF2FF" }}>
-        <p className="text-xs font-semibold text-indigo-700 leading-relaxed">{result.recommendation}</p>
+        <ET value={result.recommendation} className="text-xs font-semibold text-indigo-700 leading-relaxed" multiline
+          onSave={onUpdateResult ? v => upd(["recommendation"], v) : undefined} />
       </div>
 
       {result.limitNote && (
         <div className="rounded-xl p-3" style={{ backgroundColor: "#fff1f2" }}>
           <p className="text-xs font-bold text-rose-600 mb-1">분석 한계 안내</p>
-          <p className="text-xs text-rose-700 leading-relaxed">{result.limitNote}</p>
+          <ET value={result.limitNote} className="text-xs text-rose-700 leading-relaxed" multiline
+            onSave={onUpdateResult ? v => upd(["limitNote"], v) : undefined} />
         </div>
       )}
     </div>
   </div>
-);
+  );
+};
 
 // 레거시 EffectView
 const EffectView: React.FC<{ result: EffectAnalysis }> = ({ result }) => (
@@ -830,9 +857,11 @@ const AgentAnalysisResultComponent: React.FC<Props> = ({ result, onAddIdea, onAp
       return <EmphasisView result={result as EmphasisAnalysis} sources={(result as EmphasisAnalysis).searchSources} onAddIdea={onAddIdea}
         onApplyImage={onApplyImage} onUpdateResult={onUpdateResult ? (u) => onUpdateResult(u) : undefined} />;
     case "guide":
-      return <GuideView result={result as GuideAnalysis} sources={(result as GuideAnalysis).searchSources} onAddIdea={onAddIdea} />;
+      return <GuideView result={result as GuideAnalysis} sources={(result as GuideAnalysis).searchSources} onAddIdea={onAddIdea}
+        onUpdateResult={onUpdateResult ? (u) => onUpdateResult(u) : undefined} />;
     case "advise":
-      return <AdviseView result={result as AdviseAnalysis} sources={(result as AdviseAnalysis).searchSources} />;
+      return <AdviseView result={result as AdviseAnalysis} sources={(result as AdviseAnalysis).searchSources}
+        onUpdateResult={onUpdateResult ? (u) => onUpdateResult(u) : undefined} />;
     default:
       return null;
   }
