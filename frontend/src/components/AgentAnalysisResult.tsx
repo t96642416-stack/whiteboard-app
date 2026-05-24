@@ -124,7 +124,7 @@ const IdeaImage: React.FC<{
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            <span className="text-xs text-gray-400 text-center leading-relaxed">이미지 업로드</span>
+            <span className="text-xs text-gray-400 text-center leading-relaxed">AI 이미지 생성중</span>
           </div>
         )}
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
