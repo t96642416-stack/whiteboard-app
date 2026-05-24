@@ -26,7 +26,7 @@ async function callGemini(systemPrompt: string, userPrompt: string): Promise<str
   if (!genAI) throw new Error("GEMINI_API_KEY 없음");
 
   const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash",
+    model: "gemini-1.5-flash",
     systemInstruction: systemPrompt,
   });
   const result = await model.generateContent(userPrompt);
