@@ -130,6 +130,20 @@ io.on("connection", (socket) => {
     socket.to(currentRoom).emit("idea-moved", { ideaId, x, y });
   });
 
+  // 섹션 동기화
+  socket.on("section-added", (section: any) => {
+    if (!currentRoom) return;
+    socket.to(currentRoom).emit("section-added", section);
+  });
+  socket.on("section-updated", (update: any) => {
+    if (!currentRoom) return;
+    socket.to(currentRoom).emit("section-updated", update);
+  });
+  socket.on("section-deleted", ({ id }: { id: string }) => {
+    if (!currentRoom) return;
+    socket.to(currentRoom).emit("section-deleted", { id });
+  });
+
   // 아이디어 삭제
   socket.on("idea-deleted", ({ ideaId }: { ideaId: string }) => {
     if (!currentRoom) return;

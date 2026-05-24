@@ -131,11 +131,28 @@ const Board: React.FC<BoardProps> = ({
   // 상대방 카드 위치 동기화 수신
   useEffect(() => {
     const socket = getSocket();
-    const handler = ({ ideaId, x, y }: { ideaId: string; x: number; y: number }) => {
+    const onMoved = ({ ideaId, x, y }: { ideaId: string; x: number; y: number }) => {
       setCardPositions(prev => ({ ...prev, [ideaId]: { x, y } }));
     };
-    socket.on("idea-moved", handler);
-    return () => { socket.off("idea-moved", handler); };
+    const onSectionAdded = (section: BoardSection) => {
+      setSections(prev => prev.find(s => s.id === section.id) ? prev : [...prev, section]);
+    };
+    const onSectionUpdated = (update: Partial<BoardSection> & { id: string }) => {
+      setSections(prev => prev.map(s => s.id === update.id ? { ...s, ...update } : s));
+    };
+    const onSectionDeleted = ({ id }: { id: string }) => {
+      setSections(prev => prev.filter(s => s.id !== id));
+    };
+    socket.on("idea-moved", onMoved);
+    socket.on("section-added", onSectionAdded);
+    socket.on("section-updated", onSectionUpdated);
+    socket.on("section-deleted", onSectionDeleted);
+    return () => {
+      socket.off("idea-moved", onMoved);
+      socket.off("section-added", onSectionAdded);
+      socket.off("section-updated", onSectionUpdated);
+      socket.off("section-deleted", onSectionDeleted);
+    };
   }, []);
 
   // 포커스 선택 상태 (Delete 키용)
@@ -592,19 +609,28 @@ const Board: React.FC<BoardProps> = ({
       const h = Math.abs(curCY - startCY);
       if (w > 60 && h > 60) {
         const newId = `section-${Date.now()}`;
-        setSections(prev => [...prev, {
+        const newSection = {
           id: newId,
           title: "새 섹션",
-          color: SECTION_COLORS[prev.length % SECTION_COLORS.length],
+          color: SECTION_COLORS[sections.length % SECTION_COLORS.length],
           x, y, width: w, height: h,
-        }]);
+        };
+        setSections(prev => [...prev, newSection]);
         setEditingSectionId(newId);
         setEditingSectionTitle("새 섹션");
+        getSocket().emit("section-added", newSection);
       }
       sectionDrawState.current = null;
       setDrawingPreview(null);
       setIsSectionMode(false);
       return;
+    }
+
+    // 섹션 크기 조절 완료 시 동기화
+    if (dragState.current?.type === "section-resize" && dragState.current.moved && dragState.current.sectionId) {
+      const sid = dragState.current.sectionId;
+      const sec = (window as any).__boardSections?.find((s: any) => s.id === sid);
+      if (sec) getSocket().emit("section-updated", { id: sid, x: sec.x, y: sec.y, width: sec.width, height: sec.height });
     }
 
     // 카드 드래그 완료 시 위치를 다른 유저에게 동기화
@@ -621,11 +647,12 @@ const Board: React.FC<BoardProps> = ({
     setIsPanning(false);
   }, [zoom]);
 
-  // ideas와 cardPositions를 window에 임시 저장 (handlePointerUp의 클로저 한계 우회)
+  // ideas, cardPositions, sections를 window에 임시 저장 (handlePointerUp의 클로저 한계 우회)
   useEffect(() => {
     (window as any).__boardIdeas = ideas;
     (window as any).__boardCardPositions = cardPositions;
-  }, [ideas, cardPositions]);
+    (window as any).__boardSections = sections;
+  }, [ideas, cardPositions, sections]);
 
   const handlePointerLeave = useCallback(() => {
     if (sectionDrawState.current) {
@@ -937,13 +964,17 @@ const Board: React.FC<BoardProps> = ({
                         value={editingSectionTitle}
                         onChange={e => setEditingSectionTitle(e.target.value)}
                         onBlur={() => {
-                          setSections(prev => prev.map(s => s.id === section.id ? { ...s, title: editingSectionTitle || "섹션" } : s));
+                          const newTitle = editingSectionTitle || "섹션";
+                          setSections(prev => prev.map(s => s.id === section.id ? { ...s, title: newTitle } : s));
                           setEditingSectionId(null);
+                          getSocket().emit("section-updated", { id: section.id, title: newTitle });
                         }}
                         onKeyDown={e => {
                           if (e.key === "Enter") {
-                            setSections(prev => prev.map(s => s.id === section.id ? { ...s, title: editingSectionTitle || "섹션" } : s));
+                            const newTitle = editingSectionTitle || "섹션";
+                            setSections(prev => prev.map(s => s.id === section.id ? { ...s, title: newTitle } : s));
                             setEditingSectionId(null);
+                            getSocket().emit("section-updated", { id: section.id, title: newTitle });
                           }
                           if (e.key === "Escape") setEditingSectionId(null);
                         }}
@@ -1037,7 +1068,7 @@ const Board: React.FC<BoardProps> = ({
                     {/* 삭제 버튼 */}
                     <button
                       title="섹션 삭제"
-                      onClick={() => setSections(prev => prev.filter(s => s.id !== section.id))}
+                      onClick={() => { setSections(prev => prev.filter(s => s.id !== section.id)); getSocket().emit("section-deleted", { id: section.id }); }}
                       className="w-5 h-5 rounded-md flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all ml-0.5"
                     >
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
