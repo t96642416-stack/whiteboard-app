@@ -231,8 +231,10 @@ const AIPanel: React.FC<AIPanelProps> = ({
   const handleAgentClick = (agentType: AgentType) => {
     if (agentType === null) return;
     onAgentChange(agentType);
-    // 에이전트는 보드 아이디어 + 참고 파일 함께 분석 (수렴형)
-    onRequestAnalysis(agentType, analysisFiles.length > 0 ? analysisFiles : undefined, useSearch, false);
+    // 아이디어 파일이 있으면 → 파일만 분석 (보드 카드 제외, 토큰 절약)
+    // 아이디어 파일이 없으면 → 보드 카드 기반 분석 (기존 동작)
+    const filesOnly = ideaFiles.length > 0;
+    onRequestAnalysis(agentType, analysisFiles.length > 0 ? analysisFiles : undefined, useSearch, filesOnly);
     setShowAgentList(false);
     setShowInitial(false);
   };
@@ -329,6 +331,14 @@ const AIPanel: React.FC<AIPanelProps> = ({
   // 파일 첨부 섹션 (아이디어 파일 + 전사지 두 구역)
   const FileAttachSection = () => (
     <div className="space-y-2">
+      {/* 현재 분석 모드 안내 */}
+      <div className={`px-3 py-2 rounded-lg text-center flex items-center justify-center gap-1.5 ${ideaFiles.length > 0 ? "bg-indigo-50 text-indigo-600" : "bg-gray-50 text-gray-400"}`} style={{ fontSize: 10 }}>
+        {ideaFiles.length > 0 ? (
+          <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>파일 기반 분석 — 보드 카드는 제외됩니다</>
+        ) : (
+          <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>보드 카드 기반 분석 (아이디어 파일 추가 시 파일로 대체)</>
+        )}
+      </div>
       {/* hidden inputs */}
       <input ref={analysisFileInputRef} type="file" accept=".txt,.md,.csv,.json,.pdf,image/*" multiple className="hidden" onChange={handleIdeaFileUpload} />
       <input ref={referenceFileInputRef} type="file" accept=".txt,.md,.csv,.json,.pdf,image/*" multiple className="hidden" onChange={handleReferenceFileUpload} />
