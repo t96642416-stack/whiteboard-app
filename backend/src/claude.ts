@@ -224,6 +224,24 @@ export async function analyzeIdeas(
         const imageCount = idea.attachments.filter(a => a.type === "image").length;
         if (links.length > 0) text += `\n참고 링크: ${links.join(", ")}`;
         if (imageCount > 0) text += `\n첨부 이미지: ${imageCount}개 (아래 이미지 참조)`;
+
+        // 텍스트 계열 파일: base64 디코딩 후 내용 포함
+        const TEXT_MIMES = ["text/plain", "text/csv", "text/markdown", "text/html", "application/json", "text/javascript"];
+        const TEXT_EXTS = [".txt", ".md", ".csv", ".json", ".tsv", ".log"];
+        idea.attachments.filter(a => a.type === "file").forEach(a => {
+          const isTextMime = TEXT_MIMES.some(m => (a.mimeType || "").startsWith(m));
+          const isTextExt = TEXT_EXTS.some(e => a.name.toLowerCase().endsWith(e));
+          if (isTextMime || isTextExt) {
+            try {
+              const base64 = a.content.includes(",") ? a.content.split(",")[1] : a.content;
+              const decoded = Buffer.from(base64, "base64").toString("utf-8").slice(0, 3000); // 최대 3000자
+              text += `\n\n[첨부 파일: ${a.name}]\n${decoded}`;
+            } catch { /* 디코딩 실패 시 무시 */ }
+          } else {
+            // PDF, doc 등 바이너리 → 파일명만 언급
+            text += `\n첨부 파일: ${a.name} (내용 직접 읽기 불가, 파일명 참고)`;
+          }
+        });
       }
       return text;
     })
