@@ -154,6 +154,11 @@ export async function dbInsertMessage(roomId: string, msg: any): Promise<void> {
   );
 }
 
+export async function dbClearMessages(roomId: string): Promise<void> {
+  if (!pool) return;
+  await pool.query("DELETE FROM messages WHERE room_id = $1", [roomId]);
+}
+
 // ─── Analysis Results ────────────────────────────────
 
 export async function dbGetAnalysisResults(roomId: string): Promise<any[]> {

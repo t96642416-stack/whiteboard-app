@@ -18,6 +18,7 @@ import {
   dbUpdateSection,
   dbDeleteSection,
   dbInsertMessage,
+  dbClearMessages,
   dbGetAnalysisResults,
   dbInsertAnalysisResult,
   dbDeleteAnalysisResult,
@@ -435,6 +436,14 @@ io.on("connection", (socket) => {
         dbUpsertIdea(currentRoom, idea).catch(e => console.error("sync upsert 실패:", e));
       }
     }
+  });
+
+  // 채팅 전체 삭제
+  socket.on("chat-messages-clear", async () => {
+    if (!currentRoom) return;
+    roomMessages[currentRoom] = [];
+    dbClearMessages(currentRoom).catch(e => console.error("chat clear 실패:", e));
+    io.to(currentRoom).emit("chat-messages-cleared");
   });
 
   // 분석 내역 삭제

@@ -226,6 +226,10 @@ function App() {
       ]);
     });
 
+    socket.on("chat-messages-cleared", () => {
+      setChatMessages([]);
+    });
+
 
     socket.on("ai-response", ({ message, timestamp, isError }: { message: string; timestamp: string; isError?: boolean }) => {
       setIsAIResponding(false);
@@ -250,6 +254,7 @@ function App() {
       socket.off("user-left");
       socket.off("topic-changed");
       socket.off("chat-message");
+      socket.off("chat-messages-cleared");
       socket.off("ai-response");
     };
   }, [joined, showError]);
@@ -372,6 +377,7 @@ function App() {
 
   const handleClearChat = useCallback(() => {
     setChatMessages([]);
+    getSocket().emit("chat-messages-clear");
   }, []);
 
   if (!joined) return <LoginModal onJoin={handleJoin} />;
