@@ -50,7 +50,11 @@ const AIPanel: React.FC<AIPanelProps> = ({
   const [showAgentList, setShowAgentList] = useState(false);
   const [showInitial, setShowInitial] = useState(false);
   const [showAnalysisHistory, setShowAnalysisHistory] = useState(false);
-  const [viewingHistoryItem, setViewingHistoryItem] = useState<AnalysisHistoryItem | null>(null);
+  const [viewingHistoryItemId, setViewingHistoryItemId] = useState<string | null>(null);
+  // analysisHistory가 업데이트될 때 항상 최신 객체를 반영하도록 파생
+  const viewingHistoryItem = viewingHistoryItemId
+    ? (analysisHistory.find(item => item.id === viewingHistoryItemId) ?? null)
+    : null;
   const [ideaFiles, setIdeaFiles] = useState<AnalysisFile[]>([]); // role: "idea"
   const [referenceFiles, setReferenceFiles] = useState<AnalysisFile[]>([]); // role: "reference" (전사지)
   const analysisFiles = [...ideaFiles, ...referenceFiles]; // 합산 (에이전트 전달용)
@@ -445,14 +449,14 @@ const AIPanel: React.FC<AIPanelProps> = ({
                   {(AGENT_OPTIONS.find((a) => a.type === (agentAnalysisResult as any)?.agentType) ||
                     AGENT_OPTIONS.find((a) => a.type === analysisHistory[0]?.agentType))?.name || "속성 분석형"} 완료
                 </span>
-                <button onClick={() => { setShowAnalysisHistory(true); setViewingHistoryItem(null); }}
+                <button onClick={() => { setShowAnalysisHistory(true); setViewingHistoryItemId(null); }}
                   className="text-xs text-gray-400 hover:text-purple-500 flex items-center gap-1 transition-colors">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   내역 {analysisHistory.length > 0 && <span className="bg-purple-100 text-purple-600 rounded-full px-1">{analysisHistory.length}</span>}
                 </button>
               </div>
             ) : analysisHistory.length > 0 ? (
-              <button onClick={() => { setShowAnalysisHistory(true); setViewingHistoryItem(null); }}
+              <button onClick={() => { setShowAnalysisHistory(true); setViewingHistoryItemId(null); }}
                 className="text-xs text-gray-400 hover:text-purple-500 flex items-center gap-1 transition-colors">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 분석 내역 <span className="bg-purple-100 text-purple-600 rounded-full px-1">{analysisHistory.length}</span>
@@ -464,7 +468,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
         {/* 탭 */}
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-3">
           <button
-            onClick={() => { setActiveTab("analysis"); setShowAnalysisHistory(false); setViewingHistoryItem(null); }}
+            onClick={() => { setActiveTab("analysis"); setShowAnalysisHistory(false); setViewingHistoryItemId(null); }}
             className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all relative ${
               activeTab === "analysis" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
             }`}
@@ -530,7 +534,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                       const agent = AGENT_OPTIONS.find((a) => a.type === item.agentType);
                       return (
                         <div key={item.id} className="relative group/item">
-                          <button onClick={() => setViewingHistoryItem(item)}
+                          <button onClick={() => setViewingHistoryItemId(item.id)}
                             className="w-full text-left px-4 py-3 rounded-xl border border-gray-100 hover:border-purple-200 hover:bg-purple-50 transition-all group pr-10">
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-xs font-semibold text-purple-600 flex items-center gap-1">
@@ -563,7 +567,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
               /* 특정 분석 결과 다시 보기 */
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <button onClick={() => setViewingHistoryItem(null)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                  <button onClick={() => setViewingHistoryItemId(null)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6" /></svg>
                   </button>
                   <div>
