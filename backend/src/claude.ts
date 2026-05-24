@@ -435,8 +435,8 @@ export async function analyzeIdeas(
   const ideaFiles = files.filter((f) => f.role === "idea");
   const referenceFiles = files.filter((f) => f.role !== "idea");
 
-  // 아이디어 파일: 3000자 초과분은 잘라냄 (비용 0)
-  const IDEA_FILE_LIMIT = 3000;
+  // 아이디어 파일: 1500자 초과분은 잘라냄 (속도 개선)
+  const IDEA_FILE_LIMIT = 1500;
   const trimmedIdeaFiles = ideaFiles.filter(f => f.type === "text").map((f, idx) => ({
     label: String.fromCharCode(65 + idx) + "안",
     name: f.name,
