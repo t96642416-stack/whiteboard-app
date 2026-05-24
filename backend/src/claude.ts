@@ -1,11 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import dotenv from "dotenv";
-import path from "path";
 import { searchForIdeas, SearchResult } from "./search";
-
-// .env 파일을 명시적 경로로 로딩
-dotenv.config({ path: path.join(__dirname, "../../.env"), override: true });
-dotenv.config({ path: path.join(__dirname, "../.env"), override: true });
 
 // Claude 클라이언트
 function getClient() {
