@@ -633,6 +633,9 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
   );
 };
 
+// 점수 0-100 범위 보정
+const clampScore = (v: unknown): number => Math.max(0, Math.min(100, Number(v) || 0));
+
 // 결과 강조형 UI
 const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void }> = ({ result, sources, onAddIdea }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "결과 강조형";
@@ -664,39 +667,22 @@ const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onA
                 <DraggableCard title={idea.name} content={idea.name} snapshot={{ agentType: 'guide', itemData: { ...idea, index: i, score: (idea as any).score } }} onAdd={onAddIdea}>
                   <div className="space-y-2">
                     {src && <div className="flex justify-end"><SrcLink source={src} label={`${i % sources!.length + 1}`} /></div>}
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-gray-500">실현 가능성</span>
-                        <span className="text-xs font-semibold text-gray-700">{idea.feasibility}%</span>
+                    {[
+                      { label: "실현 가능성", val: clampScore(idea.feasibility), color: "#4F48ED" },
+                      { label: "사용자 편의", val: clampScore(idea.userExperience), color: "#eab308" },
+                      { label: "주제 차별성", val: clampScore(idea.uniqueness), color: clampScore(idea.uniqueness) >= 50 ? "#16a34a" : "#ef4444" },
+                    ].map(({ label, val, color }) => (
+                      <div key={label}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-500">{label}</span>
+                          <span className="text-xs font-semibold" style={{ color }}>{val}%</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2">
+                          <div className="h-2 rounded-full transition-all"
+                            style={{ width: `${val}%`, backgroundColor: color }} />
+                        </div>
                       </div>
-                      <div className="w-full bg-gray-100 rounded-full h-2">
-                        <div className="h-2 rounded-full transition-all"
-                          style={{ width: `${idea.feasibility}%`, backgroundColor: "#4F48ED" }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-gray-500">사용자 편의</span>
-                        <span className="text-xs font-semibold text-gray-700">{idea.userExperience}%</span>
-                      </div>
-                      <div className="w-full bg-gray-100 rounded-full h-2">
-                        <div className="h-2 rounded-full transition-all"
-                          style={{ width: `${idea.userExperience}%`, backgroundColor: "#eab308" }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-gray-500">주제 차별성</span>
-                        <span className="text-xs font-semibold text-gray-700"
-                          style={{ color: idea.uniqueness >= 50 ? "#374151" : "#ef4444" }}>
-                          {idea.uniqueness}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-100 rounded-full h-2">
-                        <div className="h-2 rounded-full transition-all"
-                          style={{ width: `${idea.uniqueness}%`, backgroundColor: idea.uniqueness >= 50 ? "#16a34a" : "#ef4444" }} />
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </DraggableCard>
               </CollapsibleBlock>
@@ -738,10 +724,10 @@ const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[] }>
                   {src ? (
                     <a href={src.link} target="_blank" rel="noopener noreferrer"
                       className="text-xs text-gray-500 hover:text-green-700 hover:underline">
-                      → {c.winner}안 우위
+                      {c.winner}안 우위
                     </a>
                   ) : (
-                    <span className="text-xs text-gray-500">→ {c.winner}안 우위</span>
+                    <span className="text-xs font-semibold" style={{ color: IDEA_BADGE_COLORS[winnerIdx % Object.keys(IDEA_BADGE_COLORS).length]?.text || "#374151" }}>{c.winner}안 우위</span>
                   )}
                   <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
                     style={{ backgroundColor: badge.bg, color: badge.text }}>
@@ -754,7 +740,7 @@ const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[] }>
         </div>
       </div>
 
-      <div className="grid gap-3 mb-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))" }}>
+      <div className="grid grid-cols-2 gap-3 mb-4">
         {result.ideas.map((idea, i) => {
           const badge = IDEA_BADGE_COLORS[i % Object.keys(IDEA_BADGE_COLORS).length];
           return (
@@ -767,37 +753,21 @@ const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[] }>
                 <span className="text-xs font-semibold text-gray-700 truncate">{idea.name}</span>
               </div>
               <div className="space-y-1.5">
-                <div>
-                  <div className="flex justify-between mb-0.5">
-                    <span className="text-xs text-gray-500">실현 가능성</span>
-                    <span className="text-xs font-medium text-gray-700">{idea.feasibility}%</span>
+                {[
+                  { label: "실현 가능성", val: clampScore(idea.feasibility), color: "#4F48ED" },
+                  { label: "사용자 편의", val: clampScore(idea.userExperience), color: "#eab308" },
+                  { label: "차별성", val: clampScore(idea.uniqueness), color: clampScore(idea.uniqueness) >= 50 ? "#16a34a" : "#ef4444" },
+                ].map(({ label, val, color }) => (
+                  <div key={label}>
+                    <div className="flex justify-between mb-0.5">
+                      <span className="text-xs text-gray-500">{label}</span>
+                      <span className="text-xs font-medium" style={{ color }}>{val}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-1.5">
+                      <div className="h-1.5 rounded-full transition-all" style={{ width: `${val}%`, backgroundColor: color }} />
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-1.5">
-                    <div className="h-1.5 rounded-full" style={{ width: `${idea.feasibility}%`, backgroundColor: "#4F48ED" }} />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between mb-0.5">
-                    <span className="text-xs text-gray-500">사용자 편의</span>
-                    <span className="text-xs font-medium text-gray-700">{idea.userExperience}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-1.5">
-                    <div className="h-1.5 rounded-full" style={{ width: `${idea.userExperience}%`, backgroundColor: "#eab308" }} />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between mb-0.5">
-                    <span className="text-xs text-gray-500">차별성</span>
-                    <span className="text-xs font-medium"
-                      style={{ color: idea.uniqueness >= 50 ? "#16a34a" : "#ef4444" }}>
-                      {idea.uniqueness}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-1.5">
-                    <div className="h-1.5 rounded-full"
-                      style={{ width: `${idea.uniqueness}%`, backgroundColor: idea.uniqueness >= 50 ? "#16a34a" : "#ef4444" }} />
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           );
