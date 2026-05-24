@@ -19,8 +19,7 @@ async function callGemini(systemPrompt: string, userPrompt: string): Promise<str
 
   const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${key}`;
   const body = {
-    system_instruction: { parts: [{ text: systemPrompt }] },
-    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    contents: [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + userPrompt }] }],
     generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
   };
 
