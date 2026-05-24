@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import dotenv from "dotenv";
 import path from "path";
 import { searchForIdeas, SearchResult } from "./search";
@@ -7,11 +8,29 @@ import { searchForIdeas, SearchResult } from "./search";
 dotenv.config({ path: path.join(__dirname, "../../.env"), override: true });
 dotenv.config({ path: path.join(__dirname, "../.env"), override: true });
 
-// 클라이언트를 함수 호출 시점에 생성 (env 로딩 이후 보장)
+// Claude 클라이언트
 function getClient() {
-  return new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY,
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+}
+
+// Gemini 클라이언트 (GEMINI_API_KEY 있을 때만 활성)
+function getGeminiClient() {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return null;
+  return new GoogleGenerativeAI(key);
+}
+
+// Gemini로 텍스트 생성 (이미지 없는 경우)
+async function callGemini(systemPrompt: string, userPrompt: string): Promise<string> {
+  const genAI = getGeminiClient();
+  if (!genAI) throw new Error("GEMINI_API_KEY 없음");
+
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.0-flash",
+    systemInstruction: systemPrompt,
   });
+  const result = await model.generateContent(userPrompt);
+  return result.response.text();
 }
 
 export interface IdeaAttachment {
@@ -413,20 +432,29 @@ export async function analyzeIdeas(
       ]
     : fullTextPrompt;
 
-  const message = await getClient().messages.create({
-    model: "claude-sonnet-4-5",
-    max_tokens: 4096,
-    system: systemPrompt,
-    messages: [
-      {
-        role: "user",
-        content: userContent,
-      },
-    ],
-  });
+  let responseText = "";
 
-  const responseText =
-    message.content[0].type === "text" ? message.content[0].text : "";
+  // 이미지 없으면 Gemini 우선 시도, 실패 시 Claude fallback
+  if (!hasImages && getGeminiClient()) {
+    try {
+      responseText = await callGemini(systemPrompt, fullTextPrompt);
+      console.log("✅ Gemini로 분석 완료");
+    } catch (e: any) {
+      console.warn("⚠️ Gemini 실패, Claude로 fallback:", e?.message || e);
+    }
+  }
+
+  // Gemini 미사용 or 실패 시 Claude
+  if (!responseText) {
+    const message = await getClient().messages.create({
+      model: "claude-sonnet-4-5",
+      max_tokens: 4096,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userContent }],
+    });
+    responseText = message.content[0].type === "text" ? message.content[0].text : "";
+    console.log("✅ Claude sonnet으로 분석 완료");
+  }
 
   // JSON 파싱 시도
   const jsonMatch = responseText.match(/\{[\s\S]*\}/);
