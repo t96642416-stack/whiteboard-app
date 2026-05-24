@@ -157,6 +157,7 @@ io.on("connection", (socket) => {
       topic,
       excludeIds,
       filesOnly,
+      sectionGroups,
     }: {
       agentType: string | null;
       userMessage?: string;
@@ -167,6 +168,7 @@ io.on("connection", (socket) => {
       topic?: string;
       excludeIds?: string[];
       filesOnly?: boolean;
+      sectionGroups?: { title: string; ideaIds: string[] }[];
     }) => {
       if (!currentRoom) return;
 
@@ -202,7 +204,8 @@ io.on("connection", (socket) => {
           agentType as any,
           userMessage || "",
           files || [],
-          useSearch || false
+          useSearch || false,
+          sectionGroups
         );
 
         // 텍스트 분석 결과 먼저 즉시 전송

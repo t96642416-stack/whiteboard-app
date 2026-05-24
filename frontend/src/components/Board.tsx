@@ -36,6 +36,7 @@ interface BoardProps {
   onAddComment: (ideaId: string, text: string) => void;
   onSectionAnalysis?: (ideas: Idea[], agentType: AgentType) => void;
   onFocusedIdeaChange?: (idea: Idea | null) => void;
+  onSectionGroupsChange?: (groups: { title: string; ideaIds: string[] }[]) => void;
 }
 
 const Board: React.FC<BoardProps> = ({
@@ -55,6 +56,7 @@ const Board: React.FC<BoardProps> = ({
   onAddComment,
   onSectionAnalysis,
   onFocusedIdeaChange,
+  onSectionGroupsChange,
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingTopic, setEditingTopic] = useState(false);
@@ -150,6 +152,20 @@ const Board: React.FC<BoardProps> = ({
   const pushUndo = (entry: UndoEntry) => {
     undoStack.current = [...undoStack.current.slice(-49), entry];
   };
+
+  // 섹션별 아이디어 그룹핑 → App으로 전달 (분석 단위)
+  useEffect(() => {
+    if (!onSectionGroupsChange) return;
+    const groups = sections
+      .map(section => ({
+        title: section.title,
+        ideaIds: ideas
+          .filter(idea => isCardInSection(idea, section))
+          .map(idea => idea.id),
+      }))
+      .filter(g => g.ideaIds.length > 0);
+    onSectionGroupsChange(groups);
+  }, [sections, cardPositions, ideas]);
 
   // 에이전트 드롭 위치 (다음 추가될 카드에 적용)
   const pendingDropPos = useRef<{ x: number; y: number } | null>(null);

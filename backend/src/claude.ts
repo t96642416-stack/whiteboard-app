@@ -212,7 +212,8 @@ export async function analyzeIdeas(
   agentType: AgentType = null,
   userMessage: string = "",
   files: AnalysisFile[] = [],
-  useSearch: boolean = false
+  useSearch: boolean = false,
+  sectionGroups?: { title: string; ideaIds: string[] }[]
 ): Promise<AnalysisResult | Record<string, unknown>> {
   // 아이디어도 없고 파일도 없으면 빈 결과 반환
   if (ideas.length === 0 && files.length === 0) {
@@ -223,7 +224,18 @@ export async function analyzeIdeas(
     };
   }
 
-  const ideasText = ideas.length === 0
+  // 섹션 그룹핑이 있으면 섹션을 "안(案)" 단위로 포맷
+  const hasSectionGroups = sectionGroups && sectionGroups.length > 0;
+  const ideasText = hasSectionGroups
+    ? sectionGroups!.map((group, idx) => {
+        const label = String.fromCharCode(65 + idx) + "안";
+        const groupIdeas = ideas.filter(i => group.ideaIds.includes(i.id));
+        const subContent = groupIdeas.length > 0
+          ? groupIdeas.map(i => `  - ${i.title}${i.content ? ": " + i.content : ""}`).join("\n")
+          : "  (세부 아이디어 없음)";
+        return `${label} (${group.title})\n${subContent}`;
+      }).join("\n\n")
+    : ideas.length === 0
     ? "첨부된 파일을 기반으로 분석해주세요. 아이디어 카드는 없습니다."
     : ideas
         .map((idea, idx) => {
@@ -319,9 +331,11 @@ export async function analyzeIdeas(
     if (searchSources.length > 0) console.log("✅ 검색 자료 포함하여 분석합니다.");
   }
 
-  // 아이디어가 3개 이상이면 그룹화 분석 지시
-  const groupingInstruction = ideas.length >= 3
-    ? `\n\n[중요] 아이디어가 ${ideas.length}개입니다. 개별 아이디어를 하나하나 분석하지 말고, 먼저 의미적으로 관련된 아이디어들을 테마 그룹(안)으로 묶어서 분석하세요. ideas 배열의 각 항목이 하나의 안(案/그룹)을 나타내도록 하세요. 예: "A안 (학습 공간 개선)" vs "B안 (식사 공간 개선)" 처럼 2~4개의 그룹으로 수렴하세요. 그룹 이름에 포함된 아이디어들을 간략히 명시하세요.`
+  // 그룹화 분석 지시
+  const groupingInstruction = hasSectionGroups
+    ? `\n\n[중요] 위 내용은 팀이 직접 섹션으로 구분한 안(案)들입니다. ${sectionGroups!.map((g, i) => `${String.fromCharCode(65+i)}안: ${g.title}`).join(", ")}. 각 안을 하나의 분석 단위로 사용하세요. ideas 배열의 각 항목이 각 안(섹션)을 나타내도록 하세요.`
+    : ideas.length >= 3
+    ? `\n\n[중요] 아이디어가 ${ideas.length}개입니다. 개별 아이디어를 하나하나 분석하지 말고, 의미적으로 관련된 아이디어들을 테마 그룹(안)으로 묶어서 분석하세요. 2~4개의 그룹으로 수렴하세요.`
     : "";
 
   const userPrompt = `다음 아이디어들을 분석해주세요:\n\n${ideasText}${groupingInstruction}${agentInstruction ? "\n\n" + agentInstruction : ""}${userMessageInstruction}${searchPromptText}`;

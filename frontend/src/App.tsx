@@ -81,6 +81,7 @@ function App() {
   const [users, setUsers] = useState<{ name: string; color: string }[]>([]);
   const [topic, setTopic] = useState("");
   const [topicFiles, setTopicFiles] = useState<AnalysisFile[]>([]);
+  const [sectionGroups, setSectionGroups] = useState<{ title: string; ideaIds: string[] }[]>([]);
   const [pendingCanvasImage, setPendingCanvasImage] = useState<string | null>(null);
   const [focusedIdea, setFocusedIdea] = useState<Idea | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -310,8 +311,9 @@ function App() {
       topic,
       excludeIds,
       filesOnly: filesOnly || false,
+      sectionGroups: sectionGroups.length > 0 ? sectionGroups : undefined,
     });
-  }, [topic, topicFiles, ideas]);
+  }, [topic, topicFiles, ideas, sectionGroups]);
 
   // 섹션 분석 요청 - 특정 아이디어 ID만 필터링 (AI 결과 카드 제외)
   const handleSectionAnalysis = useCallback((sectionIdeas: Idea[], agentType: AgentType) => {
@@ -388,6 +390,7 @@ function App() {
           onEditIdea={handleEditIdea}
           onAddComment={handleAddComment}
           onSectionAnalysis={handleSectionAnalysis}
+          onSectionGroupsChange={setSectionGroups}
         />
       </div>
 
