@@ -6,10 +6,12 @@ function getClient() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 }
 
-// 시도할 Gemini 모델 목록 (앞에서부터 순서대로 시도, 429면 다음 모델로)
+// 시도할 Gemini 모델 목록 (앞에서부터 순서대로 시도, 429/404면 다음 모델로)
+// 각 모델마다 무료 20회/일 → 4개 모델 = 최대 80회/일
 const GEMINI_MODELS = [
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent",
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent",
   "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent",
 ];
 
