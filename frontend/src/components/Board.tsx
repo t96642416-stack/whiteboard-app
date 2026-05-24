@@ -75,7 +75,7 @@ const Board: React.FC<BoardProps> = ({
 
   // 드래그 상태 (ref → 렌더 최소화)
   const dragState = useRef<{
-    type: "canvas" | "card" | "image" | "section-resize" | "image-resize";
+    type: "canvas" | "card" | "image" | "section-resize" | "section-move" | "image-resize";
     cardId?: string;
     imageId?: string;
     sectionId?: string;
@@ -86,6 +86,8 @@ const Board: React.FC<BoardProps> = ({
     startValY: number;
     startWidth?: number;
     startHeight?: number;
+    insideCardIds?: string[];
+    insideCardStartPositions?: Record<string, { x: number; y: number }>;
     moved: boolean;
   } | null>(null);
 
@@ -473,6 +475,37 @@ const Board: React.FC<BoardProps> = ({
     };
   }, []);
 
+  // 섹션 이동 시작
+  const startSectionMove = useCallback((e: React.PointerEvent, section: BoardSection) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const allIdeas: Idea[] = (window as any).__boardIdeas ?? [];
+    const allPositions: Record<string, { x: number; y: number }> = (window as any).__boardCardPositions ?? {};
+    const insideCardIds: string[] = [];
+    const insideCardStartPositions: Record<string, { x: number; y: number }> = {};
+    allIdeas.forEach((idea, idx) => {
+      const pos = allPositions[idea.id] ?? getDefaultPosition(idx);
+      const cx = pos.x + CARD_WIDTH / 2;
+      const cy = pos.y + 100;
+      if (cx >= section.x && cx <= section.x + section.width &&
+          cy >= section.y && cy <= section.y + section.height) {
+        insideCardIds.push(idea.id);
+        insideCardStartPositions[idea.id] = { ...pos };
+      }
+    });
+    dragState.current = {
+      type: "section-move",
+      sectionId: section.id,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startValX: section.x,
+      startValY: section.y,
+      insideCardIds,
+      insideCardStartPositions,
+      moved: false,
+    };
+  }, []);
+
   // 캔버스 이미지 리사이즈
   const startImageResize = useCallback((e: React.PointerEvent, img: CanvasImage, dir: string) => {
     e.stopPropagation();
@@ -547,6 +580,24 @@ const Board: React.FC<BoardProps> = ({
           ? { ...img, x: dragState.current!.startValX + dx / zoom, y: dragState.current!.startValY + dy / zoom }
           : img
       ));
+    } else if (dragState.current.type === "section-move" && dragState.current.sectionId) {
+      const wdx = dx / zoom;
+      const wdy = dy / zoom;
+      setSections(prev => prev.map(s =>
+        s.id !== dragState.current!.sectionId ? s :
+        { ...s, x: dragState.current!.startValX + wdx, y: dragState.current!.startValY + wdy }
+      ));
+      const insideIds = dragState.current.insideCardIds;
+      if (insideIds && insideIds.length > 0) {
+        setCardPositions(prev => {
+          const next = { ...prev };
+          insideIds.forEach(id => {
+            const startPos = dragState.current!.insideCardStartPositions?.[id];
+            if (startPos) next[id] = { x: startPos.x + wdx, y: startPos.y + wdy };
+          });
+          return next;
+        });
+      }
     } else if (dragState.current.type === "section-resize" && dragState.current.sectionId) {
       const d = dragState.current;
       const wdx = dx / zoom;
@@ -646,6 +697,20 @@ const Board: React.FC<BoardProps> = ({
       setDrawingPreview(null);
       setIsSectionMode(false);
       return;
+    }
+
+    // 섹션 이동 완료 시 동기화
+    if (dragState.current?.type === "section-move" && dragState.current.moved && dragState.current.sectionId) {
+      const sid = dragState.current.sectionId;
+      const sec = (window as any).__boardSections?.find((s: any) => s.id === sid);
+      if (sec) getSocket().emit("section-updated", { id: sid, x: sec.x, y: sec.y });
+      const insideIds = dragState.current.insideCardIds;
+      if (insideIds) {
+        insideIds.forEach(id => {
+          const pos = (window as any).__boardCardPositions?.[id];
+          if (pos) getSocket().emit("idea-moved", { ideaId: id, x: pos.x, y: pos.y });
+        });
+      }
     }
 
     // 섹션 크기 조절 완료 시 동기화
@@ -979,6 +1044,20 @@ const Board: React.FC<BoardProps> = ({
                   {/* 섹션 헤더 */}
                   <div data-toolbar className="flex items-center gap-1.5 px-3 py-2 rounded-t-xl select-none"
                     style={{ backgroundColor: hex + "30" }}>
+                    {/* 드래그 핸들 */}
+                    <div
+                      className="flex items-center gap-0.5 cursor-grab active:cursor-grabbing opacity-50 hover:opacity-100 transition-opacity flex-shrink-0 pr-1"
+                      onPointerDown={e => startSectionMove(e, section)}
+                      title="드래그해서 이동"
+                    >
+                      {[0,1,2].map(i => (
+                        <div key={i} className="flex flex-col gap-0.5">
+                          <div className="w-0.5 h-0.5 rounded-full" style={{ backgroundColor: hex }} />
+                          <div className="w-0.5 h-0.5 rounded-full" style={{ backgroundColor: hex }} />
+                          <div className="w-0.5 h-0.5 rounded-full" style={{ backgroundColor: hex }} />
+                        </div>
+                      ))}
+                    </div>
                     {/* 타이틀 */}
                     {editingSectionId === section.id ? (
                       <input
@@ -1211,7 +1290,7 @@ const Board: React.FC<BoardProps> = ({
               const isSelected = selectedIds.has(idea.id);
               const isFocused = focusedCardId === idea.id;
               const isResultCard = !!(idea as any).analysisSnapshot;
-              const cardW = isResultCard ? (cardWidths[idea.id] ?? 280) : CARD_WIDTH;
+              const cardW = cardWidths[idea.id] ?? (isResultCard ? 280 : CARD_WIDTH);
               return (
                 <div key={idea.id} data-card-wrapper="true" className="absolute group"
                   style={{
@@ -1305,7 +1384,34 @@ const Board: React.FC<BoardProps> = ({
                         </div>
                       </div>
                     )
-                    : <IdeaCard idea={idea} onDelete={onDeleteIdea} onEdit={onEditIdea} onAddComment={onAddComment} />
+                    : (
+                      <div className="relative">
+                        <IdeaCard idea={idea} onDelete={onDeleteIdea} onEdit={onEditIdea} onAddComment={onAddComment} />
+                        {/* 오른쪽 리사이즈 핸들 */}
+                        <div
+                          className="absolute top-0 right-0 bottom-0 w-2 cursor-ew-resize z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-r-lg"
+                          onPointerDown={(e) => {
+                            e.stopPropagation();
+                            e.currentTarget.setPointerCapture(e.pointerId);
+                            const startX = e.clientX;
+                            const startW = cardWidths[idea.id] ?? CARD_WIDTH;
+                            const onMove = (ev: PointerEvent) => {
+                              const delta = (ev.clientX - startX) / zoom;
+                              const newW = Math.max(180, Math.min(500, startW + delta));
+                              setCardWidths(prev => ({ ...prev, [idea.id]: newW }));
+                            };
+                            const onUp = () => {
+                              window.removeEventListener("pointermove", onMove);
+                              window.removeEventListener("pointerup", onUp);
+                            };
+                            window.addEventListener("pointermove", onMove);
+                            window.addEventListener("pointerup", onUp);
+                          }}
+                        >
+                          <div className="w-1 h-8 rounded-full bg-gray-300 opacity-60" />
+                        </div>
+                      </div>
+                    )
                   }
                 </div>
               );
