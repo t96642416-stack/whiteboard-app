@@ -427,6 +427,7 @@ initDb().then(() => {
     console.log(`\n🚀 서버가 포트 ${PORT}에서 시작되었습니다.`);
     console.log(`   헬스 체크: http://localhost:${PORT}/health`);
     console.log(`   ANTHROPIC_API_KEY: ${process.env.ANTHROPIC_API_KEY ? "✓ 설정됨" : "✗ 미설정"}`);
+    console.log(`   GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? "✓ 설정됨 (길이: " + process.env.GEMINI_API_KEY.length + ")" : "✗ 미설정"}`);
     console.log(`   DATABASE_URL: ${process.env.DATABASE_URL ? "✓ DB 연결됨" : "✗ 없음 (메모리 모드)"}\n`);
   });
 }).catch(e => {

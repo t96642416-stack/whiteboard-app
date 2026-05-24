@@ -451,7 +451,9 @@ export async function analyzeIdeas(
   let responseText = "";
 
   // 이미지 없으면 Gemini 우선 시도, 실패 시 Claude fallback
-  if (!hasImages && process.env.GEMINI_API_KEY) {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  console.log(`[분석] 이미지 첨부: ${hasImages}, GEMINI_API_KEY: ${geminiKey ? "✓ (길이:" + geminiKey.length + ")" : "✗ 없음"}`);
+  if (!hasImages && geminiKey) {
     try {
       responseText = await callGemini(systemPrompt, fullTextPrompt);
       console.log("✅ Gemini로 분석 완료");
