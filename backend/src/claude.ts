@@ -527,7 +527,7 @@ export async function analyzeIdeas(
   if (!responseText) {
     const message = await getClient().messages.create({
       model: "claude-sonnet-4-5",
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: systemPrompt,
       messages: [{ role: "user", content: userContent }],
     });
@@ -537,8 +537,8 @@ export async function analyzeIdeas(
 
   // JSON 파싱 시도 (코드블록 제거 → 짤린 JSON 복구 → 파싱)
   let cleanedText = responseText
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```\s*$/i, "")
+    .replace(/^```(?:json)?\s*/i, "")   // 앞 마크다운 제거
+    .replace(/\s*```[\s\S]*$/i, "")     // 뒤 마크다운 제거 (뒤에 설명 글 붙은 경우 포함)
     .trim();
 
   const jsonMatch = cleanedText.match(/\{[\s\S]*/);  // 닫힘 없어도 시작 부분 추출
@@ -566,10 +566,13 @@ export async function analyzeIdeas(
     }
     // 문자열 중간에 잘린 경우 따옴표 닫기
     let repaired = inString ? text + '"' : text;
-    // 마지막 콤마 뒤 불완전한 항목 제거
+    // 마지막 콤마 뒤 불완전한 항목 제거 (끝 trailing comma)
     repaired = repaired.replace(/,\s*$/, "");
     // 열린 괄호 닫기
-    return repaired + stack.reverse().join("");
+    repaired = repaired + stack.reverse().join("");
+    // 닫는 괄호 앞 trailing comma 제거: ,} 또는 ,] 패턴
+    repaired = repaired.replace(/,(\s*[}\]])/g, "$1");
+    return repaired;
   }
 
   let jsonText = jsonMatch[0];
