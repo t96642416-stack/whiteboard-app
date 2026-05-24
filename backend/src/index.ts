@@ -191,10 +191,7 @@ io.on("connection", (socket) => {
         socket.emit("analysis-error", { message: msg });
         return;
       }
-      if (filesOnly && (!files || files.length === 0)) {
-        socket.emit("analysis-error", { message: "파일만으로 분석하려면 파일을 먼저 첨부해주세요." });
-        return;
-      }
+      // filesOnly + 파일 없음: 에러 없이 빈 컨텍스트로 분석 진행 (주제/에이전트 타입 기반)
 
       // 분석 시작 알림
       io.to(currentRoom).emit("analysis-started", { requester: currentUser, agentType });

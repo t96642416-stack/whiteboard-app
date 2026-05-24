@@ -16,7 +16,7 @@ interface AIPanelProps {
   onAgentChange: (agent: AgentType) => void;
   onSendChat: (message: string, imageUrl?: string) => void;
   onSendAIMessage?: (message: string) => void;
-  onRequestAnalysis: (agentType: AgentType, files?: AnalysisFile[], useSearch?: boolean) => void;
+  onRequestAnalysis: (agentType: AgentType, files?: AnalysisFile[], useSearch?: boolean, filesOnly?: boolean) => void;
   isAIResponding: boolean;
   onClearChat?: () => void;
   onAddIdea?: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[], snapshot?: AnalysisSnapshot) => void;
@@ -239,7 +239,8 @@ const AIPanel: React.FC<AIPanelProps> = ({
   const handleAgentClick = (agentType: AgentType) => {
     if (agentType === null) return;
     onAgentChange(agentType);
-    onRequestAnalysis(agentType, analysisFiles.length > 0 ? analysisFiles : undefined, useSearch);
+    // 에이전트는 보드 아이디어 제외하고 항상 파일/주제 기반으로만 분석
+    onRequestAnalysis(agentType, analysisFiles.length > 0 ? analysisFiles : undefined, useSearch, true);
     setShowAgentList(false);
     setShowInitial(false);
   };
