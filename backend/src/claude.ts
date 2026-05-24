@@ -30,11 +30,24 @@ async function callGemini(systemPrompt: string, userPrompt: string): Promise<str
 
   for (const baseUrl of GEMINI_MODELS) {
     const url = `${baseUrl}?key=${key}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000); // 20초 타임아웃
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (e: any) {
+      clearTimeout(timeout);
+      const modelName = baseUrl.match(/models\/([^:]+)/)?.[1] ?? baseUrl;
+      console.warn(`⚠️ Gemini ${modelName} 타임아웃/네트워크 오류 → 다음 모델 시도`);
+      lastError = e?.message || "timeout";
+      continue;
+    }
+    clearTimeout(timeout);
 
     if (res.status === 429) {
       const errText = await res.text();
