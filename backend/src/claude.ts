@@ -23,7 +23,7 @@ async function callGemini(systemPrompt: string, userPrompt: string): Promise<str
 
   const body = {
     contents: [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + userPrompt }] }],
-    generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
+    generationConfig: { temperature: 0.7, maxOutputTokens: 8192, response_mime_type: "application/json" },
   };
 
   let lastError = "";
