@@ -5,6 +5,20 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import { analyzeIdeas, chatWithAI, IdeaInput, AnalysisFile } from "./claude";
+import {
+  initDb,
+  dbGetIdeas,
+  dbGetSections,
+  dbGetMessages,
+  dbUpsertIdea,
+  dbUpdateIdea,
+  dbDeleteIdea,
+  dbMoveIdea,
+  dbUpsertSection,
+  dbUpdateSection,
+  dbDeleteSection,
+  dbInsertMessage,
+} from "./db";
 
 dotenv.config();
 
@@ -28,7 +42,7 @@ app.use(express.json());
 const frontendDist = path.join(__dirname, "../../frontend/dist");
 app.use(express.static(frontendDist));
 
-// 방별 아이디어 저장
+// 방별 인메모리 캐시 (DB와 병행 — 빠른 읽기용)
 const roomIdeas: Record<string, IdeaInput[]> = {};
 const roomUsers: Record<string, Map<string, string>> = {}; // userName -> color
 const roomMessages: Record<string, any[]> = {};
@@ -52,29 +66,42 @@ io.on("connection", (socket) => {
   // 방 참가
   socket.on(
     "join-room",
-    ({ roomId, userName, userColor }: { roomId: string; userName: string; userColor?: string }) => {
+    async ({ roomId, userName, userColor }: { roomId: string; userName: string; userColor?: string }) => {
       currentRoom = roomId;
       currentUser = userName;
 
       socket.join(roomId);
 
-      if (!roomIdeas[roomId]) {
-        roomIdeas[roomId] = [];
-      }
       if (!roomUsers[roomId]) {
         roomUsers[roomId] = new Map();
       }
-      if (!roomMessages[roomId]) {
-        roomMessages[roomId] = [];
-      }
-      if (!roomSections[roomId]) {
-        roomSections[roomId] = [];
-      }
       roomUsers[roomId].set(userName, userColor || "#E5E7EB");
+
+      // DB에서 불러오기 (캐시가 비어있을 때만)
+      if (!roomIdeas[roomId] || roomIdeas[roomId].length === 0) {
+        try {
+          const [ideas, sections, messages] = await Promise.all([
+            dbGetIdeas(roomId),
+            dbGetSections(roomId),
+            dbGetMessages(roomId),
+          ]);
+          roomIdeas[roomId] = ideas;
+          roomSections[roomId] = sections;
+          roomMessages[roomId] = messages;
+          if (ideas.length > 0 || sections.length > 0) {
+            console.log(`DB에서 불러옴: 방 ${roomId} — 아이디어 ${ideas.length}개, 섹션 ${sections.length}개`);
+          }
+        } catch (e) {
+          console.error("DB 로드 실패 (메모리 모드 유지):", e);
+          roomIdeas[roomId] = roomIdeas[roomId] || [];
+          roomSections[roomId] = roomSections[roomId] || [];
+          roomMessages[roomId] = roomMessages[roomId] || [];
+        }
+      }
 
       const usersArray = Array.from(roomUsers[roomId].entries()).map(([name, color]) => ({ name, color }));
 
-      // 현재 방의 아이디어 전송
+      // 현재 방의 상태 전송
       socket.emit("room-state", {
         ideas: roomIdeas[roomId],
         users: usersArray,
@@ -93,7 +120,7 @@ io.on("connection", (socket) => {
   );
 
   // 아이디어 추가
-  socket.on("idea-added", (idea: IdeaInput) => {
+  socket.on("idea-added", async (idea: IdeaInput) => {
     if (!currentRoom) return;
 
     if (!roomIdeas[currentRoom]) {
@@ -107,13 +134,16 @@ io.on("connection", (socket) => {
     };
     roomIdeas[currentRoom].push(ideaToStore);
 
+    // DB에 저장
+    dbUpsertIdea(currentRoom, ideaToStore).catch(e => console.error("idea upsert 실패:", e));
+
     // 발신자 제외하고 브로드캐스트 (발신자는 이미 낙관적 업데이트로 반영됨)
     socket.to(currentRoom).emit("idea-added", idea);
     console.log(`아이디어 추가: ${idea.title} (방: ${currentRoom})`);
   });
 
   // 아이디어 수정
-  socket.on("idea-updated", ({ ideaId, title, content, category, color, aiImageUrl, attachments }: { ideaId: string; title: string; content: string; category?: string; color?: string; aiImageUrl?: string; attachments?: any[] }) => {
+  socket.on("idea-updated", async ({ ideaId, title, content, category, color, aiImageUrl, attachments }: { ideaId: string; title: string; content: string; category?: string; color?: string; aiImageUrl?: string; attachments?: any[] }) => {
     if (!currentRoom) return;
     if (roomIdeas[currentRoom]) {
       const idea = roomIdeas[currentRoom].find((i: any) => i.id === ideaId) as any;
@@ -126,42 +156,62 @@ io.on("connection", (socket) => {
         if (attachments !== undefined) idea.attachments = attachments;
       }
     }
+    // DB 업데이트
+    const patch: any = { title, content };
+    if (category) patch.category = category;
+    if (color) patch.color = color;
+    if (aiImageUrl !== undefined) patch.aiImageUrl = aiImageUrl;
+    if (attachments !== undefined) patch.attachments = attachments;
+    dbUpdateIdea(currentRoom, ideaId, patch).catch(e => console.error("idea update 실패:", e));
+
     socket.to(currentRoom).emit("idea-updated", { ideaId, title, content, category, color, aiImageUrl, attachments });
   });
 
   // 카드 위치 이동 동기화 (드래그 완료 시)
-  socket.on("idea-moved", ({ ideaId, x, y }: { ideaId: string; x: number; y: number }) => {
+  socket.on("idea-moved", async ({ ideaId, x, y }: { ideaId: string; x: number; y: number }) => {
     if (!currentRoom) return;
+    // 메모리 업데이트
+    if (roomIdeas[currentRoom]) {
+      const idea = roomIdeas[currentRoom].find((i: any) => i.id === ideaId) as any;
+      if (idea) { idea.x = x; idea.y = y; }
+    }
+    // DB 업데이트
+    dbMoveIdea(currentRoom, ideaId, x, y).catch(e => console.error("idea move 실패:", e));
     socket.to(currentRoom).emit("idea-moved", { ideaId, x, y });
   });
 
   // 섹션 동기화 + 서버 저장
-  socket.on("section-added", (section: any) => {
+  socket.on("section-added", async (section: any) => {
     if (!currentRoom) return;
     if (!roomSections[currentRoom]) roomSections[currentRoom] = [];
     if (!roomSections[currentRoom].find((s: any) => s.id === section.id)) {
       roomSections[currentRoom].push(section);
     }
+    dbUpsertSection(currentRoom, section).catch(e => console.error("section upsert 실패:", e));
     socket.to(currentRoom).emit("section-added", section);
   });
-  socket.on("section-updated", (update: any) => {
+
+  socket.on("section-updated", async (update: any) => {
     if (!currentRoom) return;
     if (roomSections[currentRoom]) {
       const idx = roomSections[currentRoom].findIndex((s: any) => s.id === update.id);
       if (idx !== -1) roomSections[currentRoom][idx] = { ...roomSections[currentRoom][idx], ...update };
     }
+    dbUpdateSection(currentRoom, update).catch(e => console.error("section update 실패:", e));
     socket.to(currentRoom).emit("section-updated", update);
   });
-  socket.on("section-deleted", ({ id }: { id: string }) => {
+
+  socket.on("section-deleted", async ({ id }: { id: string }) => {
     if (!currentRoom) return;
     if (roomSections[currentRoom]) {
       roomSections[currentRoom] = roomSections[currentRoom].filter((s: any) => s.id !== id);
     }
+    dbDeleteSection(currentRoom, id).catch(e => console.error("section delete 실패:", e));
     socket.to(currentRoom).emit("section-deleted", { id });
   });
 
   // 아이디어 삭제
-  socket.on("idea-deleted", ({ ideaId }: { ideaId: string }) => {
+  socket.on("idea-deleted", async ({ ideaId }: { ideaId: string }) => {
     if (!currentRoom) return;
 
     if (roomIdeas[currentRoom]) {
@@ -169,6 +219,7 @@ io.on("connection", (socket) => {
         (idea) => idea.id !== ideaId
       );
     }
+    dbDeleteIdea(currentRoom, ideaId).catch(e => console.error("idea delete 실패:", e));
 
     io.to(currentRoom).emit("idea-deleted", { ideaId });
     console.log(`아이디어 삭제: ${ideaId} (방: ${currentRoom})`);
@@ -223,7 +274,6 @@ io.on("connection", (socket) => {
         socket.emit("analysis-error", { message: msg });
         return;
       }
-      // filesOnly + 파일 없음: 에러 없이 빈 컨텍스트로 분석 진행 (주제/에이전트 타입 기반)
 
       // 분석 시작 알림
       io.to(currentRoom).emit("analysis-started", { requester: currentUser, agentType });
@@ -238,7 +288,6 @@ io.on("connection", (socket) => {
           sectionGroups
         );
 
-        // 텍스트 분석 결과 먼저 즉시 전송
         io.to(currentRoom).emit("analysis-result", {
           ...result,
           _meta: { requester: currentUser, agentType, timestamp: new Date().toISOString() },
@@ -246,7 +295,6 @@ io.on("connection", (socket) => {
         console.log(`분석 완료 (방: ${currentRoom})`);
 
       } catch (error) {
-        // 실제 에러 메시지를 그대로 전달 (API 키 오류, 모델 오류 등 디버깅용)
         let errorMessage = "알 수 없는 오류가 발생했습니다.";
         if (error instanceof Error) {
           errorMessage = error.message;
@@ -311,7 +359,7 @@ io.on("connection", (socket) => {
   // 순수 채팅 메시지 (AI 응답 없이 방 전체 브로드캐스트)
   socket.on(
     "chat-message",
-    ({ message, imageUrl, userColor }: { message: string; imageUrl?: string; userColor?: string }) => {
+    async ({ message, imageUrl, userColor }: { message: string; imageUrl?: string; userColor?: string }) => {
       if (!currentRoom) return;
       const chatMsg = {
         userName: currentUser,
@@ -324,6 +372,7 @@ io.on("connection", (socket) => {
         roomMessages[currentRoom] = [];
       }
       roomMessages[currentRoom].push(chatMsg);
+      dbInsertMessage(currentRoom, chatMsg).catch(e => console.error("message insert 실패:", e));
       io.to(currentRoom).emit("chat-message", chatMsg);
     }
   );
@@ -338,14 +387,21 @@ io.on("connection", (socket) => {
         idea.comments.push(comment);
       }
     }
+    // 코멘트가 포함된 전체 아이디어를 DB에 저장
+    const idea = roomIdeas[currentRoom]?.find((i: any) => i.id === ideaId);
+    if (idea) dbUpsertIdea(currentRoom, idea).catch(e => console.error("comment save 실패:", e));
     socket.broadcast.to(currentRoom).emit("comment-added", { ideaId, comment });
   });
 
   // 아이디어 재동기화 (백엔드 재시작 후 프론트엔드에서 전송)
-  socket.on("ideas-sync", (syncedIdeas: IdeaInput[]) => {
+  socket.on("ideas-sync", async (syncedIdeas: IdeaInput[]) => {
     if (!currentRoom) return;
     if (!roomIdeas[currentRoom] || roomIdeas[currentRoom].length === 0) {
       roomIdeas[currentRoom] = syncedIdeas;
+      // DB에도 저장
+      for (const idea of syncedIdeas) {
+        dbUpsertIdea(currentRoom, idea).catch(e => console.error("sync upsert 실패:", e));
+      }
     }
   });
 
@@ -364,8 +420,16 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => {
-  console.log(`\n🚀 서버가 포트 ${PORT}에서 시작되었습니다.`);
-  console.log(`   헬스 체크: http://localhost:${PORT}/health`);
-  console.log(`   ANTHROPIC_API_KEY: ${process.env.ANTHROPIC_API_KEY ? "✓ 설정됨" : "✗ 미설정"}\n`);
+
+// DB 초기화 후 서버 시작
+initDb().then(() => {
+  httpServer.listen(PORT, () => {
+    console.log(`\n🚀 서버가 포트 ${PORT}에서 시작되었습니다.`);
+    console.log(`   헬스 체크: http://localhost:${PORT}/health`);
+    console.log(`   ANTHROPIC_API_KEY: ${process.env.ANTHROPIC_API_KEY ? "✓ 설정됨" : "✗ 미설정"}`);
+    console.log(`   DATABASE_URL: ${process.env.DATABASE_URL ? "✓ DB 연결됨" : "✗ 없음 (메모리 모드)"}\n`);
+  });
+}).catch(e => {
+  console.error("DB 초기화 실패:", e);
+  process.exit(1);
 });
