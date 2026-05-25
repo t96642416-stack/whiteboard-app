@@ -377,34 +377,45 @@ export async function analyzeIdeas(
       }).join("\n\n")
     : ideas.length === 0
     ? "첨부된 파일을 기반으로 분석해주세요. 아이디어 카드는 없습니다."
-    : ideas
-        .map((idea, idx) => {
-          const label = String.fromCharCode(65 + idx);
-          let text = `아이디어 ${label} (ID: ${idea.id})\n제목: ${idea.title}\n내용: ${idea.content}\n작성자: ${idea.author}`;
-          if (idea.attachments && idea.attachments.length > 0) {
-            // 텍스트 계열 파일: base64 디코딩 후 내용 포함 (이미지는 분석 제외)
-            const TEXT_MIMES = ["text/plain", "text/csv", "text/markdown", "text/html", "application/json", "text/javascript"];
-            const TEXT_EXTS = [".txt", ".md", ".csv", ".json", ".tsv", ".log"];
-            idea.attachments.filter(a => a.type === "file").forEach(a => {
-              const isTextMime = TEXT_MIMES.some(m => (a.mimeType || "").startsWith(m));
-              const isTextExt = TEXT_EXTS.some(e => a.name.toLowerCase().endsWith(e));
-              if (isTextMime || isTextExt) {
-                try {
-                  const base64 = a.content.includes(",") ? a.content.split(",")[1] : a.content;
-                  const decoded = Buffer.from(base64, "base64").toString("utf-8").slice(0, 3000);
-                  text += `\n\n[첨부 파일 내용 — 이 파일의 내용을 인용할 때 아이디어 라벨(A안/B안/C안 등)을 출처로 절대 쓰지 마세요. 파일 안에 실제 출처가 있으면 그것만, 없으면 괄호 생략]\n${decoded}`;
-                } catch { /* 디코딩 실패 시 무시 */ }
-              } else if ((a.mimeType || "").toLowerCase() === "application/pdf" || a.name.toLowerCase().endsWith(".pdf")) {
-                // PDF는 document 블록으로 별도 전달 → 여기서는 참조 메모만
-                text += `\n첨부 PDF: ${a.name} (아래 문서 블록 참조)`;
-              } else {
-                text += `\n첨부 파일: ${a.name}`;
-              }
-            });
-          }
-          return text;
-        })
-        .join("\n\n");
+    : (() => {
+        const TEXT_MIMES = ["text/plain", "text/csv", "text/markdown", "text/html", "application/json", "text/javascript"];
+        const TEXT_EXTS = [".txt", ".md", ".csv", ".json", ".tsv", ".log"];
+
+        // 모든 카드의 txt 파일을 공통 참고 자료로 추출 (어느 카드에 붙어있든 전체 분석에 활용)
+        const sharedDocs: string[] = [];
+        ideas.forEach((idea) => {
+          if (!idea.attachments) return;
+          idea.attachments.filter(a => a.type === "file").forEach(a => {
+            const isTextMime = TEXT_MIMES.some(m => (a.mimeType || "").startsWith(m));
+            const isTextExt = TEXT_EXTS.some(e => a.name.toLowerCase().endsWith(e));
+            if (isTextMime || isTextExt) {
+              try {
+                const base64 = a.content.includes(",") ? a.content.split(",")[1] : a.content;
+                const decoded = Buffer.from(base64, "base64").toString("utf-8").slice(0, 3000);
+                sharedDocs.push(`[${a.name}]\n${decoded}`);
+              } catch { /* 디코딩 실패 시 무시 */ }
+            }
+          });
+        });
+
+        const sharedSection = sharedDocs.length > 0
+          ? `[카드 첨부 참고 자료 — 아래 내용은 모든 아이디어 분석에 공통으로 활용하세요. 인용 시 파일명이나 아이디어 라벨(A안/B안 등) 대신 파일 안의 실제 출처(기관·연구·통계)만 쓰세요. 출처 없으면 괄호 생략]\n\n${sharedDocs.join("\n\n---\n\n")}\n\n`
+          : "";
+
+        const ideasText = ideas
+          .map((idea, idx) => {
+            const label = String.fromCharCode(65 + idx);
+            let text = `아이디어 ${label} (ID: ${idea.id})\n제목: ${idea.title}\n내용: ${idea.content}\n작성자: ${idea.author}`;
+            if (idea.attachments) {
+              idea.attachments.filter(a => a.type === "file" && ((a.mimeType || "").toLowerCase() === "application/pdf" || a.name.toLowerCase().endsWith(".pdf")))
+                .forEach(a => { text += `\n첨부 PDF: ${a.name} (아래 문서 블록 참조)`; });
+            }
+            return text;
+          })
+          .join("\n\n");
+
+        return sharedSection + ideasText;
+      })();
 
   // 아이디어 카드 PDF document blocks (이미지는 분석 제외)
   type IdeaBlock = { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } };
