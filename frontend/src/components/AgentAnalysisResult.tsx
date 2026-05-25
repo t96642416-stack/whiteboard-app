@@ -415,7 +415,7 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
                     <div className="bg-gray-50 rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-600 font-medium flex-shrink-0">
-                          {effect.label}
+                          예상효과 {j + 1}
                         </span>
                         <ET value={effect.title} className="text-xs font-bold text-indigo-700"
                           onSave={onUpdateResult ? v => upd(["ideas", i, "effects", j, "title"], v) : undefined} />

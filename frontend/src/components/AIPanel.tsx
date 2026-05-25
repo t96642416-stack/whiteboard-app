@@ -345,44 +345,6 @@ const AIPanel: React.FC<AIPanelProps> = ({
   // 파일 첨부 섹션 (아이디어 파일 + 전사지 두 구역)
   const FileAttachSection = () => (
     <div className="space-y-2">
-      {/* 섹션 필터 — 섹션이 2개 이상일 때만 표시 */}
-      {sectionGroups.length >= 2 && (
-        <div className="bg-white rounded-xl px-3.5 py-3">
-          <div className="flex items-center gap-1.5 mb-2">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2">
-              <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>
-            </svg>
-            <span className="text-xs font-semibold text-gray-700">분석 섹션</span>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              onClick={() => setSelectedSections(null)}
-              className="px-2.5 py-1 rounded-full text-xs font-semibold transition-colors"
-              style={{ backgroundColor: selectedSections === null ? "#6366f1" : "#f3f4f6", color: selectedSections === null ? "white" : "#6b7280" }}>
-              전체
-            </button>
-            {sectionGroups.map(g => {
-              const isSelected = selectedSections !== null && selectedSections.includes(g.title);
-              return (
-                <button key={g.title}
-                  onClick={() => {
-                    setSelectedSections(prev => {
-                      const base = prev ?? sectionGroups.map(s => s.title);
-                      return base.includes(g.title) ? base.filter(t => t !== g.title) : [...base, g.title];
-                    });
-                  }}
-                  className="px-2.5 py-1 rounded-full text-xs font-semibold transition-colors"
-                  style={{ backgroundColor: isSelected ? "#ede9fe" : "#f3f4f6", color: isSelected ? "#6366f1" : "#6b7280" }}>
-                  {g.title}
-                </button>
-              );
-            })}
-          </div>
-          {selectedSections !== null && selectedSections.length === 0 && (
-            <p className="text-xs text-rose-400 mt-1.5">섹션을 1개 이상 선택해주세요</p>
-          )}
-        </div>
-      )}
       {/* 현재 분석 모드 안내 */}
       <div className={`px-3 py-2 rounded-lg text-center flex items-center justify-center gap-1.5 ${ideaFiles.length > 0 ? "bg-indigo-50 text-indigo-600" : "bg-gray-50 text-gray-400"}`} style={{ fontSize: 10 }}>
         {ideaFiles.length > 0 ? (
@@ -712,6 +674,43 @@ const AIPanel: React.FC<AIPanelProps> = ({
 
                     {/* 파일 첨부 */}
                     <FileAttachSection />
+
+                    {/* 섹션 선택 — 섹션 2개 이상일 때만 */}
+                    {sectionGroups.length >= 2 && (
+                      <div className="bg-white rounded-xl px-3.5 py-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>
+                          </svg>
+                          <span className="font-semibold text-gray-700" style={{ fontSize: 12 }}>분석 섹션</span>
+                          <span className="text-gray-400 font-normal" style={{ fontSize: 10 }}>원하는 섹션만 선택</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          <button onClick={() => setSelectedSections(null)}
+                            className="px-2.5 py-1 rounded-full text-xs font-semibold transition-colors"
+                            style={{ backgroundColor: selectedSections === null ? "#6366f1" : "#f3f4f6", color: selectedSections === null ? "white" : "#6b7280" }}>
+                            전체
+                          </button>
+                          {sectionGroups.map(g => {
+                            const isSelected = selectedSections !== null && selectedSections.includes(g.title);
+                            return (
+                              <button key={g.title}
+                                onClick={() => setSelectedSections(prev => {
+                                  const base = prev ?? sectionGroups.map(s => s.title);
+                                  return base.includes(g.title) ? base.filter(t => t !== g.title) : [...base, g.title];
+                                })}
+                                className="px-2.5 py-1 rounded-full text-xs font-semibold transition-colors"
+                                style={{ backgroundColor: isSelected ? "#ede9fe" : "#f3f4f6", color: isSelected ? "#6366f1" : "#6b7280" }}>
+                                {g.title}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {selectedSections !== null && selectedSections.length === 0 && (
+                          <p className="text-xs text-rose-400 mt-1.5">섹션을 1개 이상 선택해주세요</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
