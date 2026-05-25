@@ -338,8 +338,12 @@ function App() {
   }, []);
 
   // 분석 요청 (AI가 보드에 추가한 카드는 분석 대상에서 제외)
-  const handleRequestAnalysis = useCallback((agentType: AgentType, files?: AnalysisFile[], useSearch?: boolean, filesOnly?: boolean) => {
+  const handleRequestAnalysis = useCallback((agentType: AgentType, files?: AnalysisFile[], useSearch?: boolean, filesOnly?: boolean, filteredSectionGroups?: { title: string; ideaIds: string[] }[]) => {
     const excludeIds = ideas.filter((i: any) => i.analysisSnapshot).map((i: any) => i.id);
+    // filteredSectionGroups가 있으면 그걸 우선, 없으면 전체 섹션
+    const effectiveSections = filteredSectionGroups !== undefined
+      ? (filteredSectionGroups.length > 0 ? filteredSectionGroups : undefined)
+      : (sectionGroups.length > 0 ? sectionGroups : undefined);
     getSocket().emit("analysis-requested", {
       agentType,
       userMessage: "",
@@ -349,7 +353,7 @@ function App() {
       topic,
       excludeIds,
       filesOnly: filesOnly || false,
-      sectionGroups: sectionGroups.length > 0 ? sectionGroups : undefined,
+      sectionGroups: effectiveSections,
     });
   }, [topic, topicFiles, ideas, sectionGroups]);
 
@@ -447,6 +451,7 @@ function App() {
         onSendChat={handleSendChat}
         onSendAIMessage={handleSendAIMessage}
         onRequestAnalysis={handleRequestAnalysis}
+        sectionGroups={sectionGroups}
         isAIResponding={isAIResponding}
         onClearChat={handleClearChat}
         onAddIdea={handleAddIdea}

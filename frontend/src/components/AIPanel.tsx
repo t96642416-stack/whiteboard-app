@@ -16,7 +16,8 @@ interface AIPanelProps {
   onAgentChange: (agent: AgentType) => void;
   onSendChat: (message: string, imageUrl?: string) => void;
   onSendAIMessage?: (message: string) => void;
-  onRequestAnalysis: (agentType: AgentType, files?: AnalysisFile[], useSearch?: boolean, filesOnly?: boolean) => void;
+  onRequestAnalysis: (agentType: AgentType, files?: AnalysisFile[], useSearch?: boolean, filesOnly?: boolean, filteredSectionGroups?: { title: string; ideaIds: string[] }[]) => void;
+  sectionGroups?: { title: string; ideaIds: string[] }[];
   isAIResponding: boolean;
   onClearChat?: () => void;
   onAddIdea?: (title: string, content: string, color: string, category: IdeaCategory, attachments: IdeaAttachment[], snapshot?: AnalysisSnapshot) => void;
@@ -36,6 +37,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
   onSendChat,
   onSendAIMessage,
   onRequestAnalysis,
+  sectionGroups = [],
   isAIResponding,
   onAddIdea,
   onApplyImage,
@@ -43,6 +45,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
   onDeleteHistory,
   onClearChat,
 }) => {
+  const [selectedSections, setSelectedSections] = useState<string[] | null>(null); // null = 전체
   const [inputText, setInputText] = useState("");
   const [aiInputText, setAiInputText] = useState("");
   const [useSearch, setUseSearch] = useState(false);
@@ -240,10 +243,12 @@ const AIPanel: React.FC<AIPanelProps> = ({
   const handleAgentClick = (agentType: AgentType) => {
     if (agentType === null) return;
     onAgentChange(agentType);
-    // 아이디어 파일이 있으면 → 파일만 분석 (보드 카드 제외, 토큰 절약)
-    // 아이디어 파일이 없으면 → 보드 카드 기반 분석 (기존 동작)
     const filesOnly = ideaFiles.length > 0;
-    onRequestAnalysis(agentType, analysisFiles.length > 0 ? analysisFiles : undefined, useSearch, filesOnly);
+    // 섹션 필터: null이면 전체(undefined 전달), 선택된 섹션이 있으면 필터링해서 전달
+    const filteredGroups = selectedSections === null
+      ? undefined
+      : sectionGroups.filter(g => selectedSections.includes(g.title));
+    onRequestAnalysis(agentType, analysisFiles.length > 0 ? analysisFiles : undefined, useSearch, filesOnly, filteredGroups);
     setShowAgentList(false);
     setShowInitial(false);
   };
@@ -340,6 +345,44 @@ const AIPanel: React.FC<AIPanelProps> = ({
   // 파일 첨부 섹션 (아이디어 파일 + 전사지 두 구역)
   const FileAttachSection = () => (
     <div className="space-y-2">
+      {/* 섹션 필터 — 섹션이 2개 이상일 때만 표시 */}
+      {sectionGroups.length >= 2 && (
+        <div className="bg-white rounded-xl px-3.5 py-3">
+          <div className="flex items-center gap-1.5 mb-2">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>
+            </svg>
+            <span className="text-xs font-semibold text-gray-700">분석 섹션</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => setSelectedSections(null)}
+              className="px-2.5 py-1 rounded-full text-xs font-semibold transition-colors"
+              style={{ backgroundColor: selectedSections === null ? "#6366f1" : "#f3f4f6", color: selectedSections === null ? "white" : "#6b7280" }}>
+              전체
+            </button>
+            {sectionGroups.map(g => {
+              const isSelected = selectedSections !== null && selectedSections.includes(g.title);
+              return (
+                <button key={g.title}
+                  onClick={() => {
+                    setSelectedSections(prev => {
+                      const base = prev ?? sectionGroups.map(s => s.title);
+                      return base.includes(g.title) ? base.filter(t => t !== g.title) : [...base, g.title];
+                    });
+                  }}
+                  className="px-2.5 py-1 rounded-full text-xs font-semibold transition-colors"
+                  style={{ backgroundColor: isSelected ? "#ede9fe" : "#f3f4f6", color: isSelected ? "#6366f1" : "#6b7280" }}>
+                  {g.title}
+                </button>
+              );
+            })}
+          </div>
+          {selectedSections !== null && selectedSections.length === 0 && (
+            <p className="text-xs text-rose-400 mt-1.5">섹션을 1개 이상 선택해주세요</p>
+          )}
+        </div>
+      )}
       {/* 현재 분석 모드 안내 */}
       <div className={`px-3 py-2 rounded-lg text-center flex items-center justify-center gap-1.5 ${ideaFiles.length > 0 ? "bg-indigo-50 text-indigo-600" : "bg-gray-50 text-gray-400"}`} style={{ fontSize: 10 }}>
         {ideaFiles.length > 0 ? (

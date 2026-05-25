@@ -173,7 +173,7 @@ const EVIDENCE_RULE = `
    파일 안에 출처명·날짜가 있으면 괄호에 넣으세요. 없으면 괄호 생략.
    형식: "핵심 원문 발췌" (출처명, 연도)
    예시: "소음 민원 2021년 68건→2024년 156건" (학내 시설기획팀, 2024)
-   ※ A안/B안/C안/D안 같은 아이디어 라벨을 출처명으로 쓰는 것은 절대 금지입니다. 실제 출처(기관·연구·통계 등)만 쓰세요.
+   ※ A안/B안/C안/D안 같은 아이디어 라벨을 출처명으로 쓰는 것은 절대 금지입니다. 아이디어에 첨부된 파일 내용을 인용할 때도 절대로 "C안", "B안" 등을 출처로 쓰지 마세요. 파일 안에 실제 출처(기관명·연구명·통계 등)가 있으면 그것만 쓰고, 없으면 괄호를 생략하세요.
 2. 아이디어 파일에 없는 근거는 "추가 근거: "를 앞에 붙이고 괄호로 출처 표기하세요.
    형식: 추가 근거: 내용 (분야, 연도)
    예시: 추가 근거: 파티션만으론 음압 차단 한계 (건축음향학, 2023)
@@ -395,7 +395,7 @@ export async function analyzeIdeas(
                 try {
                   const base64 = a.content.includes(",") ? a.content.split(",")[1] : a.content;
                   const decoded = Buffer.from(base64, "base64").toString("utf-8").slice(0, 3000);
-                  text += `\n\n[첨부 파일: ${a.name}]\n${decoded}`;
+                  text += `\n\n[첨부 파일 내용 — 이 파일의 내용을 인용할 때 아이디어 라벨(A안/B안/C안 등)을 출처로 절대 쓰지 마세요. 파일 안에 실제 출처가 있으면 그것만, 없으면 괄호 생략]\n${decoded}`;
                 } catch { /* 디코딩 실패 시 무시 */ }
               } else if ((a.mimeType || "").toLowerCase() === "application/pdf" || a.name.toLowerCase().endsWith(".pdf")) {
                 // PDF는 document 블록으로 별도 전달 → 여기서는 참조 메모만
