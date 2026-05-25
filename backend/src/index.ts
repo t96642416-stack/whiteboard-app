@@ -145,10 +145,13 @@ io.on("connection", (socket) => {
       roomIdeas[currentRoom] = [];
     }
 
-    // RAM에는 이미지 content 제외 (OOM 방지)
+    // RAM에는 이미지 content만 제외 (OOM 방지), 텍스트 파일은 내용 유지 (AI 분석에 사용)
     const ideaForRam: IdeaInput = {
       ...idea,
-      attachments: idea.attachments?.map(a => ({ ...a, content: "" })) ?? [],
+      attachments: idea.attachments?.map(a => ({
+        ...a,
+        content: a.type === "image" ? "" : a.content,
+      })) ?? [],
     };
     roomIdeas[currentRoom].push(ideaForRam);
 
@@ -171,7 +174,10 @@ io.on("connection", (socket) => {
         if (category) idea.category = category;
         if (color) idea.color = color;
         if (aiImageUrl !== undefined) idea.aiImageUrl = aiImageUrl;
-        if (attachments !== undefined) idea.attachments = attachments;
+        if (attachments !== undefined) idea.attachments = attachments.map((a: any) => ({
+          ...a,
+          content: a.type === "image" ? "" : a.content,
+        }));
       }
     }
     // DB 업데이트
