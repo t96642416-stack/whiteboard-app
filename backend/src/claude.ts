@@ -396,12 +396,13 @@ export async function analyzeIdeas(
   const hasSectionGroups = sectionGroups && sectionGroups.length > 0;
   const ideasBody = hasSectionGroups
     ? sectionGroups!.map((group, idx) => {
-        const label = String.fromCharCode(65 + idx) + "안";
+        const label = String.fromCharCode(65 + idx);
         const groupIdeas = ideas.filter(i => group.ideaIds.includes(i.id));
         const subContent = groupIdeas.length > 0
           ? groupIdeas.map(i => `  - ${i.title}${i.content ? ": " + i.content : ""}`).join("\n")
           : "  (세부 아이디어 없음)";
-        return `${label} (${group.title})\n${subContent}`;
+        // 섹션 제목을 아이디어 이름으로 사용하도록 AI에게 전달
+        return `아이디어 ${label} — 이름: "${group.title}"\n${subContent}`;
       }).join("\n\n")
     : ideas.length === 0
     ? "첨부된 파일을 기반으로 분석해주세요. 아이디어 카드는 없습니다."
@@ -614,6 +615,13 @@ export async function analyzeIdeas(
   // 검색 출처가 있으면 결과에 포함
   if (searchSources.length > 0) {
     result.searchSources = searchSources;
+  }
+  // 섹션 분석인 경우 아이디어 이름을 섹션 제목으로 확실히 교체
+  if (hasSectionGroups && Array.isArray(result.ideas)) {
+    result.ideas = result.ideas.map((idea: any, idx: number) => ({
+      ...idea,
+      name: sectionGroups![idx]?.title ?? idea.name,
+    }));
   }
 
   return result;
