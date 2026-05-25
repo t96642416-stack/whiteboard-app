@@ -145,7 +145,7 @@ io.on("connection", (socket) => {
       roomIdeas[currentRoom] = [];
     }
 
-    // RAM에는 이미지 content만 제외 (OOM 방지), 텍스트 파일은 내용 유지 (AI 분석에 사용)
+    // RAM에는 이미지 content 제외 (OOM 방지), 텍스트/PDF는 유지
     const ideaForRam: IdeaInput = {
       ...idea,
       attachments: idea.attachments?.map(a => ({

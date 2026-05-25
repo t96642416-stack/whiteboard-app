@@ -382,10 +382,7 @@ export async function analyzeIdeas(
           const label = String.fromCharCode(65 + idx);
           let text = `아이디어 ${label} (ID: ${idea.id})\n제목: ${idea.title}\n내용: ${idea.content}\n작성자: ${idea.author}`;
           if (idea.attachments && idea.attachments.length > 0) {
-            const imageCount = idea.attachments.filter(a => a.type === "image").length;
-            if (imageCount > 0) text += `\n첨부 이미지: ${imageCount}개 (아래 이미지 참조)`;
-
-            // 텍스트 계열 파일: base64 디코딩 후 내용 포함
+            // 텍스트 계열 파일: base64 디코딩 후 내용 포함 (이미지는 분석 제외)
             const TEXT_MIMES = ["text/plain", "text/csv", "text/markdown", "text/html", "application/json", "text/javascript"];
             const TEXT_EXTS = [".txt", ".md", ".csv", ".json", ".tsv", ".log"];
             idea.attachments.filter(a => a.type === "file").forEach(a => {
@@ -409,12 +406,8 @@ export async function analyzeIdeas(
         })
         .join("\n\n");
 
-  // 아이디어 카드에 첨부된 이미지 / PDF vision blocks
-  type ValidMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
-  const VALID_MEDIA_TYPES: ValidMediaType[] = ["image/jpeg", "image/png", "image/gif", "image/webp"];
-  type IdeaBlock =
-    | { type: "image"; source: { type: "base64"; media_type: ValidMediaType; data: string } }
-    | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } };
+  // 아이디어 카드 PDF document blocks (이미지는 분석 제외)
+  type IdeaBlock = { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } };
   const ideaImageBlocks: IdeaBlock[] = [];
   ideas.forEach((idea) => {
     if (!idea.attachments) return;
@@ -422,14 +415,7 @@ export async function analyzeIdeas(
       if (!a.content) return;
       const base64Data = a.content.includes(",") ? a.content.split(",")[1] : a.content;
       const mime = (a.mimeType || "").toLowerCase();
-
-      if (a.type === "image") {
-        const rawMime = mime || "image/jpeg";
-        const mediaType: ValidMediaType = VALID_MEDIA_TYPES.includes(rawMime as ValidMediaType)
-          ? rawMime as ValidMediaType : "image/jpeg";
-        ideaImageBlocks.push({ type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } });
-      } else if (a.type === "file" && (mime === "application/pdf" || a.name.toLowerCase().endsWith(".pdf"))) {
-        // PDF는 document 블록으로 직접 전달 → Claude가 내용 읽음
+      if (a.type === "file" && (mime === "application/pdf" || a.name.toLowerCase().endsWith(".pdf"))) {
         ideaImageBlocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: base64Data } });
       }
     });
