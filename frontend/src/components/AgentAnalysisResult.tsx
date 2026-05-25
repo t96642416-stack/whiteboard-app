@@ -682,24 +682,30 @@ const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onA
               <CollapsibleBlock key={i} label={String.fromCharCode(65 + i)} name={idea.name} badge={badge}
                 onEditName={onUpdateResult ? v => upd(["ideas", i, "name"], v) : undefined}>
                 <DraggableCard title={idea.name} content={idea.name} snapshot={{ agentType: 'guide', itemData: { ...idea, index: i, score: (idea as any).score } }} onAdd={onAddIdea}>
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     {src && <div className="flex justify-end"><SrcLink source={src} label={`${i % sources!.length + 1}`} /></div>}
                     {[
-                      { label: "실현 가능성", val: clampScore(idea.feasibility), color: "#4F48ED" },
-                      { label: "사용자 편의", val: clampScore(idea.userExperience), color: "#eab308" },
-                      { label: "주제 차별성", val: clampScore(idea.uniqueness), color: clampScore(idea.uniqueness) >= 50 ? "#16a34a" : "#ef4444" },
-                    ].map(({ label, val, color }) => (
-                      <div key={label}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-gray-500">{label}</span>
-                          <span className="text-xs font-semibold" style={{ color }}>{val}%</span>
+                      { label: "실현 가능성", val: clampScore(idea.feasibility), color: "#4F48ED", reasonKey: "feasibilityReason" as const },
+                      { label: "사용자 편의",  val: clampScore(idea.userExperience), color: "#eab308", reasonKey: "userExperienceReason" as const },
+                      { label: "주제 차별성", val: clampScore(idea.uniqueness), color: clampScore(idea.uniqueness) >= 50 ? "#16a34a" : "#ef4444", reasonKey: "uniquenessReason" as const },
+                    ].map(({ label, val, color, reasonKey }) => {
+                      const reason = (idea as any)[reasonKey] as string | undefined;
+                      return (
+                        <div key={label}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs text-gray-500 w-16 flex-shrink-0">{label}</span>
+                            <div className="w-24 flex-shrink-0 bg-gray-100 rounded-full h-2">
+                              <div className="h-2 rounded-full transition-all" style={{ width: `${val}%`, backgroundColor: color }} />
+                            </div>
+                            <span className="text-xs font-semibold w-8 flex-shrink-0" style={{ color }}>{val}%</span>
+                            {reason && (
+                              <ET value={reason} className="text-xs text-gray-400 leading-snug flex-1"
+                                onSave={onUpdateResult ? v => upd(["ideas", i, reasonKey], v) : undefined} />
+                            )}
+                          </div>
                         </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2">
-                          <div className="h-2 rounded-full transition-all"
-                            style={{ width: `${val}%`, backgroundColor: color }} />
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </DraggableCard>
               </CollapsibleBlock>
@@ -732,30 +738,38 @@ const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[]; o
           : <button className="text-gray-400 hover:text-gray-600 text-lg leading-none">···</button>}
       </div>
 
-      <div className="bg-gray-50 rounded-xl p-3 mb-4">
-        <p className="text-xs font-bold text-gray-700 mb-2.5">기준별 결과</p>
-        <div className="space-y-2">
+      {/* 파란색 추천 박스 (상단으로 이동) */}
+      <div className="rounded-xl p-3 mb-2" style={{ backgroundColor: "#EEF2FF" }}>
+        <ET value={result.recommendation} className="text-xs font-semibold text-indigo-700 leading-relaxed" multiline
+          onSave={onUpdateResult ? v => upd(["recommendation"], v) : undefined} />
+      </div>
+
+      {/* 기준별 결과 — 가로 열 배치 */}
+      <div className="mb-4">
+        <p className="text-xs font-bold text-gray-700 mb-2">기준별 결과</p>
+        <div className="flex gap-2">
           {result.criteriaResults.map((c, i) => {
             const winnerIdx = c.winner.charCodeAt(0) - 65;
             const badge = IDEA_BADGE_COLORS[winnerIdx % Object.keys(IDEA_BADGE_COLORS).length];
             const src = sources && sources.length > 0 ? sources[i % sources.length] : null;
             return (
-              <div key={i} className="flex items-center justify-between gap-2">
-                <ET value={c.criterion} className="text-xs text-gray-600 flex-1"
+              <div key={i} className="flex-1 bg-gray-50 rounded-xl p-3 flex flex-col items-center gap-2">
+                <ET value={c.criterion} className="text-xs text-gray-500 text-center"
                   onSave={onUpdateResult ? v => upd(["criteriaResults", i, "criterion"], v) : undefined} />
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {src ? (
-                    <a href={src.link} target="_blank" rel="noopener noreferrer"
-                      className="text-xs text-gray-500 hover:text-green-700 hover:underline">
-                      {c.winner}안 우위
+                <span className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-sm"
+                  style={{ backgroundColor: badge.bg, color: badge.text }}>
+                  {c.winner}
+                </span>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-gray-500">우위</span>
+                  {src && (
+                    <a href={src.link} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:text-green-700">
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+                        <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                      </svg>
                     </a>
-                  ) : (
-                    <span className="text-xs font-semibold" style={{ color: IDEA_BADGE_COLORS[winnerIdx % Object.keys(IDEA_BADGE_COLORS).length]?.text || "#374151" }}>{c.winner}안 우위</span>
                   )}
-                  <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                    style={{ backgroundColor: badge.bg, color: badge.text }}>
-                    {c.winner}
-                  </span>
                 </div>
               </div>
             );
@@ -763,44 +777,38 @@ const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[]; o
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      {/* 아이디어 섹션 — GuideView와 동일한 전체 너비 레이아웃 */}
+      <div className="mb-4">
         {result.ideas.map((idea, i) => {
           const badge = IDEA_BADGE_COLORS[i % Object.keys(IDEA_BADGE_COLORS).length];
           return (
-            <div key={i} className="bg-gray-50 rounded-lg p-3">
-              <div className="flex items-center gap-1.5 mb-2">
-                <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                  style={{ backgroundColor: badge.bg, color: badge.text }}>
-                  {String.fromCharCode(65 + i)}
-                </span>
-                <ET value={idea.name} className="text-xs font-semibold text-gray-700"
-                  onSave={onUpdateResult ? v => upd(["ideas", i, "name"], v) : undefined} />
-              </div>
-              <div className="space-y-1.5">
+            <CollapsibleBlock key={i} label={String.fromCharCode(65 + i)} name={idea.name} badge={badge}
+              onEditName={onUpdateResult ? v => upd(["ideas", i, "name"], v) : undefined}>
+              <div className="space-y-2.5">
                 {[
-                  { label: "실현 가능성", val: clampScore(idea.feasibility), color: "#4F48ED" },
-                  { label: "사용자 편의", val: clampScore(idea.userExperience), color: "#eab308" },
-                  { label: "차별성", val: clampScore(idea.uniqueness), color: clampScore(idea.uniqueness) >= 50 ? "#16a34a" : "#ef4444" },
-                ].map(({ label, val, color }) => (
-                  <div key={label}>
-                    <div className="flex justify-between mb-0.5">
-                      <span className="text-xs text-gray-500">{label}</span>
-                      <span className="text-xs font-medium" style={{ color }}>{val}%</span>
+                  { label: "실현 가능성", val: clampScore(idea.feasibility), color: "#4F48ED", reasonKey: "feasibilityReason" as const },
+                  { label: "사용자 편의",  val: clampScore(idea.userExperience), color: "#eab308", reasonKey: "userExperienceReason" as const },
+                  { label: "주제 차별성", val: clampScore(idea.uniqueness), color: clampScore(idea.uniqueness) >= 50 ? "#16a34a" : "#ef4444", reasonKey: "uniquenessReason" as const },
+                ].map(({ label, val, color, reasonKey }) => {
+                  const reason = (idea as any)[reasonKey] as string | undefined;
+                  return (
+                    <div key={label} className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500 w-16 flex-shrink-0">{label}</span>
+                      <div className="w-24 flex-shrink-0 bg-gray-100 rounded-full h-2">
+                        <div className="h-2 rounded-full transition-all" style={{ width: `${val}%`, backgroundColor: color }} />
+                      </div>
+                      <span className="text-xs font-semibold w-8 flex-shrink-0" style={{ color }}>{val}%</span>
+                      {reason && (
+                        <ET value={reason} className="text-xs text-gray-400 leading-snug flex-1"
+                          onSave={onUpdateResult ? v => upd(["ideas", i, reasonKey], v) : undefined} />
+                      )}
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-1.5">
-                      <div className="h-1.5 rounded-full transition-all" style={{ width: `${val}%`, backgroundColor: color }} />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-            </div>
+            </CollapsibleBlock>
           );
         })}
-      </div>
-
-      <div className="rounded-xl p-3 mb-3" style={{ backgroundColor: "#EEF2FF" }}>
-        <ET value={result.recommendation} className="text-xs font-semibold text-indigo-700 leading-relaxed" multiline
-          onSave={onUpdateResult ? v => upd(["recommendation"], v) : undefined} />
       </div>
 
       {result.limitNote && (

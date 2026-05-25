@@ -301,8 +301,18 @@ const GUIDE_SYSTEM_PROMPT = `당신은 팀의 의사결정을 돕는 AI 퍼실�
   "recommendedIdea": "추천 아이디어 이름 (주어진 것 중에서)",
   "recommendReason": "추천 이유 1-2문장 (첨부 자료 근거 포함)",
   "ideas": [
-    {"name": "아이디어 A 이름", "feasibility": 80, "userExperience": 55, "uniqueness": 20},
-    {"name": "아이디어 B 이름", "feasibility": 66, "userExperience": 88, "uniqueness": 75}
+    {
+      "name": "아이디어 A 이름",
+      "feasibility": 80, "feasibilityReason": "왜 이 점수인지 짧은 근거 (15자 이내)",
+      "userExperience": 55, "userExperienceReason": "왜 이 점수인지 짧은 근거 (15자 이내)",
+      "uniqueness": 20, "uniquenessReason": "왜 이 점수인지 짧은 근거 (15자 이내)"
+    },
+    {
+      "name": "아이디어 B 이름",
+      "feasibility": 66, "feasibilityReason": "왜 이 점수인지 짧은 근거 (15자 이내)",
+      "userExperience": 88, "userExperienceReason": "왜 이 점수인지 짧은 근거 (15자 이내)",
+      "uniqueness": 75, "uniquenessReason": "왜 이 점수인지 짧은 근거 (15자 이내)"
+    }
   ],
   "limitNote": "분석 한계 또는 추가 검토 필요 사항"
 }`;
@@ -320,8 +330,18 @@ const ADVISE_SYSTEM_PROMPT = `당신은 팀의 의사결정을 돕는 AI 퍼실�
     {"criterion": "차별성", "winner": "B"}
   ],
   "ideas": [
-    {"name": "아이디어 A 이름", "feasibility": 80, "userExperience": 55, "uniqueness": 20},
-    {"name": "아이디어 B 이름", "feasibility": 66, "userExperience": 88, "uniqueness": 75}
+    {
+      "name": "아이디어 A 이름",
+      "feasibility": 80, "feasibilityReason": "왜 이 점수인지 짧은 근거 (15자 이내)",
+      "userExperience": 55, "userExperienceReason": "왜 이 점수인지 짧은 근거 (15자 이내)",
+      "uniqueness": 20, "uniquenessReason": "왜 이 점수인지 짧은 근거 (15자 이내)"
+    },
+    {
+      "name": "아이디어 B 이름",
+      "feasibility": 66, "feasibilityReason": "왜 이 점수인지 짧은 근거 (15자 이내)",
+      "userExperience": 88, "userExperienceReason": "왜 이 점수인지 짧은 근거 (15자 이내)",
+      "uniqueness": 75, "uniquenessReason": "왜 이 점수인지 짧은 근거 (15자 이내)"
+    }
   ],
   "recommendation": "첨부 자료 기반으로 차별성을 우선한다면 B안, 실현 가능성을 우선한다면 A안이 적합해요. 팀이 가장 중요하게 생각하는 기준이 무엇인가요?",
   "limitNote": "분석 한계 또는 추가 검토 필요 사항"

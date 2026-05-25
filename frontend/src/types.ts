@@ -159,7 +159,12 @@ export interface GuideAnalysis {
   agentType: 'guide';
   recommendedIdea: string;
   recommendReason: string;
-  ideas: { name: string; feasibility: number; userExperience: number; uniqueness: number }[];
+  ideas: {
+    name: string;
+    feasibility: number; feasibilityReason?: string;
+    userExperience: number; userExperienceReason?: string;
+    uniqueness: number; uniquenessReason?: string;
+  }[];
   limitNote: string;
   searchSources?: SearchSource[];
 }
@@ -168,7 +173,12 @@ export interface GuideAnalysis {
 export interface AdviseAnalysis {
   agentType: 'advise';
   criteriaResults: { criterion: string; winner: string }[];
-  ideas: { name: string; feasibility: number; userExperience: number; uniqueness: number }[];
+  ideas: {
+    name: string;
+    feasibility: number; feasibilityReason?: string;
+    userExperience: number; userExperienceReason?: string;
+    uniqueness: number; uniquenessReason?: string;
+  }[];
   recommendation: string;
   limitNote?: string;
   searchSources?: SearchSource[];
