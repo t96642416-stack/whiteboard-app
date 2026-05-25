@@ -366,8 +366,11 @@ const AIPanel: React.FC<AIPanelProps> = ({
               return (
                 <button key={g.title}
                   onClick={() => setSelectedSections(prev => {
-                    const base = prev ?? sectionGroups.map(s => s.title);
-                    return base.includes(g.title) ? base.filter(t => t !== g.title) : [...base, g.title];
+                    if (prev === null) return [g.title]; // 전체 상태 → 그것만 선택
+                    const next = prev.includes(g.title)
+                      ? prev.filter(t => t !== g.title)
+                      : [...prev, g.title];
+                    return next.length === sectionGroups.length ? null : next; // 전부 선택 시 전체로
                   })}
                   className="px-2.5 py-1 rounded-full text-xs font-semibold transition-colors"
                   style={{ backgroundColor: isSelected ? "#ede9fe" : "#f3f4f6", color: isSelected ? "#6366f1" : "#6b7280" }}>
