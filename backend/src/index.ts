@@ -89,8 +89,6 @@ io.on("connection", (socket) => {
       roomUsers[roomId].set(userName, userColor || "#E5E7EB");
 
       // DB에서 불러오기 (캐시가 비어있을 때만)
-      // ideasFromDb: 이미지 포함 원본 (joining user에게 전송용)
-      let ideasFromDb: any[] | null = null;
       if (!roomIdeas[roomId] || roomIdeas[roomId].length === 0) {
         try {
           const [ideas, sections, messages, analysisResults, canvasImages] = await Promise.all([
@@ -100,14 +98,7 @@ io.on("connection", (socket) => {
             dbGetAnalysisResults(roomId),
             dbGetCanvasImages(roomId),
           ]);
-          ideasFromDb = ideas; // 이미지 포함 원본 보관
-          roomIdeas[roomId] = ideas.map((idea: any) => ({
-            ...idea,
-            attachments: idea.attachments?.map((a: any) => ({
-              ...a,
-              content: a.type === "image" ? "" : a.content,
-            })) ?? [],
-          }));
+          roomIdeas[roomId] = ideas; // 이미지 포함 전체 보관 (속도 우선)
           roomSections[roomId] = sections;
           roomMessages[roomId] = messages;
           roomAnalysisResults[roomId] = analysisResults;
@@ -125,15 +116,7 @@ io.on("connection", (socket) => {
         }
       }
 
-      // 이미 방에 사람이 있어서 캐시가 있던 경우에만 DB 재조회 (이미지 포함 전송)
-      let ideasForState: any[] = ideasFromDb ?? roomIdeas[roomId];
-      if (ideasFromDb === null) {
-        try {
-          ideasForState = await dbGetIdeas(roomId);
-        } catch (e) {
-          ideasForState = roomIdeas[roomId];
-        }
-      }
+      const ideasForState = roomIdeas[roomId];
 
       const usersArray = Array.from(roomUsers[roomId].entries()).map(([name, color]) => ({ name, color }));
 
@@ -165,17 +148,9 @@ io.on("connection", (socket) => {
       roomIdeas[currentRoom] = [];
     }
 
-    // RAM에는 이미지 content 제외 (OOM 방지), 텍스트/PDF는 유지
-    const ideaForRam: IdeaInput = {
-      ...idea,
-      attachments: idea.attachments?.map(a => ({
-        ...a,
-        content: a.type === "image" ? "" : a.content,
-      })) ?? [],
-    };
-    roomIdeas[currentRoom].push(ideaForRam);
+    // RAM에 이미지 포함 전체 저장 (속도 우선)
+    roomIdeas[currentRoom].push(idea);
 
-    // DB에는 이미지 포함 원본 저장 (재접속 시 복원용)
     dbUpsertIdea(currentRoom, idea).catch(e => console.error("idea upsert 실패:", e));
 
     // 발신자 제외하고 브로드캐스트 (발신자는 이미 낙관적 업데이트로 반영됨)
@@ -194,10 +169,7 @@ io.on("connection", (socket) => {
         if (category) idea.category = category;
         if (color) idea.color = color;
         if (aiImageUrl !== undefined) idea.aiImageUrl = aiImageUrl;
-        if (attachments !== undefined) idea.attachments = attachments.map((a: any) => ({
-          ...a,
-          content: a.type === "image" ? "" : a.content,
-        }));
+        if (attachments !== undefined) idea.attachments = attachments;
       }
     }
     // DB 업데이트
