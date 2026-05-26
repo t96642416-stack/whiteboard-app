@@ -55,6 +55,8 @@ const AIPanel: React.FC<AIPanelProps> = ({
   const [showInitial, setShowInitial] = useState(false);
   const [showAnalysisHistory, setShowAnalysisHistory] = useState(false);
   const [viewingHistoryItemId, setViewingHistoryItemId] = useState<string | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set());
   // analysisHistory가 업데이트될 때 항상 최신 객체를 반영하도록 파생
   const viewingHistoryItem = viewingHistoryItemId
     ? (analysisHistory.find(item => item.id === viewingHistoryItemId) ?? null)
@@ -564,12 +566,56 @@ const AIPanel: React.FC<AIPanelProps> = ({
             {/* ── 분석 내역 목록 ── */}
             {showAnalysisHistory && !viewingHistoryItem ? (
               <div>
+                {/* 헤더 */}
                 <div className="flex items-center gap-2 mb-4">
-                  <button onClick={() => setShowAnalysisHistory(false)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                  <button onClick={() => { setShowAnalysisHistory(false); setSelectMode(false); setSelectedHistoryIds(new Set()); }} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6" /></svg>
                   </button>
-                  <span className="text-sm font-semibold text-gray-700">분석 내역</span>
+                  <span className="text-sm font-semibold text-gray-700 flex-1">분석 내역</span>
+                  {analysisHistory.length > 0 && onDeleteHistory && (
+                    selectMode ? (
+                      <button onClick={() => { setSelectMode(false); setSelectedHistoryIds(new Set()); }}
+                        className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-100">취소</button>
+                    ) : (
+                      <button onClick={() => setSelectMode(true)}
+                        className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-100">선택</button>
+                    )
+                  )}
                 </div>
+
+                {/* 선택 모드 액션 바 */}
+                {selectMode && analysisHistory.length > 0 && (
+                  <div className="flex items-center gap-2 mb-3 px-1">
+                    <button
+                      onClick={() => setSelectedHistoryIds(
+                        selectedHistoryIds.size === analysisHistory.length
+                          ? new Set()
+                          : new Set(analysisHistory.map(i => i.id))
+                      )}
+                      className="text-xs text-purple-600 hover:text-purple-800 font-medium"
+                    >
+                      {selectedHistoryIds.size === analysisHistory.length ? "전체 해제" : "전체 선택"}
+                    </button>
+                    <span className="text-gray-200 flex-1">|</span>
+                    {selectedHistoryIds.size > 0 && (
+                      <button
+                        onClick={() => {
+                          if (!confirm(`선택한 ${selectedHistoryIds.size}개를 삭제할까요?`)) return;
+                          analysisHistory
+                            .filter(i => selectedHistoryIds.has(i.id) && i.dbId != null)
+                            .forEach(i => onDeleteHistory!(i.dbId!));
+                          setSelectedHistoryIds(new Set());
+                          setSelectMode(false);
+                        }}
+                        className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 font-medium"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
+                        {selectedHistoryIds.size}개 삭제
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {analysisHistory.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 text-center">
                     <div className="mb-3 text-gray-300"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div>
@@ -579,15 +625,31 @@ const AIPanel: React.FC<AIPanelProps> = ({
                   <div className="space-y-2">
                     {analysisHistory.map((item) => {
                       const agent = AGENT_OPTIONS.find((a) => a.type === item.agentType);
+                      const isSelected = selectedHistoryIds.has(item.id);
                       return (
-                        <div key={item.id} className="relative group/item">
-                          <button onClick={() => setViewingHistoryItemId(item.id)}
-                            className="w-full text-left px-4 py-3 rounded-xl border border-gray-100 hover:border-purple-200 hover:bg-purple-50 transition-all group pr-10">
+                        <div key={item.id} className="relative group/item flex items-center gap-2">
+                          {/* 선택 모드 체크박스 */}
+                          {selectMode && (
+                            <button
+                              onClick={() => setSelectedHistoryIds(prev => {
+                                const next = new Set(prev);
+                                isSelected ? next.delete(item.id) : next.add(item.id);
+                                return next;
+                              })}
+                              className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? "bg-purple-500 border-purple-500" : "border-gray-300 bg-white"}`}
+                            >
+                              {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => selectMode
+                              ? setSelectedHistoryIds(prev => { const next = new Set(prev); isSelected ? next.delete(item.id) : next.add(item.id); return next; })
+                              : setViewingHistoryItemId(item.id)
+                            }
+                            className={`flex-1 text-left px-4 py-3 rounded-xl border transition-all ${isSelected ? "border-purple-300 bg-purple-50" : "border-gray-100 hover:border-purple-200 hover:bg-purple-50"} pr-10`}>
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-semibold text-purple-600 flex items-center gap-1">
-                                {agent?.name || "속성 분석형"}
-                              </span>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" className="group-hover:stroke-purple-400"><path d="M9 18l6-6-6-6" /></svg>
+                              <span className="text-xs font-semibold text-purple-600">{agent?.name || "속성 분석형"}</span>
+                              {!selectMode && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" className="group-hover/item:stroke-purple-400"><path d="M9 18l6-6-6-6" /></svg>}
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-gray-500">{item.requester || "알 수 없음"}</span>
@@ -595,7 +657,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                               <span className="text-xs text-gray-400">{new Date(item.timestamp).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span>
                             </div>
                           </button>
-                          {onDeleteHistory && item.dbId != null && (
+                          {!selectMode && onDeleteHistory && item.dbId != null && (
                             <button
                               onClick={(e) => { e.stopPropagation(); if (confirm("이 분석 내역을 삭제할까요?")) onDeleteHistory(item.dbId!); }}
                               className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg opacity-0 group-hover/item:opacity-100 hover:bg-red-50 transition-all"
