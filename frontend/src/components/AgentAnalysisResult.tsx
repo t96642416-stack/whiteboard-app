@@ -457,9 +457,9 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
               })}
 
               {idea.similarCase && (
-                <div className="rounded-lg p-3" style={{ backgroundColor: "#f9fafb" }}>
-                  <p className="text-xs font-semibold text-gray-500 mb-1">유사 사례</p>
-                  <ET value={idea.similarCase} className="text-xs text-gray-600 leading-relaxed" multiline
+                <div className="rounded-lg p-3" style={{ backgroundColor: "#eff6ff", border: "1px solid #bfdbfe" }}>
+                  <p className="text-xs font-semibold text-blue-600 mb-1">유사 사례</p>
+                  <ET value={idea.similarCase} className="text-xs text-blue-700 leading-relaxed" multiline
                     onSave={onUpdateResult ? v => upd(["ideas", i, "similarCase"], v) : undefined} />
                 </div>
               )}
