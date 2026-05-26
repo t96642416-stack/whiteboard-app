@@ -88,7 +88,9 @@ io.on("connection", (socket) => {
       }
       roomUsers[roomId].set(userName, userColor || "#E5E7EB");
 
-      // DB에서 불러오기 (캐시가 비어있을 때만 RAM 초기화, ideas는 항상 DB에서 직접 전송)
+      // DB에서 불러오기 (캐시가 비어있을 때만)
+      // ideasFromDb: 이미지 포함 원본 (joining user에게 전송용)
+      let ideasFromDb: any[] | null = null;
       if (!roomIdeas[roomId] || roomIdeas[roomId].length === 0) {
         try {
           const [ideas, sections, messages, analysisResults, canvasImages] = await Promise.all([
@@ -98,6 +100,7 @@ io.on("connection", (socket) => {
             dbGetAnalysisResults(roomId),
             dbGetCanvasImages(roomId),
           ]);
+          ideasFromDb = ideas; // 이미지 포함 원본 보관
           roomIdeas[roomId] = ideas.map((idea: any) => ({
             ...idea,
             attachments: idea.attachments?.map((a: any) => ({
@@ -122,12 +125,14 @@ io.on("connection", (socket) => {
         }
       }
 
-      // 접속 시 ideas는 항상 DB에서 직접 읽어 이미지 포함 전송
-      let ideasForState: any[] = roomIdeas[roomId];
-      try {
-        ideasForState = await dbGetIdeas(roomId);
-      } catch (e) {
-        // DB 실패 시 RAM fallback
+      // 이미 방에 사람이 있어서 캐시가 있던 경우에만 DB 재조회 (이미지 포함 전송)
+      let ideasForState: any[] = ideasFromDb ?? roomIdeas[roomId];
+      if (ideasFromDb === null) {
+        try {
+          ideasForState = await dbGetIdeas(roomId);
+        } catch (e) {
+          ideasForState = roomIdeas[roomId];
+        }
       }
 
       const usersArray = Array.from(roomUsers[roomId].entries()).map(([name, color]) => ({ name, color }));
