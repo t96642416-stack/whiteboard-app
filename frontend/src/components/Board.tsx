@@ -35,7 +35,7 @@ interface BoardProps {
   onRestoreIdeas?: (items: Array<{ idea: Idea; pos: { x: number; y: number } }>) => void;
   onEditIdea: (id: string, title: string, content: string, category: IdeaCategory, color: string, attachments?: IdeaAttachment[]) => void;
   onAddComment: (ideaId: string, text: string) => void;
-  onSectionAnalysis?: (ideas: Idea[], agentType: AgentType) => void;
+  onSectionAnalysis?: (ideas: Idea[], agentType: AgentType, sectionTitle: string) => void;
   onFocusedIdeaChange?: (idea: Idea | null) => void;
   onSectionGroupsChange?: (groups: { title: string; ideaIds: string[] }[]) => void;
   initialSections?: BoardSection[];
@@ -1202,7 +1202,7 @@ const Board: React.FC<BoardProps> = ({
                                     alert("섹션 안에 카드가 없어요. 카드를 섹션 영역 안으로 이동해보세요.");
                                     return;
                                   }
-                                  onSectionAnalysis?.(inSection, agent.type);
+                                  onSectionAnalysis?.(inSection, agent.type, section.title);
                                   setSectionAgentSelector(null);
                                 }}
                                 className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-purple-50 transition-colors flex items-start gap-2"
@@ -1591,7 +1591,7 @@ const Board: React.FC<BoardProps> = ({
                         key={agent.type}
                         onClick={() => {
                           const selectedIdeas = ideas.filter(idea => selectedIds.has(idea.id));
-                          onSectionAnalysis?.(selectedIdeas, agent.type);
+                          onSectionAnalysis?.(selectedIdeas, agent.type, "");
                           setSelectionAgentSelector(false);
                           setIsSelectMode(false);
                           setSelectedIds(new Set());

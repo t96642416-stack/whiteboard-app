@@ -370,9 +370,11 @@ function App() {
   }, [topic, topicFiles, ideas, sectionGroups]);
 
   // 섹션 분석 요청 - 특정 아이디어 ID만 필터링 (AI 결과 카드 제외)
-  const handleSectionAnalysis = useCallback((sectionIdeas: Idea[], agentType: AgentType) => {
+  const handleSectionAnalysis = useCallback((sectionIdeas: Idea[], agentType: AgentType, sectionTitle: string) => {
     const filtered = sectionIdeas.filter((i: any) => !i.analysisSnapshot);
     if (filtered.length === 0) return;
+    // 섹션 제목이 있으면 sectionGroups로 전달 (AI가 섹션 이름 그대로 사용)
+    const sg = sectionTitle ? [{ title: sectionTitle, ideaIds: filtered.map(i => i.id) }] : undefined;
     getSocket().emit("analysis-requested", {
       agentType,
       userMessage: "",
@@ -380,6 +382,7 @@ function App() {
       ideaIds: filtered.map(i => i.id),
       useSearch: false,
       topic,
+      sectionGroups: sg,
     });
   }, [topic]);
 
