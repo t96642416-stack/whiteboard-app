@@ -625,10 +625,40 @@ export async function analyzeIdeas(
   }
   // 섹션 분석인 경우 아이디어 이름을 섹션 제목으로 확실히 교체
   if (hasSectionGroups && Array.isArray(result.ideas)) {
+    // 교체 전 AI 원본 이름 → 섹션 제목 매핑 테이블
+    const nameMap: Record<string, string> = {};
+    result.ideas.forEach((idea: any, idx: number) => {
+      const newTitle = sectionGroups![idx]?.title;
+      if (newTitle) nameMap[idea.name] = newTitle;
+    });
+
     result.ideas = result.ideas.map((idea: any, idx: number) => ({
       ...idea,
       name: sectionGroups![idx]?.title ?? idea.name,
     }));
+
+    // recommendedIdea도 섹션 제목으로 교체
+    if (result.recommendedIdea) {
+      // 매핑 테이블에서 직접 찾기
+      if (nameMap[result.recommendedIdea]) {
+        result.recommendedIdea = nameMap[result.recommendedIdea];
+      } else {
+        // criteriaResults winner 집계로 가장 많이 이긴 섹션으로 결정
+        if (Array.isArray(result.criteriaResults) && result.criteriaResults.length > 0) {
+          const winCount: Record<string, number> = {};
+          result.criteriaResults.forEach((c: any) => {
+            if (c.winner) winCount[c.winner] = (winCount[c.winner] || 0) + 1;
+          });
+          const topWinner = Object.entries(winCount).sort((a, b) => b[1] - a[1])[0]?.[0];
+          if (topWinner) {
+            result.recommendedIdea = nameMap[topWinner] ?? topWinner;
+          }
+        } else if (result.ideas.length > 0) {
+          // fallback: 첫 번째 아이디어
+          result.recommendedIdea = result.ideas[0].name;
+        }
+      }
+    }
   }
 
   return result;
