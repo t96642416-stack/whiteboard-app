@@ -83,13 +83,10 @@ const IdeaImage: React.FC<{
   onChange?: (url: string) => void;
   onApplyImage?: (url: string) => void;
 }> = ({ alt, blue, initialSrc, onChange, onApplyImage }) => {
-  const [src, setSrc] = useState<string | null>(initialSrc || null);
+  // localSrc: 내가 직접 업로드한 것. 없으면 initialSrc(팀원이 업로드한 것) 사용
+  const [localSrc, setLocalSrc] = useState<string | null>(null);
+  const src = localSrc || initialSrc || null;
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  // initialSrc가 바뀌면 (다른 팀원이 업로드) 반영
-  React.useEffect(() => {
-    if (initialSrc) setSrc(initialSrc);
-  }, [initialSrc]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -97,7 +94,7 @@ const IdeaImage: React.FC<{
     const reader = new FileReader();
     reader.onload = (ev) => {
       const url = ev.target?.result as string;
-      setSrc(url);
+      setLocalSrc(url);
       onChange?.(url);
     };
     reader.readAsDataURL(file);
