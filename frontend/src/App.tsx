@@ -312,9 +312,12 @@ function App() {
 
   // 히스토리 아이템 내용 수정 (인라인 편집)
   const handleUpdateHistory = useCallback((id: string, updated: AgentAnalysisResult) => {
-    setAnalysisHistory(prev => prev.map(item =>
-      item.id === id ? { ...item, agentResult: updated } : item
-    ));
+    setAnalysisHistory(prev => {
+      const next = prev.map(item => item.id === id ? { ...item, agentResult: updated } : item);
+      // 현재 표시 중인 결과(history[0])가 수정된 경우 agentAnalysisResult도 업데이트
+      if (prev[0]?.id === id) setAgentAnalysisResult(updated);
+      return next;
+    });
     // 다른 팀원에게 실시간 동기화
     getSocket().emit("analysis-result-update", { id, agentResult: updated });
   }, []);
