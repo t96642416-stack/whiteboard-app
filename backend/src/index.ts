@@ -11,6 +11,7 @@ import {
   dbGetSections,
   dbGetMessages,
   dbUpsertIdea,
+  dbUpdateAnalysisResult,
   dbUpdateIdea,
   dbDeleteIdea,
   dbMoveIdea,
@@ -516,6 +517,20 @@ io.on("connection", (socket) => {
     roomMessages[currentRoom] = [];
     dbClearMessages(currentRoom).catch(e => console.error("chat clear 실패:", e));
     io.to(currentRoom).emit("chat-messages-cleared");
+  });
+
+  // 분석 결과 수정 (이미지 업로드 등) — 다른 팀원에게 브로드캐스트
+  socket.on("analysis-result-update", async ({ id, agentResult }: { id: string; agentResult: any }) => {
+    if (!currentRoom) return;
+    // RAM 업데이트
+    if (roomAnalysisResults[currentRoom]) {
+      const item = roomAnalysisResults[currentRoom].find((r: any) => r.id === id);
+      if (item) item.agentResult = agentResult;
+    }
+    // DB 업데이트 (비동기)
+    dbUpdateAnalysisResult(currentRoom, id, agentResult).catch(e => console.error("분석 결과 업데이트 실패:", e));
+    // 발신자 제외하고 다른 팀원에게 브로드캐스트
+    socket.to(currentRoom).emit("analysis-result-updated", { id, agentResult });
   });
 
   // 분석 내역 삭제

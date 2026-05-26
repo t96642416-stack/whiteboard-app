@@ -208,6 +208,12 @@ function App() {
       setAnalysisHistory((prev) => prev.filter((item) => item.dbId !== dbId));
     });
 
+    socket.on("analysis-result-updated", ({ id, agentResult }: { id: string; agentResult: AgentAnalysisResult }) => {
+      setAnalysisHistory((prev) => prev.map(item =>
+        item.id === id ? { ...item, agentResult } : item
+      ));
+    });
+
     socket.on("analysis-error", ({ message }: { message: string }) => {
       setIsAnalyzing(false);
       showError(message);
@@ -259,6 +265,7 @@ function App() {
       socket.off("analysis-started");
       socket.off("analysis-result");
       socket.off("analysis-result-deleted");
+      socket.off("analysis-result-updated");
       socket.off("analysis-error");
       socket.off("user-joined");
       socket.off("user-left");
@@ -305,6 +312,8 @@ function App() {
     setAnalysisHistory(prev => prev.map(item =>
       item.id === id ? { ...item, agentResult: updated } : item
     ));
+    // 다른 팀원에게 실시간 동기화
+    getSocket().emit("analysis-result-update", { id, agentResult: updated });
   }, []);
 
   const handleDeleteHistory = useCallback((dbId: number) => {

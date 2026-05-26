@@ -222,6 +222,14 @@ export async function dbInsertAnalysisResult(roomId: string, item: any): Promise
   return res.rows[0]?.id ?? null;
 }
 
+export async function dbUpdateAnalysisResult(roomId: string, id: string, agentResult: any): Promise<void> {
+  if (!pool) return;
+  await pool.query(
+    `UPDATE analysis_results SET data = data || jsonb_build_object('agentResult', $1::jsonb) WHERE room_id = $2 AND data->>'id' = $3`,
+    [JSON.stringify(agentResult), roomId, id]
+  );
+}
+
 export async function dbDeleteAnalysisResult(roomId: string, dbId: number): Promise<void> {
   if (!pool) return;
   await pool.query(

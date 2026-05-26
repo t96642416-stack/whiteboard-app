@@ -79,16 +79,27 @@ const ET: React.FC<{
 const IdeaImage: React.FC<{
   alt: string;
   blue?: boolean;
+  initialSrc?: string;
+  onChange?: (url: string) => void;
   onApplyImage?: (url: string) => void;
-}> = ({ alt, blue, onApplyImage }) => {
-  const [src, setSrc] = useState<string | null>(null);
+}> = ({ alt, blue, initialSrc, onChange, onApplyImage }) => {
+  const [src, setSrc] = useState<string | null>(initialSrc || null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // initialSrc가 바뀌면 (다른 팀원이 업로드) 반영
+  React.useEffect(() => {
+    if (initialSrc) setSrc(initialSrc);
+  }, [initialSrc]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => setSrc(ev.target?.result as string);
+    reader.onload = (ev) => {
+      const url = ev.target?.result as string;
+      setSrc(url);
+      onChange?.(url);
+    };
     reader.readAsDataURL(file);
   };
 
@@ -402,6 +413,8 @@ const EmphasisView: React.FC<{ result: EmphasisAnalysis; sources?: SearchSource[
           >
             {/* 이미지 (상단) */}
             <IdeaImage alt={idea.name}
+              initialSrc={idea.imageUrl}
+              onChange={onUpdateResult ? (url) => onUpdateResult(setIn(result, ["ideas", i, "imageUrl"], url)) : undefined}
               onApplyImage={onApplyImage ? (url) => onApplyImage(idea.name, url) : undefined} />
 
             {/* 효과 목록 + 유사 사례 */}
