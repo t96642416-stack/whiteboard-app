@@ -209,9 +209,12 @@ function App() {
     });
 
     socket.on("analysis-result-updated", ({ id, agentResult }: { id: string; agentResult: AgentAnalysisResult }) => {
-      setAnalysisHistory((prev) => prev.map(item =>
-        item.id === id ? { ...item, agentResult } : item
-      ));
+      setAnalysisHistory((prev) => {
+        const updated = prev.map(item => item.id === id ? { ...item, agentResult } : item);
+        // 현재 표시 중인 결과(history[0])가 업데이트된 경우 agentAnalysisResult도 동기화
+        if (prev[0]?.id === id) setAgentAnalysisResult(agentResult);
+        return updated;
+      });
     });
 
     socket.on("analysis-error", ({ message }: { message: string }) => {

@@ -652,7 +652,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                   </div>
                 )}
                 {agentAnalysisResult
-                  ? <AgentAnalysisResultComponent result={agentAnalysisResult} onAddIdea={onAddIdea ? (t, c, snap?) => onAddIdea(t, c, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "ai", [], snap) : undefined} onApplyImage={onApplyImage} />
+                  ? <AgentAnalysisResultComponent result={agentAnalysisResult} onAddIdea={onAddIdea ? (t, c, snap?) => onAddIdea(t, c, CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)], "ai", [], snap) : undefined} onApplyImage={onApplyImage} onUpdateResult={onUpdateHistory && analysisHistory[0]?.id ? (updated) => onUpdateHistory(analysisHistory[0].id, updated) : undefined} />
                   : analysisResult
                     ? <AnalysisResult result={analysisResult} />
                     : null}
