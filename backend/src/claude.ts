@@ -625,6 +625,13 @@ export async function analyzeIdeas(
   if (agentType && !result.agentType) {
     result.agentType = agentType;
   }
+  // 파일명이 출처로 쓰인 경우 후처리로 제거 (.txt/.pdf/.csv/.xlsx 등 확장자 포함 괄호 패턴)
+  try {
+    let resultStr = JSON.stringify(result);
+    // (파일명.확장자) 또는 (경로/파일명.확장자) 패턴 제거
+    resultStr = resultStr.replace(/\s*\([^)]*\.[a-zA-Z0-9]{2,5}\)/g, "");
+    result = JSON.parse(resultStr);
+  } catch { /* 실패 시 원본 유지 */ }
   // 검색 출처가 있으면 결과에 포함
   if (searchSources.length > 0) {
     result.searchSources = searchSources;
