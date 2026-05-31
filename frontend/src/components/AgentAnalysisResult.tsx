@@ -275,30 +275,36 @@ const BubbleChart: React.FC<{ mentions: FocusMention[]; highlightKeyword?: strin
     low:    { size: 44, bg: "#e5e7eb", border: "#6b7280", text: "#374151", hlBg: "#1f2937", hlText: "white", glow: "#9ca3af" },
   };
 
-  const W = 300, H = 240;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [W, setW] = React.useState(320);
+  const H = 260;
+
+  React.useEffect(() => {
+    if (containerRef.current) setW(containerRef.current.offsetWidth);
+  }, []);
 
   const positioned = React.useMemo(() => {
     const sorted = [...mentions].sort((a, b) =>
       ({ high: 0, medium: 1, low: 2 }[a.level] ?? 2) - ({ high: 0, medium: 1, low: 2 }[b.level] ?? 2)
     );
 
-    // 초기 위치: 황금각 나선 + 레벨별 반지름 차등
     const PHI = Math.PI * (3 - Math.sqrt(5));
     const nodes = sorted.map((m, i) => {
       const cfg = levelConfig[m.level] || levelConfig.low;
-      const baseR = m.level === "high" ? 40 : m.level === "medium" ? 80 : 110;
-      const r = baseR * (0.6 + 0.4 * (i / Math.max(sorted.length - 1, 1)));
+      // 레벨별 초기 반지름 — 컨테이너 폭 기준으로 스케일
+      const baseR = m.level === "high" ? W * 0.12 : m.level === "medium" ? W * 0.24 : W * 0.33;
+      const r = baseR * (0.7 + 0.3 * (i / Math.max(sorted.length - 1, 1)));
       const angle = i * PHI + (m.level === "high" ? 0 : m.level === "medium" ? 1.2 : 2.4);
       return {
         ...m, cfg,
         x: W / 2 + r * Math.cos(angle),
-        y: H / 2 + r * Math.sin(angle) * 0.8,
+        y: H / 2 + r * Math.sin(angle) * 0.85,
       };
     });
 
-    // 충돌 해소 (50회 반복)
-    const PAD = 8;
-    for (let iter = 0; iter < 50; iter++) {
+    // 충돌 해소 (80회 반복, 충분한 간격 확보)
+    const PAD = 14;
+    for (let iter = 0; iter < 80; iter++) {
       for (let a = 0; a < nodes.length; a++) {
         for (let b = a + 1; b < nodes.length; b++) {
           const na = nodes[a], nb = nodes[b];
@@ -307,26 +313,34 @@ const BubbleChart: React.FC<{ mentions: FocusMention[]; highlightKeyword?: strin
           const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
           if (dist < minDist) {
             const push = (minDist - dist) / 2;
-            const nx = dx / dist * push, ny = dy / dist * push;
-            nodes[a].x -= nx; nodes[a].y -= ny;
-            nodes[b].x += nx; nodes[b].y += ny;
+            nodes[a].x -= dx / dist * push; nodes[a].y -= dy / dist * push;
+            nodes[b].x += dx / dist * push; nodes[b].y += dy / dist * push;
           }
         }
       }
-      // 경계 클램프
       nodes.forEach(n => {
-        const half = n.cfg.size / 2 + 4;
+        const half = n.cfg.size / 2 + 6;
         n.x = Math.max(half, Math.min(W - half, n.x));
         n.y = Math.max(half, Math.min(H - half, n.y));
       });
     }
+
+    // 전체 클러스터를 컨테이너 중앙으로 이동
+    const minX = Math.min(...nodes.map(n => n.x - n.cfg.size / 2));
+    const maxX = Math.max(...nodes.map(n => n.x + n.cfg.size / 2));
+    const minY = Math.min(...nodes.map(n => n.y - n.cfg.size / 2));
+    const maxY = Math.max(...nodes.map(n => n.y + n.cfg.size / 2));
+    const offsetX = (W - (maxX - minX)) / 2 - minX;
+    const offsetY = (H - (maxY - minY)) / 2 - minY;
+    nodes.forEach(n => { n.x += offsetX; n.y += offsetY; });
+
     return nodes;
-  }, [mentions]);
+  }, [mentions, W]);
 
   return (
     <div>
       <p className="text-xs font-semibold text-blue-600 mb-2">현재 집중 관점</p>
-      <div style={{ position: "relative", width: "100%", height: H }}>
+      <div ref={containerRef} style={{ position: "relative", width: "100%", height: H }}>
         {positioned.map((m, i) => {
           const isHighlighted = highlightKeyword && m.keyword === highlightKeyword;
           return (
