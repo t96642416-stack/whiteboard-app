@@ -822,6 +822,11 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
 
 // 점수 0-100 범위 보정
 const clampScore = (v: unknown): number => Math.max(0, Math.min(100, Number(v) || 0));
+const scoreToLevel = (v: number): { label: string; color: string } => {
+  if (v >= 70) return { label: "높음", color: "#2563eb" };
+  if (v >= 40) return { label: "중간", color: "#16a34a" };
+  return { label: "낮음", color: "#ef4444" };
+};
 
 // 결과 강조형 UI
 const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void; onUpdateResult?: (u: GuideAnalysis) => void }> = ({ result, sources, onAddIdea, onUpdateResult }) => {
@@ -861,24 +866,25 @@ const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onA
                   <div className="space-y-2.5">
                     {src && <div className="flex justify-end"><SrcLink source={src} label={`${i % sources!.length + 1}`} /></div>}
                     {[
-                      { label: "실현 가능성", val: clampScore(idea.feasibility), color: "#4F48ED", reasonKey: "feasibilityReason" as const },
-                      { label: "사용자 편의",  val: clampScore(idea.userExperience), color: "#eab308", reasonKey: "userExperienceReason" as const },
-                      { label: "주제 차별성", val: clampScore(idea.uniqueness), color: clampScore(idea.uniqueness) >= 50 ? "#16a34a" : "#ef4444", reasonKey: "uniquenessReason" as const },
-                    ].map(({ label, val, color, reasonKey }) => {
+                      { label: "실현 가능성", val: clampScore(idea.feasibility), reasonKey: "feasibilityReason" as const },
+                      { label: "사용자 편의",  val: clampScore(idea.userExperience), reasonKey: "userExperienceReason" as const },
+                      { label: "주제 차별성", val: clampScore(idea.uniqueness), reasonKey: "uniquenessReason" as const },
+                    ].map(({ label, val, reasonKey }) => {
+                      const { label: lvl, color } = scoreToLevel(val);
                       const reason = (idea as any)[reasonKey] as string | undefined;
                       return (
-                        <div key={label}>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs text-gray-500 w-16 flex-shrink-0">{label}</span>
-                            <div className="w-24 flex-shrink-0 bg-gray-100 rounded-full h-2">
-                              <div className="h-2 rounded-full transition-all" style={{ width: `${val}%`, backgroundColor: color }} />
-                            </div>
-                            <span className="text-xs font-semibold w-8 flex-shrink-0" style={{ color }}>{val}%</span>
+                        <div key={label} className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
+                          <div>
+                            <span className="text-sm text-gray-500">{label}</span>
                             {reason && (
-                              <ET value={reason} className="text-xs text-gray-400 leading-snug flex-1"
-                                onSave={onUpdateResult ? v => upd(["ideas", i, reasonKey], v) : undefined} />
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                <ET value={reason} className="text-xs text-gray-400 leading-snug"
+                                  onSave={onUpdateResult ? v => upd(["ideas", i, reasonKey], v) : undefined} />
+                              </div>
                             )}
                           </div>
+                          <span className="text-lg font-bold flex-shrink-0 ml-4" style={{ color }}>{lvl}</span>
                         </div>
                       );
                     })}
@@ -960,24 +966,27 @@ const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[]; o
           return (
             <CollapsibleBlock key={i} label={String.fromCharCode(65 + i)} name={idea.name} badge={badge}
               onEditName={onUpdateResult ? v => upd(["ideas", i, "name"], v) : undefined}>
-              <div className="space-y-2.5">
+              <div className="space-y-0">
                 {[
-                  { label: "실현 가능성", val: clampScore(idea.feasibility), color: "#4F48ED", reasonKey: "feasibilityReason" as const },
-                  { label: "사용자 편의",  val: clampScore(idea.userExperience), color: "#eab308", reasonKey: "userExperienceReason" as const },
-                  { label: "주제 차별성", val: clampScore(idea.uniqueness), color: clampScore(idea.uniqueness) >= 50 ? "#16a34a" : "#ef4444", reasonKey: "uniquenessReason" as const },
-                ].map(({ label, val, color, reasonKey }) => {
+                  { label: "실현 가능성", val: clampScore(idea.feasibility), reasonKey: "feasibilityReason" as const },
+                  { label: "사용자 편의",  val: clampScore(idea.userExperience), reasonKey: "userExperienceReason" as const },
+                  { label: "주제 차별성", val: clampScore(idea.uniqueness), reasonKey: "uniquenessReason" as const },
+                ].map(({ label, val, reasonKey }) => {
+                  const { label: lvl, color } = scoreToLevel(val);
                   const reason = (idea as any)[reasonKey] as string | undefined;
                   return (
-                    <div key={label} className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 w-16 flex-shrink-0">{label}</span>
-                      <div className="w-24 flex-shrink-0 bg-gray-100 rounded-full h-2">
-                        <div className="h-2 rounded-full transition-all" style={{ width: `${val}%`, backgroundColor: color }} />
+                    <div key={label} className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
+                      <div>
+                        <span className="text-sm text-gray-500">{label}</span>
+                        {reason && (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                            <ET value={reason} className="text-xs text-gray-400 leading-snug"
+                              onSave={onUpdateResult ? v => upd(["ideas", i, reasonKey], v) : undefined} />
+                          </div>
+                        )}
                       </div>
-                      <span className="text-xs font-semibold w-8 flex-shrink-0" style={{ color }}>{val}%</span>
-                      {reason && (
-                        <ET value={reason} className="text-xs text-gray-400 leading-snug flex-1"
-                          onSave={onUpdateResult ? v => upd(["ideas", i, reasonKey], v) : undefined} />
-                      )}
+                      <span className="text-lg font-bold flex-shrink-0 ml-4" style={{ color }}>{lvl}</span>
                     </div>
                   );
                 })}
