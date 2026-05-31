@@ -460,19 +460,28 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "관점 탐색형";
   const upd = (path: (string | number)[], v: string) => onUpdateResult?.(setIn(result, path, v));
   const [activeIdx, setActiveIdx] = useState(0);
-  const [highlightKeywords, setHighlightKeywords] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const mentions = toMentions(result);
 
+  // 현재 활성 카드의 relatedKeywords
+  const activeQ = result.questions[activeIdx];
+  const highlightKeywords = activeQ?.relatedKeywords ?? (activeQ?.relatedKeyword ? [activeQ.relatedKeyword] : []);
+
   const scrollTo = (idx: number) => {
     setActiveIdx(idx);
-    const q = result.questions[idx];
-    setHighlightKeywords(q?.relatedKeywords ?? (q?.relatedKeyword ? [q.relatedKeyword] : []));
     const el = scrollRef.current;
     if (!el) return;
-    const card = el.children[idx] as HTMLElement;
-    if (card) card.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    // 카드 너비 + gap 기준으로 정확히 중앙 정렬
+    const cardEl = el.children[idx] as HTMLElement;
+    if (!cardEl) return;
+    const elRect = el.getBoundingClientRect();
+    const cardRect = cardEl.getBoundingClientRect();
+    const offset = cardRect.left - elRect.left + el.scrollLeft - (elRect.width - cardRect.width) / 2;
+    el.scrollTo({ left: offset, behavior: "smooth" });
   };
+
+  // 초기 Q1 스크롤 위치 맞추기
+  React.useEffect(() => { scrollTo(0); }, []);
 
   return (
     <div className="space-y-3">
@@ -490,30 +499,29 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
 
         {/* 질문 캐러셀 */}
         <p className="text-xs font-semibold text-blue-600 mb-2">이런 부분도 생각해볼 수 있어요</p>
-        <div className="relative">
-          {/* 카드 스크롤 영역 */}
-          <div ref={scrollRef} className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scroll-smooth hide-scrollbar" style={{ scrollbarWidth: "none" }}>
+        <div className="relative overflow-hidden rounded-xl">
+          <div ref={scrollRef}
+            className="flex gap-2 overflow-x-auto scroll-smooth"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none", paddingLeft: "15%", paddingRight: "15%" }}>
             {result.questions.map((q, i) => {
               const isActive = i === activeIdx;
               return (
-                <div key={i} className="snap-center flex-shrink-0" style={{ width: "calc(70vw - 48px)", maxWidth: 220 }}
+                <div key={i} className="flex-shrink-0 cursor-pointer transition-all duration-300"
+                  style={{ width: "70%", opacity: isActive ? 1 : 0.55, transform: isActive ? "scale(1)" : "scale(0.94)" }}
                   onClick={() => scrollTo(i)}>
                   <DraggableCard title={`Q${i + 1}. ${q.text.slice(0, 40)}`} content={q.text} snapshot={{ agentType: 'question', itemData: { ...q, index: i } }} onAdd={onAddIdea}>
-                    <div
-                      className="rounded-xl p-4 cursor-pointer transition-all duration-200"
+                    <div className="rounded-xl p-4 transition-all duration-300"
                       style={{
                         backgroundColor: isActive ? "#4F48ED" : "#F0EFFD",
-                        border: `1.5px solid ${isActive ? "#4F48ED" : "transparent"}`,
-                        minHeight: 120,
-                      }}
-                    >
+                        minHeight: 130,
+                      }}>
                       <div className="flex items-center gap-2 mb-2">
                         <span className="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0"
-                          style={{ backgroundColor: isActive ? "rgba(255,255,255,0.2)" : "#4F48ED", color: "white" }}>
+                          style={{ backgroundColor: isActive ? "rgba(255,255,255,0.25)" : "#4F48ED", color: "white" }}>
                           Q{i + 1}
                         </span>
                       </div>
-                      <ET value={q.text} className={`text-xs leading-relaxed font-medium ${isActive ? "text-white" : "text-gray-800"}`} multiline
+                      <ET value={q.text} className={`text-xs leading-relaxed font-medium ${isActive ? "text-white" : "text-gray-700"}`} multiline
                         inputClassName={isActive ? "bg-transparent border border-white/40 text-white" : undefined}
                         onSave={onUpdateResult ? v => upd(["questions", i, "text"], v) : undefined} />
                     </div>
@@ -522,29 +530,18 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
               );
             })}
           </div>
-
-          {/* 이전/다음 버튼 */}
-          <div className="flex items-center justify-between mt-2 px-1">
-            <button onClick={() => scrollTo(Math.max(0, activeIdx - 1))} disabled={activeIdx === 0}
-              className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-30 transition-colors">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6" /></svg>
-            </button>
-            {/* 도트 인디케이터 */}
-            <div className="flex gap-1.5">
-              {result.questions.map((_, i) => (
-                <button key={i} onClick={() => scrollTo(i)}
-                  className="rounded-full transition-all duration-200"
-                  style={{ width: i === activeIdx ? 16 : 6, height: 6, backgroundColor: i === activeIdx ? "#4F48ED" : "#d1d5db" }} />
-              ))}
-            </div>
-            <button onClick={() => scrollTo(Math.min(result.questions.length - 1, activeIdx + 1))} disabled={activeIdx === result.questions.length - 1}
-              className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-30 transition-colors">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
-            </button>
-          </div>
         </div>
 
-        {/* 버블 차트 */}
+        {/* 도트 인디케이터 */}
+        <div className="flex items-center justify-center gap-1.5 mt-2">
+          {result.questions.map((_, i) => (
+            <button key={i} onClick={() => scrollTo(i)}
+              className="rounded-full transition-all duration-200"
+              style={{ width: i === activeIdx ? 16 : 6, height: 6, backgroundColor: i === activeIdx ? "#4F48ED" : "#d1d5db" }} />
+          ))}
+        </div>
+
+        {/* 버블 차트 — 항상 표시 */}
         <hr className="border-gray-100 my-4" />
         <BubbleChart mentions={mentions} highlightKeywords={highlightKeywords} />
       </div>
