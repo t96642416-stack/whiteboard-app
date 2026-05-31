@@ -104,7 +104,7 @@ export interface PerspectiveAnalysis {
   summary: string;
   currentFocus: string[];
   focusMentions?: FocusMention[];
-  perspectives: { title: string; description: string; relatedKeyword?: string }[];
+  perspectives: { title: string; description: string; relatedKeyword?: string; relatedKeywords?: string[] }[];
   searchSources?: SearchSource[];
 }
 
@@ -114,7 +114,7 @@ export interface QuestionAnalysis {
   summary: string;
   currentFocus: string[];
   focusMentions?: FocusMention[];
-  questions: { text: string; relatedKeyword?: string }[];
+  questions: { text: string; relatedKeyword?: string; relatedKeywords?: string[] }[];
   searchSources?: SearchSource[];
 }
 

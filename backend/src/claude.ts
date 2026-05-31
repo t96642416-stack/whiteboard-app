@@ -239,9 +239,9 @@ focusMentions 작성 규칙:
     {"keyword": "수렴된 카테고리명", "level": "low"}
   ],
   "perspectives": [
-    {"title": "놓친 관점 제목", "description": "기존 아이디어에 이 관점을 적용하면 어떤 점이 달라지는지 설명", "relatedKeyword": "focusMentions 중 관련 카테고리명"},
-    {"title": "놓친 관점 제목", "description": "설명", "relatedKeyword": "관련 카테고리명"},
-    {"title": "놓친 관점 제목", "description": "설명", "relatedKeyword": "관련 카테고리명"}
+    {"title": "놓친 관점 제목", "description": "기존 아이디어에 이 관점을 적용하면 어떤 점이 달라지는지 설명", "relatedKeywords": ["focusMentions 중 관련 카테고리명1", "관련 카테고리명2"]},
+    {"title": "놓친 관점 제목", "description": "설명", "relatedKeywords": ["관련 카테고리명"]},
+    {"title": "놓친 관점 제목", "description": "설명", "relatedKeywords": ["관련 카테고리명"]}
   ]
 }`;
 
@@ -269,9 +269,9 @@ focusMentions 작성 규칙:
     {"keyword": "수렴된 카테고리명", "level": "low"}
   ],
   "questions": [
-    {"text": "기존 아이디어에 대한 검증 질문 1 (물음표로 끝나는 질문형)", "relatedKeyword": "focusMentions 중 관련 카테고리명"},
-    {"text": "검증 질문 2", "relatedKeyword": "관련 카테고리명"},
-    {"text": "검증 질문 3", "relatedKeyword": "관련 카테고리명"}
+    {"text": "기존 아이디어에 대한 검증 질문 1 (물음표로 끝나는 질문형)", "relatedKeywords": ["focusMentions 중 관련 카테고리명1", "관련 카테고리명2"]},
+    {"text": "검증 질문 2", "relatedKeywords": ["관련 카테고리명"]},
+    {"text": "검증 질문 3", "relatedKeywords": ["관련 카테고리명"]}
   ]
 }`;
 

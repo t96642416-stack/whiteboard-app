@@ -268,7 +268,7 @@ const SrcLink: React.FC<{ source: SearchSource; label?: string }> = ({ source, l
 
 // 관점 제시형 UI
 // 버블 차트: 현재 집중 관점 시각화 (산포형 레이아웃)
-const BubbleChart: React.FC<{ mentions: FocusMention[]; highlightKeyword?: string }> = ({ mentions, highlightKeyword }) => {
+const BubbleChart: React.FC<{ mentions: FocusMention[]; highlightKeywords?: string[] }> = ({ mentions, highlightKeywords }) => {
   const levelConfig = {
     high:   { size: 86, bg: "#c7d2fe", border: "#6366f1", text: "#3730a3", hlBg: "#4338ca", hlText: "white", glow: "#a5b4fc" },
     medium: { size: 62, bg: "#bbf7d0", border: "#22c55e", text: "#14532d", hlBg: "#15803d", hlText: "white", glow: "#86efac" },
@@ -342,7 +342,7 @@ const BubbleChart: React.FC<{ mentions: FocusMention[]; highlightKeyword?: strin
       <p className="text-xs font-semibold text-blue-600 mb-2">현재 집중 관점</p>
       <div ref={containerRef} style={{ position: "relative", width: "100%", height: H }}>
         {positioned.map((m, i) => {
-          const isHighlighted = highlightKeyword && m.keyword === highlightKeyword;
+          const isHighlighted = !!(highlightKeywords && highlightKeywords.includes(m.keyword));
           return (
             <div key={i} style={{
               position: "absolute",
@@ -394,7 +394,7 @@ function toMentions(result: PerspectiveAnalysis | QuestionAnalysis): FocusMentio
 const PerspectiveView: React.FC<{ result: PerspectiveAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void; onUpdateResult?: (u: PerspectiveAnalysis) => void }> = ({ result, sources, onAddIdea, onUpdateResult }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "관점 제시형";
   const upd = (path: (string | number)[], v: string) => onUpdateResult?.(setIn(result, path, v));
-  const [highlightKeyword, setHighlightKeyword] = useState<string | undefined>(undefined);
+  const [highlightKeywords, setHighlightKeywords] = useState<string[]>([]);
   const mentions = toMentions(result);
 
   return (
@@ -416,13 +416,19 @@ const PerspectiveView: React.FC<{ result: PerspectiveAnalysis; sources?: SearchS
         <div className="space-y-2 mb-4">
           {result.perspectives.map((p, i) => {
             const src = sources && sources.length > 0 ? sources[i % sources.length] : null;
-            const isActive = highlightKeyword && p.relatedKeyword === highlightKeyword;
+            const keys = p.relatedKeywords ?? (p.relatedKeyword ? [p.relatedKeyword] : []);
+            const isActive = keys.length > 0 && keys.some(k => highlightKeywords.includes(k));
             return (
               <DraggableCard key={i} title={p.title} content={p.description} snapshot={{ agentType: 'suggestion', itemData: { ...p, index: i } }} onAdd={onAddIdea}>
                 <div
                   className="rounded-xl p-3 cursor-pointer transition-all duration-200"
                   style={{ backgroundColor: isActive ? "#e0e7ff" : "#F0EFFD", border: isActive ? "1.5px solid #818cf8" : "1.5px solid transparent" }}
-                  onClick={() => setHighlightKeyword(prev => prev === p.relatedKeyword ? undefined : p.relatedKeyword)}
+                  onClick={() => {
+                    const keys = p.relatedKeywords ?? (p.relatedKeyword ? [p.relatedKeyword] : []);
+                    setHighlightKeywords(prev =>
+                      keys.length > 0 && keys.every(k => prev.includes(k)) ? [] : keys
+                    );
+                  }}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <span className="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0"
@@ -443,7 +449,7 @@ const PerspectiveView: React.FC<{ result: PerspectiveAnalysis; sources?: SearchS
 
         {/* 버블 차트 */}
         <hr className="border-gray-100 mb-4" />
-        <BubbleChart mentions={mentions} highlightKeyword={highlightKeyword} />
+        <BubbleChart mentions={mentions} highlightKeywords={highlightKeywords} />
       </div>
     </div>
   );
@@ -454,13 +460,14 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "관점 탐색형";
   const upd = (path: (string | number)[], v: string) => onUpdateResult?.(setIn(result, path, v));
   const [activeIdx, setActiveIdx] = useState(0);
-  const [highlightKeyword, setHighlightKeyword] = useState<string | undefined>(undefined);
+  const [highlightKeywords, setHighlightKeywords] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const mentions = toMentions(result);
 
   const scrollTo = (idx: number) => {
     setActiveIdx(idx);
-    setHighlightKeyword(result.questions[idx]?.relatedKeyword);
+    const q = result.questions[idx];
+    setHighlightKeywords(q?.relatedKeywords ?? (q?.relatedKeyword ? [q.relatedKeyword] : []));
     const el = scrollRef.current;
     if (!el) return;
     const card = el.children[idx] as HTMLElement;
@@ -539,7 +546,7 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
 
         {/* 버블 차트 */}
         <hr className="border-gray-100 my-4" />
-        <BubbleChart mentions={mentions} highlightKeyword={highlightKeyword} />
+        <BubbleChart mentions={mentions} highlightKeywords={highlightKeywords} />
       </div>
     </div>
   );
