@@ -908,7 +908,7 @@ const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onA
 };
 
 // 결과 안내형 UI
-const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[]; onUpdateResult?: (u: AdviseAnalysis) => void }> = ({ result, sources, onUpdateResult }) => {
+const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[]; onUpdateResult?: (u: AdviseAnalysis) => void }> = ({ result, onUpdateResult }) => {
   const upd = (path: (string | number)[], v: string) => onUpdateResult?.(setIn(result, path, v));
   return (
   <div className="space-y-4">
@@ -926,33 +926,25 @@ const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[]; o
           onSave={onUpdateResult ? v => upd(["recommendation"], v) : undefined} />
       </div>
 
-      {/* 기준별 결과 — 가로 열 배치 */}
+      {/* 기준별 결과 — 카드 형식 */}
       <div className="mb-4">
         <p className="text-xs font-bold text-gray-700 mb-2">기준별 결과</p>
         <div className="flex gap-2">
           {result.criteriaResults.map((c, i) => {
-            const winnerIdx = c.winner.charCodeAt(0) - 65;
-            const badge = IDEA_BADGE_COLORS[winnerIdx % Object.keys(IDEA_BADGE_COLORS).length];
-            const src = sources && sources.length > 0 ? sources[i % sources.length] : null;
             return (
-              <div key={i} className="flex-1 bg-gray-50 rounded-xl p-3 flex flex-col items-center gap-2">
-                <ET value={c.criterion} className="text-xs text-gray-500 text-center"
+              <div key={i} className="flex-1 rounded-2xl border border-gray-200 bg-white p-3 flex flex-col items-center gap-2 shadow-sm">
+                {/* 기준명 */}
+                <ET value={c.criterion} className="text-xs font-semibold text-gray-700 text-center"
                   onSave={onUpdateResult ? v => upd(["criteriaResults", i, "criterion"], v) : undefined} />
-                <span className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-sm"
-                  style={{ backgroundColor: badge.bg, color: badge.text }}>
-                  {c.winner}
-                </span>
-                <div className="flex items-center gap-1">
-                  <span className="text-xs text-gray-500">우위</span>
-                  {src && (
-                    <a href={src.link} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:text-green-700">
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
-                        <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-                      </svg>
-                    </a>
-                  )}
-                </div>
+                {/* 우승 라벨 — 크게 */}
+                <span className="text-4xl font-black text-gray-900">{c.winner}</span>
+                {/* 이유 칩 */}
+                {c.reason && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium text-center"
+                    style={{ backgroundColor: "#ede9fe", color: "#5b21b6" }}>
+                    {c.reason}
+                  </span>
+                )}
               </div>
             );
           })}

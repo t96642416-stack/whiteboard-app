@@ -176,7 +176,7 @@ export interface GuideAnalysis {
 // 결과 안내형 (기준별 비교)
 export interface AdviseAnalysis {
   agentType: 'advise';
-  criteriaResults: { criterion: string; winner: string }[];
+  criteriaResults: { criterion: string; winner: string; reason?: string }[];
   ideas: {
     name: string;
     feasibility: number; feasibilityReason?: string;

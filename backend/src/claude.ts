@@ -368,9 +368,9 @@ const ADVISE_SYSTEM_PROMPT = `당신은 팀의 의사결정을 돕는 AI 퍼실�
 {
   "agentType": "advise",
   "criteriaResults": [
-    {"criterion": "실현 가능성", "winner": "A"},
-    {"criterion": "사용자 편의", "winner": "B"},
-    {"criterion": "차별성", "winner": "B"}
+    {"criterion": "실현 가능성", "winner": "A", "reason": "가구 배치 변경으로 가능"},
+    {"criterion": "사용자 편의", "winner": "B", "reason": "벤치 마킹 기대"},
+    {"criterion": "차별성", "winner": "B", "reason": "높은 독창성"}
   ],
   "ideas": [
     {
