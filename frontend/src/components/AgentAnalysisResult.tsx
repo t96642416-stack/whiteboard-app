@@ -270,9 +270,9 @@ const SrcLink: React.FC<{ source: SearchSource; label?: string }> = ({ source, l
 // 버블 차트: 현재 집중 관점 시각화 (산포형 레이아웃)
 const BubbleChart: React.FC<{ mentions: FocusMention[]; highlightKeyword?: string }> = ({ mentions, highlightKeyword }) => {
   const levelConfig = {
-    high:   { size: 86, bg: "#e0e7ff", border: "#818cf8", text: "#3730a3" },
-    medium: { size: 62, bg: "#dcfce7", border: "#86efac", text: "#14532d" },
-    low:    { size: 44, bg: "#f3f4f6", border: "#d1d5db", text: "#6b7280" },
+    high:   { size: 86, bg: "#c7d2fe", border: "#6366f1", text: "#3730a3", hlBg: "#4338ca", hlText: "white", glow: "#a5b4fc" },
+    medium: { size: 62, bg: "#bbf7d0", border: "#22c55e", text: "#14532d", hlBg: "#15803d", hlText: "white", glow: "#86efac" },
+    low:    { size: 44, bg: "#e5e7eb", border: "#6b7280", text: "#374151", hlBg: "#1f2937", hlText: "white", glow: "#9ca3af" },
   };
 
   const W = 300, H = 240;
@@ -337,9 +337,9 @@ const BubbleChart: React.FC<{ mentions: FocusMention[]; highlightKeyword?: strin
               width: m.cfg.size,
               height: m.cfg.size,
               borderRadius: "50%",
-              backgroundColor: isHighlighted ? "#15803d" : m.cfg.bg,
-              border: `2px solid ${isHighlighted ? "#15803d" : m.cfg.border}`,
-              color: isHighlighted ? "white" : m.cfg.text,
+              backgroundColor: isHighlighted ? m.cfg.hlBg : m.cfg.bg,
+              border: `2px solid ${isHighlighted ? m.cfg.hlBg : m.cfg.border}`,
+              color: isHighlighted ? m.cfg.hlText : m.cfg.text,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -348,7 +348,7 @@ const BubbleChart: React.FC<{ mentions: FocusMention[]; highlightKeyword?: strin
               fontWeight: 500,
               lineHeight: 1.3,
               padding: "6px",
-              boxShadow: isHighlighted ? "0 0 0 4px #bbf7d0" : "none",
+              boxShadow: isHighlighted ? `0 0 0 4px ${m.cfg.glow}` : "none",
               transform: isHighlighted ? "scale(1.1)" : "scale(1)",
               transition: "all 0.3s ease",
               zIndex: isHighlighted ? 2 : 1,
@@ -360,7 +360,7 @@ const BubbleChart: React.FC<{ mentions: FocusMention[]; highlightKeyword?: strin
       </div>
       {/* 범례 */}
       <div className="flex items-center gap-4 mt-1 justify-center">
-        {([["#818cf8","자주 언급"],["#86efac","가끔 언급"],["#d1d5db","미언급"]] as const).map(([color, label]) => (
+        {([["#6366f1","자주 언급"],["#22c55e","가끔 언급"],["#6b7280","미언급"]] as const).map(([color, label]) => (
           <div key={label} className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
             <span className="text-xs text-gray-500">{label}</span>
