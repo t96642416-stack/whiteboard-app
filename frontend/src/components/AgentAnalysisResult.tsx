@@ -41,7 +41,8 @@ const ET: React.FC<{
   multiline?: boolean;
   onSave?: (v: string) => void;
   placeholder?: string;
-}> = ({ value, className = "", multiline, onSave, placeholder }) => {
+  inputClassName?: string;
+}> = ({ value, className = "", multiline, onSave, placeholder, inputClassName }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   React.useEffect(() => { if (!editing) setDraft(value); }, [value, editing]);
@@ -53,7 +54,7 @@ const ET: React.FC<{
   }
 
   if (editing) {
-    const base = `${className} bg-white border border-blue-300 rounded px-1.5 focus:outline-none focus:ring-2 focus:ring-blue-300`;
+    const base = `${className} ${inputClassName || "bg-white border border-blue-300"} rounded px-1.5 focus:outline-none focus:ring-2 focus:ring-blue-300`;
     const commit = () => { onSave(draft.trim() || value); setEditing(false); };
     return multiline
       ? <textarea className={`${base} resize-y w-full block text-xs`} value={draft}
@@ -434,6 +435,7 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
                         </span>
                       </div>
                       <ET value={q.text} className={`text-xs leading-relaxed font-medium ${isActive ? "text-white" : "text-gray-800"}`} multiline
+                        inputClassName={isActive ? "bg-transparent border border-white/40 text-white" : undefined}
                         onSave={onUpdateResult ? v => upd(["questions", i, "text"], v) : undefined} />
                     </div>
                   </DraggableCard>
