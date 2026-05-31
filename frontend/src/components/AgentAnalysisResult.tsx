@@ -498,7 +498,7 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
         </div>
 
         {/* 질문 캐러셀 */}
-        <p className="text-xs font-semibold text-blue-600 mb-2">이런 부분도 생각해볼 수 있어요</p>
+        <p className="text-xs font-semibold text-blue-600 mb-2">이런 부분도 생각해보셨나요?</p>
         <div className="relative overflow-hidden rounded-xl">
           <div ref={scrollRef}
             className="flex gap-2 overflow-x-auto scroll-smooth"
