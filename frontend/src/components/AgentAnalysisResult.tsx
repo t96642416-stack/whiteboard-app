@@ -267,42 +267,72 @@ const SrcLink: React.FC<{ source: SearchSource; label?: string }> = ({ source, l
 );
 
 // 관점 제시형 UI
-// 버블 차트: 현재 집중 관점 시각화
+// 버블 차트: 현재 집중 관점 시각화 (산포형 레이아웃)
 const BubbleChart: React.FC<{ mentions: FocusMention[]; highlightKeyword?: string }> = ({ mentions, highlightKeyword }) => {
   const levelConfig = {
-    high:   { size: 80, bg: "#e0e7ff", border: "#818cf8", text: "#3730a3", dot: "#818cf8" },
-    medium: { size: 60, bg: "#dcfce7", border: "#86efac", text: "#14532d", dot: "#86efac" },
-    low:    { size: 44, bg: "#f3f4f6", border: "#d1d5db", text: "#6b7280", dot: "#d1d5db" },
+    high:   { size: 90, bg: "#e0e7ff", border: "#818cf8", text: "#3730a3" },
+    medium: { size: 64, bg: "#dcfce7", border: "#86efac", text: "#14532d" },
+    low:    { size: 46, bg: "#f3f4f6", border: "#d1d5db", text: "#6b7280" },
   };
+
+  // 결정론적 산포 위치 계산 (같은 키워드는 항상 같은 위치)
+  const W = 300, H = 230;
+  const positioned = React.useMemo(() => {
+    const sorted = [...mentions].sort((a, b) =>
+      ({ high: 0, medium: 1, low: 2 }[a.level] ?? 2) - ({ high: 0, medium: 1, low: 2 }[b.level] ?? 2)
+    );
+    // 황금각 나선형 배치
+    const PHI = Math.PI * (3 - Math.sqrt(5));
+    return sorted.map((m, i) => {
+      const cfg = levelConfig[m.level] || levelConfig.low;
+      const spread = m.level === "high" ? 0.35 : m.level === "medium" ? 0.62 : 0.88;
+      const r = spread * Math.min(W, H) * 0.42 * Math.sqrt(i / Math.max(sorted.length - 1, 1) + 0.15);
+      const angle = i * PHI;
+      const x = W / 2 + r * Math.cos(angle);
+      const y = H / 2 + r * Math.sin(angle) * 0.75;
+      const half = cfg.size / 2 + 4;
+      return { ...m, cfg, x: Math.max(half, Math.min(W - half, x)), y: Math.max(half, Math.min(H - half, y)) };
+    });
+  }, [mentions]);
+
   return (
     <div>
-      <p className="text-xs font-semibold text-blue-600 mb-3">현재 집중 관점</p>
-      <div className="flex flex-wrap gap-3 items-center justify-center py-2 min-h-[100px]" style={{ overflowX: "hidden" }}>
-        {mentions.map((m, i) => {
-          const cfg = levelConfig[m.level] || levelConfig.low;
+      <p className="text-xs font-semibold text-blue-600 mb-2">현재 집중 관점</p>
+      <div style={{ position: "relative", width: "100%", height: H, overflow: "visible" }}>
+        {positioned.map((m, i) => {
           const isHighlighted = highlightKeyword && m.keyword === highlightKeyword;
           return (
-            <div key={i} className="flex flex-col items-center gap-1 transition-all duration-300"
-              style={{ transform: isHighlighted ? "scale(1.15)" : "scale(1)" }}>
-              <div className="rounded-full flex items-center justify-center text-center leading-tight font-medium transition-all duration-300"
-                style={{
-                  width: cfg.size, height: cfg.size,
-                  backgroundColor: isHighlighted ? "#4F48ED" : cfg.bg,
-                  border: `2px solid ${isHighlighted ? "#4F48ED" : cfg.border}`,
-                  color: isHighlighted ? "white" : cfg.text,
-                  fontSize: m.level === "high" ? 12 : m.level === "medium" ? 11 : 10,
-                  padding: "6px",
-                  boxShadow: isHighlighted ? "0 0 0 4px #c7d2fe" : "none",
-                }}>
-                {m.keyword}
-              </div>
+            <div key={i} style={{
+              position: "absolute",
+              left: m.x - m.cfg.size / 2,
+              top: m.y - m.cfg.size / 2,
+              width: m.cfg.size,
+              height: m.cfg.size,
+              borderRadius: "50%",
+              backgroundColor: isHighlighted ? "#4F48ED" : m.cfg.bg,
+              border: `2px solid ${isHighlighted ? "#4F48ED" : m.cfg.border}`,
+              color: isHighlighted ? "white" : m.cfg.text,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              fontSize: m.level === "high" ? 12 : m.level === "medium" ? 11 : 10,
+              fontWeight: 500,
+              lineHeight: 1.3,
+              padding: "6px",
+              boxShadow: isHighlighted ? "0 0 0 4px #c7d2fe" : "none",
+              transform: isHighlighted ? "scale(1.12)" : "scale(1)",
+              transition: "all 0.3s ease",
+              zIndex: isHighlighted ? 2 : 1,
+            }}>
+              {m.keyword}
             </div>
           );
         })}
       </div>
       {/* 범례 */}
-      <div className="flex items-center gap-4 mt-3 justify-center">
-        {([["high","#818cf8","자주 언급"],["medium","#86efac","가끔 언급"],["low","#d1d5db","미언급"]] as const).map(([,color,label]) => (
+      <div className="flex items-center gap-4 mt-2 justify-center">
+        {([["#818cf8","자주 언급"],["#86efac","가끔 언급"],["#d1d5db","미언급"]] as const).map(([color, label]) => (
           <div key={label} className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
             <span className="text-xs text-gray-500">{label}</span>
