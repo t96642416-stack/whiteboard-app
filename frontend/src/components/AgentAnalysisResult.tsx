@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   AgentAnalysisResult,
   PerspectiveAnalysis,
@@ -12,6 +12,7 @@ import {
   IDEA_BADGE_COLORS,
   AGENT_OPTIONS,
   AnalysisSnapshot,
+  FocusMention,
 } from "../types";
 
 interface Props {
@@ -265,9 +266,64 @@ const SrcLink: React.FC<{ source: SearchSource; label?: string }> = ({ source, l
 );
 
 // 관점 제시형 UI
+// 버블 차트: 현재 집중 관점 시각화
+const BubbleChart: React.FC<{ mentions: FocusMention[]; highlightKeyword?: string }> = ({ mentions, highlightKeyword }) => {
+  const levelConfig = {
+    high:   { size: 80, bg: "#e0e7ff", border: "#818cf8", text: "#3730a3", dot: "#818cf8" },
+    medium: { size: 60, bg: "#dcfce7", border: "#86efac", text: "#14532d", dot: "#86efac" },
+    low:    { size: 44, bg: "#f3f4f6", border: "#d1d5db", text: "#6b7280", dot: "#d1d5db" },
+  };
+  return (
+    <div>
+      <p className="text-xs font-semibold text-blue-600 mb-3">현재 집중 관점</p>
+      <div className="flex flex-wrap gap-3 items-end justify-center py-2 min-h-[100px]">
+        {mentions.map((m, i) => {
+          const cfg = levelConfig[m.level] || levelConfig.low;
+          const isHighlighted = highlightKeyword && m.keyword === highlightKeyword;
+          return (
+            <div key={i} className="flex flex-col items-center gap-1 transition-all duration-300"
+              style={{ transform: isHighlighted ? "scale(1.15)" : "scale(1)" }}>
+              <div className="rounded-full flex items-center justify-center text-center leading-tight font-medium transition-all duration-300"
+                style={{
+                  width: cfg.size, height: cfg.size,
+                  backgroundColor: isHighlighted ? "#4F48ED" : cfg.bg,
+                  border: `2px solid ${isHighlighted ? "#4F48ED" : cfg.border}`,
+                  color: isHighlighted ? "white" : cfg.text,
+                  fontSize: m.level === "high" ? 12 : m.level === "medium" ? 11 : 10,
+                  padding: "6px",
+                  boxShadow: isHighlighted ? "0 0 0 4px #c7d2fe" : "none",
+                }}>
+                {m.keyword}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {/* 범례 */}
+      <div className="flex items-center gap-4 mt-3 justify-center">
+        {([["high","#818cf8","자주 언급"],["medium","#86efac","가끔 언급"],["low","#d1d5db","미언급"]] as const).map(([,color,label]) => (
+          <div key={label} className="flex items-center gap-1">
+            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+            <span className="text-xs text-gray-500">{label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// focusMentions가 없는 구형 데이터 대응 헬퍼
+function toMentions(result: PerspectiveAnalysis | QuestionAnalysis): FocusMention[] {
+  if (result.focusMentions && result.focusMentions.length > 0) return result.focusMentions;
+  return result.currentFocus.map(k => ({ keyword: k, level: "medium" as const }));
+}
+
 const PerspectiveView: React.FC<{ result: PerspectiveAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void; onUpdateResult?: (u: PerspectiveAnalysis) => void }> = ({ result, sources, onAddIdea, onUpdateResult }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "관점 제시형";
   const upd = (path: (string | number)[], v: string) => onUpdateResult?.(setIn(result, path, v));
+  const [highlightKeyword, setHighlightKeyword] = useState<string | undefined>(undefined);
+  const mentions = toMentions(result);
+
   return (
     <div className="space-y-3">
       <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
@@ -275,36 +331,26 @@ const PerspectiveView: React.FC<{ result: PerspectiveAnalysis; sources?: SearchS
           <p className="text-sm font-bold text-gray-800">{agentName}, 분석 완료</p>
           {onUpdateResult && <span className="text-xs text-amber-500 flex items-center gap-1">✏ 클릭해서 편집</span>}
         </div>
-        <div className="bg-gray-50 rounded-lg p-3 mb-3">
+
+        {/* 요약 */}
+        <div className="bg-gray-50 rounded-lg p-3 mb-4">
           <ET value={result.summary} className="text-xs text-gray-600 leading-relaxed" multiline
             onSave={onUpdateResult ? v => upd(["summary"], v) : undefined} />
         </div>
-        <div className="mb-3">
-          <p className="text-xs font-semibold text-blue-600 mb-2">현재 집중 관점</p>
-          <div className="flex flex-wrap gap-1.5">
-            {result.currentFocus.map((keyword, i) => (
-              <span key={i} className="px-2.5 py-1 rounded-full text-xs border border-gray-300 text-gray-600 bg-white">
-                {keyword}
-              </span>
-            ))}
-          </div>
-        </div>
-        <hr className="border-gray-100 mb-3" />
-        <div className="bg-gray-50 rounded-lg px-3 py-2.5 flex items-center justify-between mb-3">
-          <p className="text-xs text-gray-600">이런 부분에 대한 논의가 빠졌어요.</p>
-          <button className="text-gray-400 hover:text-gray-600 transition-colors ml-2 flex-shrink-0">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="23 4 23 10 17 10" />
-              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-            </svg>
-          </button>
-        </div>
-        <div className="space-y-2">
+
+        {/* 빠진 관점 */}
+        <p className="text-xs font-semibold text-blue-600 mb-2">이런 부분에 대한 논의가 빠졌어요.</p>
+        <div className="space-y-2 mb-4">
           {result.perspectives.map((p, i) => {
             const src = sources && sources.length > 0 ? sources[i % sources.length] : null;
+            const isActive = highlightKeyword && p.relatedKeyword === highlightKeyword;
             return (
               <DraggableCard key={i} title={p.title} content={p.description} snapshot={{ agentType: 'suggestion', itemData: { ...p, index: i } }} onAdd={onAddIdea}>
-                <div className="rounded-xl p-3" style={{ backgroundColor: "#F0EFFD" }}>
+                <div
+                  className="rounded-xl p-3 cursor-pointer transition-all duration-200"
+                  style={{ backgroundColor: isActive ? "#e0e7ff" : "#F0EFFD", border: isActive ? "1.5px solid #818cf8" : "1.5px solid transparent" }}
+                  onClick={() => setHighlightKeyword(prev => prev === p.relatedKeyword ? undefined : p.relatedKeyword)}
+                >
                   <div className="flex items-center gap-2 mb-1">
                     <span className="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0"
                       style={{ backgroundColor: "#4F48ED", color: "white" }}>
@@ -321,15 +367,31 @@ const PerspectiveView: React.FC<{ result: PerspectiveAnalysis; sources?: SearchS
             );
           })}
         </div>
+
+        {/* 버블 차트 */}
+        <hr className="border-gray-100 mb-4" />
+        <BubbleChart mentions={mentions} highlightKeyword={highlightKeyword} />
       </div>
     </div>
   );
 };
 
 // 관점 탐색형 UI
-const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void; onUpdateResult?: (u: QuestionAnalysis) => void }> = ({ result, sources, onAddIdea, onUpdateResult }) => {
+const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void; onUpdateResult?: (u: QuestionAnalysis) => void }> = ({ result, onAddIdea, onUpdateResult }) => {
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "관점 탐색형";
   const upd = (path: (string | number)[], v: string) => onUpdateResult?.(setIn(result, path, v));
+  const [activeIdx, setActiveIdx] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const mentions = toMentions(result);
+
+  const scrollTo = (idx: number) => {
+    setActiveIdx(idx);
+    const el = scrollRef.current;
+    if (!el) return;
+    const card = el.children[idx] as HTMLElement;
+    if (card) card.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  };
+
   return (
     <div className="space-y-3">
       <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
@@ -337,50 +399,70 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
           <p className="text-sm font-bold text-gray-800">{agentName}, 분석완료</p>
           {onUpdateResult && <span className="text-xs text-amber-500 flex items-center gap-1">✏ 클릭해서 편집</span>}
         </div>
-        <div className="bg-gray-50 rounded-lg p-3 mb-3">
+
+        {/* 요약 */}
+        <div className="bg-gray-50 rounded-lg p-3 mb-4">
           <ET value={result.summary} className="text-xs text-gray-600 leading-relaxed" multiline
             onSave={onUpdateResult ? v => upd(["summary"], v) : undefined} />
         </div>
-        <div className="mb-3">
-          <p className="text-xs font-semibold text-blue-600 mb-2">현재 집중 관점</p>
-          <div className="flex flex-wrap gap-1.5">
-            {result.currentFocus.map((keyword, i) => (
-              <span key={i} className="px-2.5 py-1 rounded-full text-xs border border-gray-300 text-gray-600 bg-white">
-                {keyword}
-              </span>
-            ))}
+
+        {/* 질문 캐러셀 */}
+        <p className="text-xs font-semibold text-blue-600 mb-2">이런 부분도 생각해볼 수 있어요</p>
+        <div className="relative">
+          {/* 카드 스크롤 영역 */}
+          <div ref={scrollRef} className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scroll-smooth hide-scrollbar" style={{ scrollbarWidth: "none" }}>
+            {result.questions.map((q, i) => {
+              const isActive = i === activeIdx;
+              return (
+                <DraggableCard key={i} title={`Q${i + 1}. ${q.text.slice(0, 40)}`} content={q.text} snapshot={{ agentType: 'question', itemData: { ...q, index: i } }} onAdd={onAddIdea}>
+                  <div
+                    className="snap-center flex-shrink-0 rounded-xl p-4 cursor-pointer transition-all duration-200"
+                    style={{
+                      width: "calc(70vw - 48px)", maxWidth: 220,
+                      backgroundColor: isActive ? "#4F48ED" : "#F0EFFD",
+                      border: `1.5px solid ${isActive ? "#4F48ED" : "transparent"}`,
+                      minHeight: 120,
+                    }}
+                    onClick={() => scrollTo(i)}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0"
+                        style={{ backgroundColor: isActive ? "rgba(255,255,255,0.2)" : "#4F48ED", color: "white" }}>
+                        Q{i + 1}
+                      </span>
+                    </div>
+                    <ET value={q.text} className={`text-xs leading-relaxed font-medium ${isActive ? "text-white" : "text-gray-800"}`} multiline
+                      onSave={onUpdateResult ? v => upd(["questions", i, "text"], v) : undefined} />
+                  </div>
+                </DraggableCard>
+              );
+            })}
+          </div>
+
+          {/* 이전/다음 버튼 */}
+          <div className="flex items-center justify-between mt-2 px-1">
+            <button onClick={() => scrollTo(Math.max(0, activeIdx - 1))} disabled={activeIdx === 0}
+              className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-30 transition-colors">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6" /></svg>
+            </button>
+            {/* 도트 인디케이터 */}
+            <div className="flex gap-1.5">
+              {result.questions.map((_, i) => (
+                <button key={i} onClick={() => scrollTo(i)}
+                  className="rounded-full transition-all duration-200"
+                  style={{ width: i === activeIdx ? 16 : 6, height: 6, backgroundColor: i === activeIdx ? "#4F48ED" : "#d1d5db" }} />
+              ))}
+            </div>
+            <button onClick={() => scrollTo(Math.min(result.questions.length - 1, activeIdx + 1))} disabled={activeIdx === result.questions.length - 1}
+              className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-30 transition-colors">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
+            </button>
           </div>
         </div>
-        <hr className="border-gray-100 mb-3" />
-        <div className="bg-gray-50 rounded-lg px-3 py-2.5 flex items-center justify-between mb-3">
-          <p className="text-xs text-gray-600">이런 부분도 생각해볼 수 있어요</p>
-          <button className="text-gray-400 hover:text-gray-600 transition-colors ml-2 flex-shrink-0">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="23 4 23 10 17 10" />
-              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-            </svg>
-          </button>
-        </div>
-        <div className="space-y-2">
-          {result.questions.map((q, i) => {
-            const src = sources && sources.length > 0 ? sources[i % sources.length] : null;
-            return (
-              <DraggableCard key={i} title={`Q${i + 1}. ${q.text.slice(0, 40)}`} content={q.text} snapshot={{ agentType: 'question', itemData: { ...q, index: i } }} onAdd={onAddIdea}>
-                <div className="rounded-xl p-3" style={{ backgroundColor: "#F0EFFD" }}>
-                  <div className="flex items-start gap-2">
-                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0 mt-0.5"
-                      style={{ backgroundColor: "#4F48ED", color: "white" }}>
-                      Q{i + 1}
-                    </span>
-                    <ET value={q.text} className="text-xs text-gray-800 leading-relaxed font-medium flex-1" multiline
-                      onSave={onUpdateResult ? v => upd(["questions", i, "text"], v) : undefined} />
-                    {src && <SrcLink source={src} label={`${i % sources!.length + 1}`} />}
-                  </div>
-                </div>
-              </DraggableCard>
-            );
-          })}
-        </div>
+
+        {/* 버블 차트 */}
+        <hr className="border-gray-100 my-4" />
+        <BubbleChart mentions={mentions} />
       </div>
     </div>
   );

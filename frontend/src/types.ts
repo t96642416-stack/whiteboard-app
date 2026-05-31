@@ -97,11 +97,14 @@ export interface ChatMessage {
 }
 
 // 관점 제시형 (suggestion)
+export interface FocusMention { keyword: string; level: "high" | "medium" | "low" }
+
 export interface PerspectiveAnalysis {
   agentType: 'suggestion';
   summary: string;
   currentFocus: string[];
-  perspectives: { title: string; description: string }[];
+  focusMentions?: FocusMention[];
+  perspectives: { title: string; description: string; relatedKeyword?: string }[];
   searchSources?: SearchSource[];
 }
 
@@ -110,6 +113,7 @@ export interface QuestionAnalysis {
   agentType: 'question';
   summary: string;
   currentFocus: string[];
+  focusMentions?: FocusMention[];
   questions: { text: string }[];
   searchSources?: SearchSource[];
 }

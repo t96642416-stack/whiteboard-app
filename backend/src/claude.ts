@@ -226,10 +226,15 @@ ${EVIDENCE_RULE}
   "agentType": "suggestion",
   "summary": "현재 논의와 첨부 자료 요약 2-3문장",
   "currentFocus": ["키워드1", "키워드2", "키워드3", "키워드4"],
+  "focusMentions": [
+    {"keyword": "자주 언급된 키워드", "level": "high"},
+    {"keyword": "가끔 언급된 키워드", "level": "medium"},
+    {"keyword": "거의 언급 안 된 키워드", "level": "low"}
+  ],
   "perspectives": [
-    {"title": "놓친 관점 제목", "description": "기존 아이디어에 이 관점을 적용하면 어떤 점이 달라지는지 설명"},
-    {"title": "놓친 관점 제목", "description": "설명"},
-    {"title": "놓친 관점 제목", "description": "설명"}
+    {"title": "놓친 관점 제목", "description": "기존 아이디어에 이 관점을 적용하면 어떤 점이 달라지는지 설명", "relatedKeyword": "focusMentions 중 관련 키워드"},
+    {"title": "놓친 관점 제목", "description": "설명", "relatedKeyword": "관련 키워드"},
+    {"title": "놓친 관점 제목", "description": "설명", "relatedKeyword": "관련 키워드"}
   ]
 }`;
 
@@ -244,6 +249,11 @@ ${EVIDENCE_RULE}
   "agentType": "question",
   "summary": "현재 논의와 첨부 자료 요약 2-3문장",
   "currentFocus": ["키워드1", "키워드2", "키워드3"],
+  "focusMentions": [
+    {"keyword": "자주 언급된 키워드", "level": "high"},
+    {"keyword": "가끔 언급된 키워드", "level": "medium"},
+    {"keyword": "거의 언급 안 된 키워드", "level": "low"}
+  ],
   "questions": [
     {"text": "기존 아이디어에 대한 검증 질문 1 (물음표로 끝나는 질문형)"},
     {"text": "검증 질문 2"},
