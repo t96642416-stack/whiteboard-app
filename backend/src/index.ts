@@ -116,19 +116,34 @@ io.on("connection", (socket) => {
         }
       }
 
-      const ideasForState = roomIdeas[roomId];
-
       const usersArray = Array.from(roomUsers[roomId].entries()).map(([name, color]) => ({ name, color }));
 
-      // 현재 방의 상태 전송
+      // 1단계: 이미지 content 제외하고 먼저 전송 (빠른 초기 렌더링)
+      const ideasWithoutImages = (roomIdeas[roomId] || []).map((idea: any) => ({
+        ...idea,
+        attachments: idea.attachments?.map((a: any) => ({
+          ...a,
+          content: a.type === "image" ? "" : a.content,
+        })) ?? [],
+      }));
       socket.emit("room-state", {
-        ideas: ideasForState,
+        ideas: ideasWithoutImages,
         users: usersArray,
         messages: roomMessages[roomId] || [],
         sections: roomSections[roomId] || [],
         analysisResults: roomAnalysisResults[roomId] || [],
         canvasImages: roomCanvasImages[roomId] || [],
       });
+
+      // 2단계: 이미지가 있는 카드만 이미지 포함해서 별도 전송 (백그라운드)
+      const ideasWithImages = (roomIdeas[roomId] || []).filter((idea: any) =>
+        idea.attachments?.some((a: any) => a.type === "image" && a.content)
+      );
+      if (ideasWithImages.length > 0) {
+        setImmediate(() => {
+          socket.emit("room-images-patch", { ideas: ideasWithImages });
+        });
+      }
 
       // 다른 유저들에게 알림
       socket.to(roomId).emit("user-joined", {

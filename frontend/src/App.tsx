@@ -154,6 +154,14 @@ function App() {
       setIdeas((prev) => prev.find((i) => i.id === idea.id) ? prev : [...prev, idea]);
     });
 
+    // 이미지 지연 패치 (초기 로딩 속도 개선)
+    socket.on("room-images-patch", ({ ideas: patchIdeas }: { ideas: Idea[] }) => {
+      setIdeas(prev => prev.map(idea => {
+        const patched = patchIdeas.find(p => p.id === idea.id);
+        return patched ? { ...idea, attachments: patched.attachments } : idea;
+      }));
+    });
+
     socket.on("idea-deleted", ({ ideaId }: { ideaId: string }) => {
       setIdeas((prev) => prev.filter((i) => i.id !== ideaId));
     });
@@ -261,6 +269,7 @@ function App() {
       socket.off("reconnect");
       socket.off("room-state");
       socket.off("idea-added");
+      socket.off("room-images-patch");
       socket.off("idea-deleted");
       socket.off("idea-moved");
       socket.off("idea-resized");
