@@ -46,6 +46,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
   onClearChat,
 }) => {
   const [selectedSections, setSelectedSections] = useState<string[] | null>(null); // null = 전체
+  const [useSectionMode, setUseSectionMode] = useState(true); // false = 섹션 무시하고 카드 전체
   const [inputText, setInputText] = useState("");
   const [aiInputText, setAiInputText] = useState("");
   const [useSearch, setUseSearch] = useState(false);
@@ -246,10 +247,12 @@ const AIPanel: React.FC<AIPanelProps> = ({
     if (agentType === null) return;
     onAgentChange(agentType);
     const filesOnly = ideaFiles.length > 0;
-    // 섹션 필터: null이면 전체(undefined 전달), 선택된 섹션이 있으면 필터링해서 전달
-    const filteredGroups = selectedSections === null
+    // 섹션 모드 OFF면 섹션 무시하고 카드 전체 분석
+    const filteredGroups = (!useSectionMode || sectionGroups.length === 0)
       ? undefined
-      : sectionGroups.filter(g => selectedSections.includes(g.title));
+      : selectedSections === null
+        ? undefined
+        : sectionGroups.filter(g => selectedSections.includes(g.title));
     onRequestAnalysis(agentType, analysisFiles.length > 0 ? analysisFiles : undefined, useSearch, filesOnly, filteredGroups);
     setShowAgentList(false);
     setShowInitial(false);
@@ -350,39 +353,58 @@ const AIPanel: React.FC<AIPanelProps> = ({
       {/* 섹션 필터 — 섹션이 2개 이상일 때만 표시 */}
       {sectionGroups.length >= 2 && (
         <div className="bg-white rounded-xl px-3.5 py-3">
-          <div className="flex items-center gap-1.5 mb-2">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2">
-              <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>
-            </svg>
-            <span className="text-xs font-semibold text-gray-700">분석 섹션</span>
-            <span className="text-gray-400 font-normal" style={{ fontSize: 10 }}>원하는 섹션만 선택</span>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            <button onClick={() => setSelectedSections(null)}
-              className="px-2.5 py-1 rounded-full text-xs font-semibold transition-colors"
-              style={{ backgroundColor: selectedSections === null ? "#6366f1" : "#f3f4f6", color: selectedSections === null ? "white" : "#6b7280" }}>
-              전체
+          {/* 섹션 모드 토글 */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>
+              </svg>
+              <span className="text-xs font-semibold text-gray-700">섹션 분석</span>
+            </div>
+            {/* 토글 스위치 */}
+            <button
+              onClick={() => setUseSectionMode(v => !v)}
+              className="relative inline-flex items-center h-5 w-9 rounded-full transition-colors flex-shrink-0"
+              style={{ backgroundColor: useSectionMode ? "#6366f1" : "#d1d5db" }}>
+              <span className="inline-block w-3.5 h-3.5 bg-white rounded-full shadow transition-transform"
+                style={{ transform: useSectionMode ? "translateX(18px)" : "translateX(2px)" }} />
             </button>
-            {sectionGroups.map(g => {
-              const isSelected = selectedSections !== null && selectedSections.includes(g.title);
-              return (
-                <button key={g.title}
-                  onClick={() => setSelectedSections(prev => {
-                    if (prev === null) return [g.title]; // 전체 상태 → 그것만 선택
-                    const next = prev.includes(g.title)
-                      ? prev.filter(t => t !== g.title)
-                      : [...prev, g.title];
-                    return next.length === sectionGroups.length ? null : next; // 전부 선택 시 전체로
-                  })}
-                  className="px-2.5 py-1 rounded-full text-xs font-semibold transition-colors"
-                  style={{ backgroundColor: isSelected ? "#ede9fe" : "#f3f4f6", color: isSelected ? "#6366f1" : "#6b7280" }}>
-                  {g.title}
-                </button>
-              );
-            })}
           </div>
-          {selectedSections !== null && selectedSections.length === 0 && (
-            <p className="text-xs text-rose-400 mt-1.5">섹션을 1개 이상 선택해주세요</p>
+
+          {/* 섹션 선택 칩 — 섹션 모드 ON일 때만 */}
+          {useSectionMode && (
+            <>
+              <div className="flex flex-wrap gap-1.5">
+                <button onClick={() => setSelectedSections(null)}
+                  className="px-2.5 py-1 rounded-full text-xs font-semibold transition-colors"
+                  style={{ backgroundColor: selectedSections === null ? "#6366f1" : "#f3f4f6", color: selectedSections === null ? "white" : "#6b7280" }}>
+                  전체
+                </button>
+                {sectionGroups.map(g => {
+                  const isSelected = selectedSections !== null && selectedSections.includes(g.title);
+                  return (
+                    <button key={g.title}
+                      onClick={() => setSelectedSections(prev => {
+                        if (prev === null) return [g.title];
+                        const next = prev.includes(g.title)
+                          ? prev.filter(t => t !== g.title)
+                          : [...prev, g.title];
+                        return next.length === sectionGroups.length ? null : next;
+                      })}
+                      className="px-2.5 py-1 rounded-full text-xs font-semibold transition-colors"
+                      style={{ backgroundColor: isSelected ? "#ede9fe" : "#f3f4f6", color: isSelected ? "#6366f1" : "#6b7280" }}>
+                      {g.title}
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedSections !== null && selectedSections.length === 0 && (
+                <p className="text-xs text-rose-400 mt-1.5">섹션을 1개 이상 선택해주세요</p>
+              )}
+            </>
+          )}
+          {!useSectionMode && (
+            <p className="text-xs text-gray-400">섹션 무시하고 카드 전체를 분석해요</p>
           )}
         </div>
       )}
