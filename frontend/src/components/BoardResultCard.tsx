@@ -6,18 +6,26 @@ interface Props {
   onDelete: (id: string) => void;
 }
 
-// 점수 바 컴포넌트
-const ScoreBar: React.FC<{ label: string; value: number; color: string }> = ({ label, value, color }) => (
-  <div className="mb-1.5">
-    <div className="flex justify-between mb-0.5">
-      <span className="text-xs text-gray-500">{label}</span>
-      <span className="text-xs font-medium text-gray-700">{value}%</span>
+// 점수 → 높음/중간/낮음 변환
+const scoreToLevel = (v: number): { label: string; color: string } => {
+  if (v >= 70) return { label: "높음", color: "#2563eb" };
+  if (v >= 40) return { label: "중간", color: "#16a34a" };
+  return { label: "낮음", color: "#ef4444" };
+};
+
+// 점수 행 컴포넌트
+const ScoreRow: React.FC<{ label: string; value: number; reason?: string }> = ({ label, value, reason }) => {
+  const { label: lvl, color } = scoreToLevel(value);
+  return (
+    <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-0">
+      <div>
+        <span className="text-xs text-gray-500">{label}</span>
+        {reason && <p className="text-xs text-gray-400 mt-0.5">{reason}</p>}
+      </div>
+      <span className="text-sm font-bold flex-shrink-0 ml-3" style={{ color }}>{lvl}</span>
     </div>
-    <div className="w-full bg-gray-200 rounded-full h-1.5">
-      <div className="h-1.5 rounded-full" style={{ width: `${value}%`, backgroundColor: color }} />
-    </div>
-  </div>
-);
+  );
+};
 
 const BoardResultCard: React.FC<Props> = ({ idea, onDelete }) => {
   const snap = idea.analysisSnapshot!;
@@ -119,9 +127,9 @@ const BoardResultCard: React.FC<Props> = ({ idea, onDelete }) => {
                 <span className="ml-auto text-xs font-bold text-indigo-600">{d.score}점</span>
               )}
             </div>
-            <ScoreBar label="실현 가능성" value={d.feasibility ?? 0} color="#4F48ED" />
-            <ScoreBar label="사용자 편의" value={d.userExperience ?? 0} color="#eab308" />
-            <ScoreBar label="차별성" value={d.uniqueness ?? 0} color={d.uniqueness >= 50 ? "#16a34a" : "#ef4444"} />
+            <ScoreRow label="실현 가능성" value={d.feasibility ?? 0} reason={d.feasibilityReason} />
+            <ScoreRow label="사용자 편의" value={d.userExperience ?? 0} reason={d.userExperienceReason} />
+            <ScoreRow label="차별성" value={d.uniqueness ?? 0} reason={d.uniquenessReason} />
           </div>
         );
 
