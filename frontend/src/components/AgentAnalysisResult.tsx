@@ -276,7 +276,7 @@ const BubbleChart: React.FC<{ mentions: FocusMention[]; highlightKeyword?: strin
   return (
     <div>
       <p className="text-xs font-semibold text-blue-600 mb-3">현재 집중 관점</p>
-      <div className="flex flex-wrap gap-3 items-end justify-center py-2 min-h-[100px]">
+      <div className="flex flex-wrap gap-3 items-center justify-center py-2 min-h-[100px]" style={{ overflowX: "hidden" }}>
         {mentions.map((m, i) => {
           const cfg = levelConfig[m.level] || levelConfig.low;
           const isHighlighted = highlightKeyword && m.keyword === highlightKeyword;
@@ -416,27 +416,28 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
             {result.questions.map((q, i) => {
               const isActive = i === activeIdx;
               return (
-                <DraggableCard key={i} title={`Q${i + 1}. ${q.text.slice(0, 40)}`} content={q.text} snapshot={{ agentType: 'question', itemData: { ...q, index: i } }} onAdd={onAddIdea}>
-                  <div
-                    className="snap-center flex-shrink-0 rounded-xl p-4 cursor-pointer transition-all duration-200"
-                    style={{
-                      width: "calc(70vw - 48px)", maxWidth: 220,
-                      backgroundColor: isActive ? "#4F48ED" : "#F0EFFD",
-                      border: `1.5px solid ${isActive ? "#4F48ED" : "transparent"}`,
-                      minHeight: 120,
-                    }}
-                    onClick={() => scrollTo(i)}
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0"
-                        style={{ backgroundColor: isActive ? "rgba(255,255,255,0.2)" : "#4F48ED", color: "white" }}>
-                        Q{i + 1}
-                      </span>
+                <div key={i} className="snap-center flex-shrink-0" style={{ width: "calc(70vw - 48px)", maxWidth: 220 }}
+                  onClick={() => scrollTo(i)}>
+                  <DraggableCard title={`Q${i + 1}. ${q.text.slice(0, 40)}`} content={q.text} snapshot={{ agentType: 'question', itemData: { ...q, index: i } }} onAdd={onAddIdea}>
+                    <div
+                      className="rounded-xl p-4 cursor-pointer transition-all duration-200"
+                      style={{
+                        backgroundColor: isActive ? "#4F48ED" : "#F0EFFD",
+                        border: `1.5px solid ${isActive ? "#4F48ED" : "transparent"}`,
+                        minHeight: 120,
+                      }}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0"
+                          style={{ backgroundColor: isActive ? "rgba(255,255,255,0.2)" : "#4F48ED", color: "white" }}>
+                          Q{i + 1}
+                        </span>
+                      </div>
+                      <ET value={q.text} className={`text-xs leading-relaxed font-medium ${isActive ? "text-white" : "text-gray-800"}`} multiline
+                        onSave={onUpdateResult ? v => upd(["questions", i, "text"], v) : undefined} />
                     </div>
-                    <ET value={q.text} className={`text-xs leading-relaxed font-medium ${isActive ? "text-white" : "text-gray-800"}`} multiline
-                      onSave={onUpdateResult ? v => upd(["questions", i, "text"], v) : undefined} />
-                  </div>
-                </DraggableCard>
+                  </DraggableCard>
+                </div>
               );
             })}
           </div>
