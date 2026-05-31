@@ -270,35 +270,63 @@ const SrcLink: React.FC<{ source: SearchSource; label?: string }> = ({ source, l
 // 버블 차트: 현재 집중 관점 시각화 (산포형 레이아웃)
 const BubbleChart: React.FC<{ mentions: FocusMention[]; highlightKeyword?: string }> = ({ mentions, highlightKeyword }) => {
   const levelConfig = {
-    high:   { size: 90, bg: "#e0e7ff", border: "#818cf8", text: "#3730a3" },
-    medium: { size: 64, bg: "#dcfce7", border: "#86efac", text: "#14532d" },
-    low:    { size: 46, bg: "#f3f4f6", border: "#d1d5db", text: "#6b7280" },
+    high:   { size: 86, bg: "#e0e7ff", border: "#818cf8", text: "#3730a3" },
+    medium: { size: 62, bg: "#dcfce7", border: "#86efac", text: "#14532d" },
+    low:    { size: 44, bg: "#f3f4f6", border: "#d1d5db", text: "#6b7280" },
   };
 
-  // 결정론적 산포 위치 계산 (같은 키워드는 항상 같은 위치)
-  const W = 300, H = 230;
+  const W = 300, H = 240;
+
   const positioned = React.useMemo(() => {
     const sorted = [...mentions].sort((a, b) =>
       ({ high: 0, medium: 1, low: 2 }[a.level] ?? 2) - ({ high: 0, medium: 1, low: 2 }[b.level] ?? 2)
     );
-    // 황금각 나선형 배치
+
+    // 초기 위치: 황금각 나선 + 레벨별 반지름 차등
     const PHI = Math.PI * (3 - Math.sqrt(5));
-    return sorted.map((m, i) => {
+    const nodes = sorted.map((m, i) => {
       const cfg = levelConfig[m.level] || levelConfig.low;
-      const spread = m.level === "high" ? 0.35 : m.level === "medium" ? 0.62 : 0.88;
-      const r = spread * Math.min(W, H) * 0.42 * Math.sqrt(i / Math.max(sorted.length - 1, 1) + 0.15);
-      const angle = i * PHI;
-      const x = W / 2 + r * Math.cos(angle);
-      const y = H / 2 + r * Math.sin(angle) * 0.75;
-      const half = cfg.size / 2 + 4;
-      return { ...m, cfg, x: Math.max(half, Math.min(W - half, x)), y: Math.max(half, Math.min(H - half, y)) };
+      const baseR = m.level === "high" ? 40 : m.level === "medium" ? 80 : 110;
+      const r = baseR * (0.6 + 0.4 * (i / Math.max(sorted.length - 1, 1)));
+      const angle = i * PHI + (m.level === "high" ? 0 : m.level === "medium" ? 1.2 : 2.4);
+      return {
+        ...m, cfg,
+        x: W / 2 + r * Math.cos(angle),
+        y: H / 2 + r * Math.sin(angle) * 0.8,
+      };
     });
+
+    // 충돌 해소 (50회 반복)
+    const PAD = 8;
+    for (let iter = 0; iter < 50; iter++) {
+      for (let a = 0; a < nodes.length; a++) {
+        for (let b = a + 1; b < nodes.length; b++) {
+          const na = nodes[a], nb = nodes[b];
+          const minDist = (na.cfg.size + nb.cfg.size) / 2 + PAD;
+          const dx = nb.x - na.x, dy = nb.y - na.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+          if (dist < minDist) {
+            const push = (minDist - dist) / 2;
+            const nx = dx / dist * push, ny = dy / dist * push;
+            nodes[a].x -= nx; nodes[a].y -= ny;
+            nodes[b].x += nx; nodes[b].y += ny;
+          }
+        }
+      }
+      // 경계 클램프
+      nodes.forEach(n => {
+        const half = n.cfg.size / 2 + 4;
+        n.x = Math.max(half, Math.min(W - half, n.x));
+        n.y = Math.max(half, Math.min(H - half, n.y));
+      });
+    }
+    return nodes;
   }, [mentions]);
 
   return (
     <div>
       <p className="text-xs font-semibold text-blue-600 mb-2">현재 집중 관점</p>
-      <div style={{ position: "relative", width: "100%", height: H, overflow: "visible" }}>
+      <div style={{ position: "relative", width: "100%", height: H }}>
         {positioned.map((m, i) => {
           const isHighlighted = highlightKeyword && m.keyword === highlightKeyword;
           return (
@@ -309,8 +337,8 @@ const BubbleChart: React.FC<{ mentions: FocusMention[]; highlightKeyword?: strin
               width: m.cfg.size,
               height: m.cfg.size,
               borderRadius: "50%",
-              backgroundColor: isHighlighted ? "#4F48ED" : m.cfg.bg,
-              border: `2px solid ${isHighlighted ? "#4F48ED" : m.cfg.border}`,
+              backgroundColor: isHighlighted ? "#15803d" : m.cfg.bg,
+              border: `2px solid ${isHighlighted ? "#15803d" : m.cfg.border}`,
               color: isHighlighted ? "white" : m.cfg.text,
               display: "flex",
               alignItems: "center",
@@ -320,8 +348,8 @@ const BubbleChart: React.FC<{ mentions: FocusMention[]; highlightKeyword?: strin
               fontWeight: 500,
               lineHeight: 1.3,
               padding: "6px",
-              boxShadow: isHighlighted ? "0 0 0 4px #c7d2fe" : "none",
-              transform: isHighlighted ? "scale(1.12)" : "scale(1)",
+              boxShadow: isHighlighted ? "0 0 0 4px #bbf7d0" : "none",
+              transform: isHighlighted ? "scale(1.1)" : "scale(1)",
               transition: "all 0.3s ease",
               zIndex: isHighlighted ? 2 : 1,
             }}>
@@ -331,7 +359,7 @@ const BubbleChart: React.FC<{ mentions: FocusMention[]; highlightKeyword?: strin
         })}
       </div>
       {/* 범례 */}
-      <div className="flex items-center gap-4 mt-2 justify-center">
+      <div className="flex items-center gap-4 mt-1 justify-center">
         {([["#818cf8","자주 언급"],["#86efac","가끔 언급"],["#d1d5db","미언급"]] as const).map(([color, label]) => (
           <div key={label} className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
