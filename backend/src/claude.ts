@@ -255,9 +255,9 @@ ${EVIDENCE_RULE}
     {"keyword": "거의 언급 안 된 키워드", "level": "low"}
   ],
   "questions": [
-    {"text": "기존 아이디어에 대한 검증 질문 1 (물음표로 끝나는 질문형)"},
-    {"text": "검증 질문 2"},
-    {"text": "검증 질문 3"}
+    {"text": "기존 아이디어에 대한 검증 질문 1 (물음표로 끝나는 질문형)", "relatedKeyword": "focusMentions 중 관련 키워드"},
+    {"text": "검증 질문 2", "relatedKeyword": "관련 키워드"},
+    {"text": "검증 질문 3", "relatedKeyword": "관련 키워드"}
   ]
 }`;
 

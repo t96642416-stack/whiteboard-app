@@ -381,11 +381,13 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
   const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "관점 탐색형";
   const upd = (path: (string | number)[], v: string) => onUpdateResult?.(setIn(result, path, v));
   const [activeIdx, setActiveIdx] = useState(0);
+  const [highlightKeyword, setHighlightKeyword] = useState<string | undefined>(undefined);
   const scrollRef = useRef<HTMLDivElement>(null);
   const mentions = toMentions(result);
 
   const scrollTo = (idx: number) => {
     setActiveIdx(idx);
+    setHighlightKeyword(result.questions[idx]?.relatedKeyword);
     const el = scrollRef.current;
     if (!el) return;
     const card = el.children[idx] as HTMLElement;
@@ -462,7 +464,7 @@ const ExploreView: React.FC<{ result: QuestionAnalysis; sources?: SearchSource[]
 
         {/* 버블 차트 */}
         <hr className="border-gray-100 my-4" />
-        <BubbleChart mentions={mentions} />
+        <BubbleChart mentions={mentions} highlightKeyword={highlightKeyword} />
       </div>
     </div>
   );

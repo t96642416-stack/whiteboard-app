@@ -114,7 +114,7 @@ export interface QuestionAnalysis {
   summary: string;
   currentFocus: string[];
   focusMentions?: FocusMention[];
-  questions: { text: string }[];
+  questions: { text: string; relatedKeyword?: string }[];
   searchSources?: SearchSource[];
 }
 
