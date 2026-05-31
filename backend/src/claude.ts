@@ -511,7 +511,7 @@ export async function analyzeIdeas(
 
   // 그룹화 분석 지시
   const groupingInstruction = hasSectionGroups
-    ? `\n\n[중요] 위 내용은 팀이 직접 섹션으로 구분한 안(案)들입니다. ${sectionGroups!.map((g, i) => `${String.fromCharCode(65+i)}안: ${g.title}`).join(", ")}. 각 안을 하나의 분석 단위로 사용하세요. ideas 배열의 각 항목이 각 안(섹션)을 나타내도록 하세요.`
+    ? `\n\n[중요] 위 내용은 팀이 직접 섹션으로 구분한 안(案)들입니다. ${sectionGroups!.map((g, i) => `${String.fromCharCode(65+i)}안: ${g.title}`).join(", ")}. 반드시 정확히 ${sectionGroups!.length}개의 안만 분석하고, ideas 배열도 정확히 ${sectionGroups!.length}개 항목만 포함하세요. 새로운 안을 추가하거나 기존 안을 합치지 마세요.`
     : ideas.length >= 3
     ? `\n\n[중요] 아이디어가 ${ideas.length}개입니다. 개별 아이디어를 하나하나 분석하지 말고, 의미적으로 관련된 아이디어들을 테마 그룹(안)으로 묶어서 분석하세요. 2~4개의 그룹으로 수렴하세요.`
     : "";

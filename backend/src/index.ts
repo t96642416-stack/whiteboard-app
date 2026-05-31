@@ -337,6 +337,12 @@ io.on("connection", (socket) => {
             ? allIdeas.filter((i: any) => (i.category ?? "brainstorm") === categoryFilter)
             : allIdeas
         ).filter((i: any) => !i.analysisSnapshot && !(excludeIds ?? []).includes(i.id));
+
+        // 섹션 그룹이 지정된 경우, 해당 섹션에 속한 아이디어만 사용
+        if (sectionGroups && sectionGroups.length > 0) {
+          const sectionIdeaIds = new Set(sectionGroups.flatMap((g: any) => g.ideaIds));
+          ideas = ideas.filter((i: any) => sectionIdeaIds.has(i.id));
+        }
       }
 
       // filesOnly인데 파일도 없으면 오류
