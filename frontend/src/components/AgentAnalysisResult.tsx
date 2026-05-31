@@ -214,12 +214,12 @@ const DraggableCard: React.FC<{
       onDragStart={handleDragStart}
       className="relative group cursor-grab active:cursor-grabbing"
     >
-      {/* 빠른 추가 버튼 (우측 상단) */}
+      {/* 빠른 추가 버튼 (우측 상단, overflow-hidden 안에서도 보이도록 안쪽으로) */}
       {onAdd && (
         <button
           draggable={false}
           onClick={(e) => { e.stopPropagation(); onAdd(title, content, snapshot); }}
-          className="absolute -right-1 -top-1 opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center shadow-sm hover:bg-indigo-600 z-10"
+          className="absolute right-1.5 top-1.5 opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center shadow-sm hover:bg-indigo-600 z-10"
           title="보드에 바로 추가"
         >
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
