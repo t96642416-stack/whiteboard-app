@@ -42,6 +42,10 @@ const io = new Server(httpServer, {
   },
   // 이미지 첨부 파일(base64) 포함 패킷 허용 (기본 1MB → 50MB)
   maxHttpBufferSize: 50 * 1024 * 1024,
+  // 연결 안정성 — 타임아웃 늘려서 튕김 방지
+  pingTimeout: 60000,    // 60초 (기본 20초)
+  pingInterval: 25000,   // 25초마다 핑 (기본 25초)
+  connectTimeout: 45000, // 연결 타임아웃 45초
 });
 
 app.use(cors({ origin: "*" }));
@@ -54,6 +58,7 @@ app.use(express.static(frontendDist));
 // 방별 인메모리 캐시 (DB와 병행 — 빠른 읽기용)
 const roomIdeas: Record<string, IdeaInput[]> = {};
 const roomUsers: Record<string, Map<string, string>> = {}; // userName -> color
+const roomUserSockets: Record<string, Map<string, string>> = {}; // roomId -> userName -> socketId (최신)
 const roomMessages: Record<string, any[]> = {};
 const roomSections: Record<string, any[]> = {};
 const roomAnalysisResults: Record<string, any[]> = {};
@@ -86,8 +91,11 @@ io.on("connection", (socket) => {
 
       if (!roomUsers[roomId]) {
         roomUsers[roomId] = new Map();
+        roomUserSockets[roomId] = new Map();
       }
       roomUsers[roomId].set(userName, userColor || "#E5E7EB");
+      roomUserSockets[roomId] = roomUserSockets[roomId] || new Map();
+      roomUserSockets[roomId].set(userName, socket.id);
 
       // DB에서 불러오기 (캐시가 비어있을 때만)
       if (!roomIdeas[roomId] || roomIdeas[roomId].length === 0) {
@@ -547,12 +555,17 @@ io.on("connection", (socket) => {
   // 연결 해제
   socket.on("disconnect", () => {
     if (currentRoom && roomUsers[currentRoom]) {
-      roomUsers[currentRoom].delete(currentUser);
-      const usersArray = Array.from(roomUsers[currentRoom].entries()).map(([name, color]) => ({ name, color }));
-      socket.to(currentRoom).emit("user-left", {
-        userName: currentUser,
-        users: usersArray,
-      });
+      // 같은 유저가 이미 새 소켓으로 재연결했으면 삭제하지 않음 (0명 버그 방지)
+      const latestSocketId = roomUserSockets[currentRoom]?.get(currentUser);
+      if (!latestSocketId || latestSocketId === socket.id) {
+        roomUsers[currentRoom].delete(currentUser);
+        roomUserSockets[currentRoom]?.delete(currentUser);
+        const usersArray = Array.from(roomUsers[currentRoom].entries()).map(([name, color]) => ({ name, color }));
+        socket.to(currentRoom).emit("user-left", {
+          userName: currentUser,
+          users: usersArray,
+        });
+      }
     }
     console.log(`클라이언트 연결 해제: ${socket.id} (${currentUser})`);
   });
