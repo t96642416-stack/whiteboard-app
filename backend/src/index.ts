@@ -107,7 +107,14 @@ io.on("connection", (socket) => {
             dbGetAnalysisResults(roomId),
             dbGetCanvasImages(roomId),
           ]);
-          roomIdeas[roomId] = ideas; // 이미지 포함 전체 보관 (속도 우선)
+          // RAM엔 이미지 제외 저장 (메모리 절약), DB엔 원본 유지
+          roomIdeas[roomId] = ideas.map((idea: any) => ({
+            ...idea,
+            attachments: idea.attachments?.map((a: any) => ({
+              ...a,
+              content: a.type === "image" ? "" : a.content,
+            })) ?? [],
+          }));
           roomSections[roomId] = sections;
           roomMessages[roomId] = messages;
           roomAnalysisResults[roomId] = analysisResults;
@@ -127,16 +134,9 @@ io.on("connection", (socket) => {
 
       const usersArray = Array.from(roomUsers[roomId].entries()).map(([name, color]) => ({ name, color }));
 
-      // 1단계: 이미지 content 제외하고 먼저 전송 (빠른 초기 렌더링)
-      const ideasWithoutImages = (roomIdeas[roomId] || []).map((idea: any) => ({
-        ...idea,
-        attachments: idea.attachments?.map((a: any) => ({
-          ...a,
-          content: a.type === "image" ? "" : a.content,
-        })) ?? [],
-      }));
+      // 1단계: 이미지 없이 빠르게 전송 (RAM은 이미지 제외 상태)
       socket.emit("room-state", {
-        ideas: ideasWithoutImages,
+        ideas: roomIdeas[roomId] || [],
         users: usersArray,
         messages: roomMessages[roomId] || [],
         sections: roomSections[roomId] || [],
@@ -145,15 +145,18 @@ io.on("connection", (socket) => {
         topic: roomTopics[roomId] || "",
       });
 
-      // 2단계: 이미지가 있는 카드만 이미지 포함해서 별도 전송 (백그라운드)
-      const ideasWithImages = (roomIdeas[roomId] || []).filter((idea: any) =>
-        idea.attachments?.some((a: any) => a.type === "image" && a.content)
-      );
-      if (ideasWithImages.length > 0) {
-        setImmediate(() => {
-          socket.emit("room-images-patch", { ideas: ideasWithImages });
-        });
-      }
+      // 2단계: DB에서 이미지 있는 카드만 읽어 별도 전송 (백그라운드)
+      setImmediate(async () => {
+        try {
+          const allIdeas = await dbGetIdeas(roomId);
+          const ideasWithImages = allIdeas.filter((idea: any) =>
+            idea.attachments?.some((a: any) => a.type === "image" && a.content)
+          );
+          if (ideasWithImages.length > 0) {
+            socket.emit("room-images-patch", { ideas: ideasWithImages });
+          }
+        } catch { /* 실패 시 이미지 없이 표시 */ }
+      });
 
       // 다른 유저들에게 알림
       socket.to(roomId).emit("user-joined", {
@@ -173,8 +176,15 @@ io.on("connection", (socket) => {
       roomIdeas[currentRoom] = [];
     }
 
-    // RAM에 이미지 포함 전체 저장 (속도 우선)
-    roomIdeas[currentRoom].push(idea);
+    // RAM엔 이미지 제외 저장 (메모리 절약), DB엔 원본 저장
+    const ideaForRam: IdeaInput = {
+      ...idea,
+      attachments: idea.attachments?.map(a => ({
+        ...a,
+        content: a.type === "image" ? "" : a.content,
+      })) ?? [],
+    };
+    roomIdeas[currentRoom].push(ideaForRam);
 
     dbUpsertIdea(currentRoom, idea).catch(e => console.error("idea upsert 실패:", e));
 
@@ -194,7 +204,10 @@ io.on("connection", (socket) => {
         if (category) idea.category = category;
         if (color) idea.color = color;
         if (aiImageUrl !== undefined) idea.aiImageUrl = aiImageUrl;
-        if (attachments !== undefined) idea.attachments = attachments;
+        if (attachments !== undefined) idea.attachments = attachments.map((a: any) => ({
+          ...a,
+          content: a.type === "image" ? "" : a.content,
+        }));
       }
     }
     // DB 업데이트
