@@ -1293,7 +1293,14 @@ const Board: React.FC<BoardProps> = ({
             )}
 
             {/* ── 캔버스 이미지 ── */}
-            {canvasImages.map(img => (
+            {canvasImages.map(img => {
+              const toggleLock = (e: React.MouseEvent) => {
+                e.stopPropagation();
+                const updated = { ...img, locked: !img.locked };
+                setCanvasImages(prev => prev.map(i => i.id === img.id ? updated : i));
+                getSocket().emit("canvas-image-updated", { id: img.id, locked: !img.locked });
+              };
+              return (
               <div
                 key={img.id}
                 data-canvas-image-wrapper="true"
@@ -1301,32 +1308,56 @@ const Board: React.FC<BoardProps> = ({
                 style={{
                   left: img.x, top: img.y,
                   width: img.width, height: img.height,
-                  cursor: "grab",
+                  cursor: img.locked ? "default" : "grab",
                   zIndex: 2,
                   outline: focusedImageId === img.id ? "2px solid #4F48ED" : "none",
                   borderRadius: 12,
                 }}
-                onPointerDown={e => { setFocusedImageId(img.id); setFocusedSectionId(null); setFocusedCardId(null); canvasRef.current?.focus(); startImageDrag(e, img); }}
+                onPointerDown={e => {
+                  if (img.locked) return;
+                  setFocusedImageId(img.id); setFocusedSectionId(null); setFocusedCardId(null); canvasRef.current?.focus(); startImageDrag(e, img);
+                }}
               >
                 <img
                   src={img.src}
                   alt="캔버스 이미지"
                   className="w-full h-full object-cover rounded-xl shadow-lg"
-                  style={{ border: focusedImageId === img.id ? "2px solid #4F48ED" : "2px solid rgba(255,255,255,0.8)" }}
+                  style={{ border: img.locked ? "2px solid #f59e0b" : focusedImageId === img.id ? "2px solid #4F48ED" : "2px solid rgba(255,255,255,0.8)" }}
                   draggable={false}
                 />
-                {/* 삭제 버튼 */}
+                {/* 잠금/잠금해제 버튼 */}
                 <button
                   onPointerDown={e => e.stopPropagation()}
-                  onClick={() => { setCanvasImages(prev => prev.filter(i => i.id !== img.id)); getSocket().emit("canvas-image-deleted", { id: img.id }); }}
-                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black bg-opacity-60 text-white flex items-center justify-center opacity-0 group-hover/cimg:opacity-100 transition-opacity hover:bg-opacity-80"
+                  onClick={toggleLock}
+                  className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-black bg-opacity-60 text-white flex items-center justify-center opacity-0 group-hover/cimg:opacity-100 transition-opacity hover:bg-opacity-80"
+                  title={img.locked ? "잠금 해제" : "잠금"}
                 >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
+                  {img.locked ? (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+                  ) : (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  )}
                 </button>
-                {/* 리사이즈 핸들 (8방향) */}
-                {([
+                {/* 삭제 버튼 — 잠금 시 숨김 */}
+                {!img.locked && (
+                  <button
+                    onPointerDown={e => e.stopPropagation()}
+                    onClick={() => { setCanvasImages(prev => prev.filter(i => i.id !== img.id)); getSocket().emit("canvas-image-deleted", { id: img.id }); }}
+                    className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black bg-opacity-60 text-white flex items-center justify-center opacity-0 group-hover/cimg:opacity-100 transition-opacity hover:bg-opacity-80"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                )}
+                {/* 잠금 아이콘 표시 */}
+                {img.locked && (
+                  <div className="absolute bottom-1.5 right-1.5 w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center shadow">
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  </div>
+                )}
+                {/* 리사이즈 핸들 — 잠금 시 숨김 */}
+                {!img.locked && ([
                   { dir: "nw", style: { top: -5, left: -5, cursor: "nw-resize" } },
                   { dir: "n",  style: { top: -5, left: "50%", transform: "translateX(-50%)", cursor: "n-resize" } },
                   { dir: "ne", style: { top: -5, right: -5, cursor: "ne-resize" } },
@@ -1344,7 +1375,8 @@ const Board: React.FC<BoardProps> = ({
                   />
                 ))}
               </div>
-            ))}
+              );
+            })}
 
             {/* ── 아이디어 카드 ── */}
             {ideas.map((idea) => {

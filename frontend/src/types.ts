@@ -264,6 +264,7 @@ export interface CanvasImage {
   y: number;
   width: number;
   height: number;
+  locked?: boolean;
 }
 
 export const CARD_COLORS = [
