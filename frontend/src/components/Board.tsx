@@ -71,6 +71,17 @@ const Board: React.FC<BoardProps> = ({
   // 캔버스 상태
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
+  // 현재 뷰포트 중심 (캔버스 좌표) — 새 카드 위치에 사용
+  const viewportCenterRef = useRef({ x: 300, y: 300 });
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    viewportCenterRef.current = {
+      x: (rect.width / 2 - offset.x) / zoom,
+      y: (rect.height / 2 - offset.y) / zoom,
+    };
+  }, [offset, zoom]);
 
   // 카드 위치 (id → {x, y})
   const [cardPositions, setCardPositions] = useState<Record<string, { x: number; y: number }>>({});
@@ -349,7 +360,8 @@ const Board: React.FC<BoardProps> = ({
         if (!next[idea.id]) {
           next[idea.id] = pendingDropPos.current
             ? (() => { const p = pendingDropPos.current!; pendingDropPos.current = null; return p; })()
-            : getDefaultPosition(index);
+            : { x: viewportCenterRef.current.x - 80 + (Math.random() - 0.5) * 80, y: viewportCenterRef.current.y - 60 + (Math.random() - 0.5) * 60 };
+          void index;
           changed = true;
         }
       });

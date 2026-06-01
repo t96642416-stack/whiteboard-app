@@ -133,7 +133,8 @@ function App() {
     socket.on("connect", rejoinRoom);
     socket.on("reconnect", rejoinRoom);
 
-    socket.on("room-state", ({ ideas: roomIdeas, users: roomUsers, messages: roomMessages, sections: roomSections, analysisResults, canvasImages: roomCanvasImages }: { ideas: Idea[]; users: { name: string; color: string }[]; messages?: ChatMessage[]; sections?: any[]; analysisResults?: AnalysisHistoryItem[]; canvasImages?: any[] }) => {
+    socket.on("room-state", ({ ideas: roomIdeas, users: roomUsers, messages: roomMessages, sections: roomSections, analysisResults, canvasImages: roomCanvasImages, topic: roomTopic }: { ideas: Idea[]; users: { name: string; color: string }[]; messages?: ChatMessage[]; sections?: any[]; analysisResults?: AnalysisHistoryItem[]; canvasImages?: any[]; topic?: string }) => {
+      if (roomTopic) setTopic(roomTopic);
       setIdeas(roomIdeas);
       setUsers(roomUsers);
       if (roomMessages && roomMessages.length > 0) {

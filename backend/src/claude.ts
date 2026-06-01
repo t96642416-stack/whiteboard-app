@@ -249,6 +249,12 @@ focusMentions 작성 규칙:
 const EXPLORE_SYSTEM_PROMPT = `당신은 팀의 의사결정을 돕는 AI 퍼실리테이터입니다.
 주어진 아이디어들과 첨부 파일(전사지, 근거자료)을 바탕으로, 팀이 아직 충분히 검토하지 않은 부분을 파고드는 질문을 정확히 3개만 만들어주세요.
 새 아이디어를 제안하는 것이 아니라, 기존 아이디어의 가정·리스크·실현 조건 등을 검증하는 질문이어야 합니다. 한국어로 작성하세요.
+
+⚠️ 질문 작성 규칙:
+- 질문은 반드시 40자 이내로 짧고 핵심만 담아주세요.
+- 아이디어 ID(A, B, C... 외 알파벳 단독 사용), 카드 번호, 괄호 안 기호 등 절대 언급 금지.
+- 질문 뒤 짧은 예시를 한 줄 덧붙이세요. 형식: "예) ~~~"
+  예시: "지금 있는 공간을 다르게 쓸 수 있을까요?\n예) 소파존을 낮잠 구역으로 전환하는 방법"
 ${EVIDENCE_RULE}
 
 focusMentions 작성 규칙:
@@ -453,7 +459,7 @@ export async function analyzeIdeas(
     : ideas
         .map((idea, idx) => {
           const label = String.fromCharCode(65 + idx);
-          let text = `아이디어 ${label} (ID: ${idea.id})\n제목: ${idea.title}\n내용: ${idea.content}\n작성자: ${idea.author}`;
+          let text = `아이디어 ${label}\n제목: ${idea.title}\n내용: ${idea.content}`;
           if (idea.attachments) {
             idea.attachments.filter(a => a.type === "file" && ((a.mimeType || "").toLowerCase() === "application/pdf" || a.name.toLowerCase().endsWith(".pdf")))
               .forEach(a => { text += `\n첨부 PDF: ${a.name} (아래 문서 블록 참조)`; });

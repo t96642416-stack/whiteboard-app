@@ -58,6 +58,7 @@ const roomMessages: Record<string, any[]> = {};
 const roomSections: Record<string, any[]> = {};
 const roomAnalysisResults: Record<string, any[]> = {};
 const roomCanvasImages: Record<string, any[]> = {};
+const roomTopics: Record<string, string> = {}; // 방별 주제 (메모리 유지)
 
 // 헬스 체크
 app.get("/health", (_req, res) => {
@@ -133,6 +134,7 @@ io.on("connection", (socket) => {
         sections: roomSections[roomId] || [],
         analysisResults: roomAnalysisResults[roomId] || [],
         canvasImages: roomCanvasImages[roomId] || [],
+        topic: roomTopics[roomId] || "",
       });
 
       // 2단계: 이미지가 있는 카드만 이미지 포함해서 별도 전송 (백그라운드)
@@ -454,9 +456,10 @@ io.on("connection", (socket) => {
     }
   );
 
-  // 주제 변경 (보드 상단 주제 공유)
+  // 주제 변경 (보드 상단 주제 공유 + 메모리 저장)
   socket.on("topic-changed", ({ topic }: { topic: string }) => {
     if (!currentRoom) return;
+    roomTopics[currentRoom] = topic; // 메모리에 저장
     socket.to(currentRoom).emit("topic-changed", { topic });
   });
 
