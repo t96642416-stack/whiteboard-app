@@ -868,9 +868,9 @@ const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onA
                 <ET value={result.recommendedIdea} className="text-base font-bold text-gray-900"
                   onSave={onUpdateResult ? v => upd(["recommendedIdea"], v) : undefined} />
               </div>
-              <ET value={result.recommendReason} className="text-xs text-gray-600 leading-relaxed mb-3" multiline
+              <ET value={result.recommendReason} className="text-xs text-gray-600 leading-relaxed" multiline
                 onSave={onUpdateResult ? v => upd(["recommendReason"], v) : undefined} />
-              {recIdea && (
+              {recIdea && false && (
                 <div className="flex gap-2 flex-wrap">
                   {[
                     { label: "실현 가능성", val: clampScore(recIdea.feasibility) },
