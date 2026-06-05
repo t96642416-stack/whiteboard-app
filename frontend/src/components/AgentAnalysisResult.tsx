@@ -159,11 +159,13 @@ const CollapsibleBlock: React.FC<{
   badge?: { bg: string; text: string };
   defaultOpen?: boolean;
   onEditName?: (v: string) => void;
+  isRecommended?: boolean;
   children: React.ReactNode;
-}> = ({ label, name, badge, defaultOpen = true, onEditName, children }) => {
+}> = ({ label, name, badge, defaultOpen = true, onEditName, isRecommended, children }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border border-gray-100 rounded-xl overflow-hidden mb-4 last:mb-0">
+    <div className="rounded-xl overflow-hidden mb-4 last:mb-0"
+      style={{ border: isRecommended ? "2px solid #4F48ED" : "1px solid #f3f4f6" }}>
       {/* 헤더 (클릭 토글) */}
       <button
         type="button"
@@ -171,12 +173,18 @@ const CollapsibleBlock: React.FC<{
         className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50 transition-colors select-none"
         style={{ backgroundColor: open ? "#F6F7F9" : "white" }}
       >
-        <span className="text-xs font-bold text-gray-500 flex-shrink-0">{label}</span>
+        <span className="text-xs font-bold flex-shrink-0" style={{ color: isRecommended ? "#4F48ED" : "#6b7280" }}>{label}</span>
         {onEditName
           ? <ET value={name} className="text-xs font-bold text-gray-800 flex-1 text-left" onSave={onEditName} />
           : <span className="text-xs font-bold text-gray-800 flex-1 text-left truncate">{name}</span>
         }
-        {badge && (
+        {isRecommended && (
+          <span className="px-2 py-0.5 rounded-full text-xs font-bold flex-shrink-0"
+            style={{ backgroundColor: "#4F48ED", color: "white" }}>
+            ✓ 추천
+          </span>
+        )}
+        {badge && !isRecommended && (
           <span className="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0"
             style={{ backgroundColor: badge.bg, color: badge.text }}>
             아이디어 {label}
@@ -884,8 +892,10 @@ const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onA
           {result.ideas.map((idea, i) => {
             const src = sources && sources.length > 0 ? sources[i % sources.length] : null;
             const badge = IDEA_BADGE_COLORS[i % Object.keys(IDEA_BADGE_COLORS).length];
+            const isRec = idea.name === result.recommendedIdea;
             return (
               <CollapsibleBlock key={i} label={String.fromCharCode(65 + i)} name={idea.name} badge={badge}
+                isRecommended={isRec}
                 onEditName={onUpdateResult ? v => upd(["ideas", i, "name"], v) : undefined}>
                 <DraggableCard title={idea.name} content={idea.name} snapshot={{ agentType: 'guide', itemData: { ...idea, index: i, score: (idea as any).score } }} onAdd={onAddIdea}>
                   <div className="space-y-2.5">
