@@ -819,10 +819,20 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
 
 // 점수 0-100 범위 보정
 const clampScore = (v: unknown): number => Math.max(0, Math.min(100, Number(v) || 0));
-const scoreToLevel = (v: number): { label: string; color: string } => {
-  if (v >= 70) return { label: "높음", color: "#2563eb" };
-  if (v >= 40) return { label: "중간", color: "#16a34a" };
-  return { label: "낮음", color: "#ef4444" };
+const scoreToLevel = (v: number): { label: string; color: string; border: string; bg: string } => {
+  if (v >= 70) return { label: "높음", color: "#dc2626", border: "#fca5a5", bg: "#fff1f2" };
+  if (v >= 40) return { label: "중간", color: "#16a34a", border: "#86efac", bg: "#f0fdf4" };
+  return { label: "낮음", color: "#9ca3af", border: "#d1d5db", bg: "#f9fafb" };
+};
+
+const ScorePill: React.FC<{ value: number }> = ({ value }) => {
+  const { label, color, border, bg } = scoreToLevel(value);
+  return (
+    <span className="px-3 py-1 rounded-full text-xs font-semibold flex-shrink-0"
+      style={{ color, border: `1.5px solid ${border}`, backgroundColor: bg }}>
+      {label}
+    </span>
+  );
 };
 
 // 결과 강조형 UI
@@ -839,18 +849,36 @@ const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onA
             : <button className="text-gray-400 hover:text-gray-600 text-lg leading-none">···</button>}
         </div>
 
-        <div className="rounded-xl p-4 mb-5" style={{ backgroundColor: "#F0EFFD" }}>
-          <div className="flex items-center gap-2 mb-2">
-            <ET value={result.recommendedIdea} className="text-sm font-bold text-gray-800"
-              onSave={onUpdateResult ? v => upd(["recommendedIdea"], v) : undefined} />
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0"
-              style={{ backgroundColor: "#4F48ED", color: "white" }}>
-              ✓ 추천
-            </span>
-          </div>
-          <ET value={result.recommendReason} className="text-xs text-gray-600 leading-relaxed" multiline
-            onSave={onUpdateResult ? v => upd(["recommendReason"], v) : undefined} />
-        </div>
+        {/* 추천 박스 — 강조 */}
+        {(() => {
+          const recIdea = result.ideas.find(i => i.name === result.recommendedIdea) ?? result.ideas[0];
+          return (
+            <div className="rounded-2xl p-4 mb-5 border-2" style={{ backgroundColor: "#F0EFFD", borderColor: "#4F48ED" }}>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold flex-shrink-0"
+                  style={{ backgroundColor: "#4F48ED", color: "white" }}>✓ 추천</span>
+                <ET value={result.recommendedIdea} className="text-base font-bold text-gray-900"
+                  onSave={onUpdateResult ? v => upd(["recommendedIdea"], v) : undefined} />
+              </div>
+              <ET value={result.recommendReason} className="text-xs text-gray-600 leading-relaxed mb-3" multiline
+                onSave={onUpdateResult ? v => upd(["recommendReason"], v) : undefined} />
+              {recIdea && (
+                <div className="flex gap-2 flex-wrap">
+                  {[
+                    { label: "실현 가능성", val: clampScore(recIdea.feasibility) },
+                    { label: "사용자 편의", val: clampScore(recIdea.userExperience) },
+                    { label: "주제 차별성", val: clampScore(recIdea.uniqueness) },
+                  ].map(({ label, val }) => (
+                    <div key={label} className="flex items-center gap-1.5 bg-white rounded-lg px-2.5 py-1.5">
+                      <span className="text-xs text-gray-500">{label}</span>
+                      <ScorePill value={val} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         <div className="mb-5">
           {result.ideas.map((idea, i) => {
@@ -867,7 +895,7 @@ const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onA
                       { label: "사용자 편의",  val: clampScore(idea.userExperience), reasonKey: "userExperienceReason" as const },
                       { label: "주제 차별성", val: clampScore(idea.uniqueness), reasonKey: "uniquenessReason" as const },
                     ].map(({ label, val, reasonKey }) => {
-                      const { label: lvl, color } = scoreToLevel(val);
+                      void scoreToLevel(val);
                       const reason = (idea as any)[reasonKey] as string | undefined;
                       return (
                         <div key={label} className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
@@ -881,7 +909,7 @@ const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onA
                               </div>
                             )}
                           </div>
-                          <span className="text-lg font-bold flex-shrink-0 ml-4" style={{ color }}>{lvl}</span>
+                          <ScorePill value={val} />
                         </div>
                       );
                     })}
