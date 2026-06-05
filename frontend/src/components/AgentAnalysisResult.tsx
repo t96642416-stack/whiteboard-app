@@ -835,9 +835,9 @@ const ScorePill: React.FC<{ value: number }> = ({ value }) => {
   );
 };
 
-// 결과 강조형 UI
+// 결과 제시형 UI
 const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onAddIdea?: (t: string, c: string, snapshot?: AnalysisSnapshot) => void; onUpdateResult?: (u: GuideAnalysis) => void }> = ({ result, sources, onAddIdea, onUpdateResult }) => {
-  const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "결과 강조형";
+  const agentName = AGENT_OPTIONS.find(opt => opt.type === result.agentType)?.name || "결과 제시형";
   const upd = (path: (string | number)[], v: string) => onUpdateResult?.(setIn(result, path, v));
   return (
     <div className="space-y-4">
@@ -932,14 +932,14 @@ const GuideView: React.FC<{ result: GuideAnalysis; sources?: SearchSource[]; onA
   );
 };
 
-// 결과 안내형 UI
+// 결과 선택형 UI
 const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[]; onUpdateResult?: (u: AdviseAnalysis) => void }> = ({ result, onUpdateResult }) => {
   const upd = (path: (string | number)[], v: string) => onUpdateResult?.(setIn(result, path, v));
   return (
   <div className="space-y-4">
     <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm font-bold text-gray-800">결과 안내형, 검토 완료</p>
+        <p className="text-sm font-bold text-gray-800">결과 선택형, 검토 완료</p>
         {onUpdateResult
           ? <span className="text-xs text-amber-500 flex items-center gap-1">✏ 클릭해서 편집</span>
           : <button className="text-gray-400 hover:text-gray-600 text-lg leading-none">···</button>}

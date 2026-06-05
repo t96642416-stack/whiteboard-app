@@ -218,13 +218,13 @@ export const AGENT_OPTIONS: AgentOption[] = [
   {
     type: "guide",
     emoji: "⭐",
-    name: "결과 강조형",
+    name: "결과 제시형",
     description: "점수 기반으로 최적 아이디어 추천",
   },
   {
     type: "advise",
     emoji: "📋",
-    name: "결과 안내형",
+    name: "결과 선택형",
     description: "기준별 비교로 팀 결정을 안내",
   },
 ];
