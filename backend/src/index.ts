@@ -32,6 +32,14 @@ import {
 
 dotenv.config();
 
+// ── 전역 에러 핸들러 — 예외 하나로 서버 전체가 죽어 모두 튕기는 것 방지 ──
+process.on("uncaughtException", (err) => {
+  console.error("[치명적이지 않음] uncaughtException — 서버 유지:", err);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("[치명적이지 않음] unhandledRejection — 서버 유지:", reason);
+});
+
 const app = express();
 const httpServer = createServer(app);
 
@@ -80,6 +88,11 @@ io.on("connection", (socket) => {
   console.log(`클라이언트 연결: ${socket.id}`);
   let currentRoom = "";
   let currentUser = "";
+
+  // 소켓 레벨 에러 — 끊김 유발 막기 위해 로깅만 (전파 차단)
+  socket.on("error", (err) => {
+    console.error(`소켓 에러 (${socket.id}):`, err);
+  });
 
   // 방 참가
   socket.on(
