@@ -239,9 +239,9 @@ focusMentions 작성 규칙:
     {"keyword": "수렴된 카테고리명", "level": "low"}
   ],
   "perspectives": [
-    {"title": "놓친 관점 제목", "description": "기존 아이디어에 이 관점을 적용하면 어떤 점이 달라지는지 설명", "relatedKeywords": ["focusMentions 중 관련 카테고리명1", "관련 카테고리명2"]},
-    {"title": "놓친 관점 제목", "description": "설명", "relatedKeywords": ["관련 카테고리명"]},
-    {"title": "놓친 관점 제목", "description": "설명", "relatedKeywords": ["관련 카테고리명"]}
+    {"title": "놓친 관점 제목", "description": "기존 아이디어에 이 관점을 적용하면 어떤 점이 달라지는지 설명", "relatedKeywords": ["focusMentions 중 가장 관련된 카테고리명 1개만"]},
+    {"title": "놓친 관점 제목", "description": "설명", "relatedKeywords": ["관련 카테고리명 1개"]},
+    {"title": "놓친 관점 제목", "description": "설명", "relatedKeywords": ["관련 카테고리명 1개"]}
   ]
 }`;
 
@@ -278,9 +278,9 @@ focusMentions 작성 규칙:
     {"keyword": "수렴된 카테고리명", "level": "low"}
   ],
   "questions": [
-    {"text": "기존 아이디어에 대한 검증 질문 1 (물음표로 끝나는 질문형)", "relatedKeywords": ["focusMentions 중 관련 카테고리명1", "관련 카테고리명2"]},
-    {"text": "검증 질문 2", "relatedKeywords": ["관련 카테고리명"]},
-    {"text": "검증 질문 3", "relatedKeywords": ["관련 카테고리명"]}
+    {"text": "기존 아이디어에 대한 검증 질문 1 (물음표로 끝나는 질문형)", "relatedKeywords": ["focusMentions 중 가장 관련된 카테고리명 1개만"]},
+    {"text": "검증 질문 2", "relatedKeywords": ["관련 카테고리명 1개"]},
+    {"text": "검증 질문 3", "relatedKeywords": ["관련 카테고리명 1개"]}
   ]
 }`;
 
@@ -376,6 +376,7 @@ const ADVISE_SYSTEM_PROMPT = `당신은 팀의 의사결정을 돕는 AI 퍼실�
 criteriaResults 작성 규칙:
 - 실현 가능성/사용자 편의/차별성 같은 기술적 지표 이름 대신, 각 기준의 전략적 의미를 담은 상위 라벨을 사용하세요.
   예시: "안전한 선택" (실현 가능성 높은 쪽), "파급력" (사용자 영향력 큰 쪽), "과감한 도전" (차별성 높은 쪽)
+- relatedKeywords: 각 관점/질문과 가장 관련된 focusMentions 키워드 **1개만** 넣으세요. 여러 개 넣으면 안 됩니다.
 - criterion: 기준의 전략적 성격 라벨 (6자 이내 명사형, 아이디어 내용 맥락에 맞게 창의적으로 작성)
 - winner: 해당 기준에서 가장 우위인 아이디어 라벨 (A, B, C 등)
 - reason: 왜 그 아이디어가 이 기준에서 우위인지 핵심 키워드 (10자 이내)
