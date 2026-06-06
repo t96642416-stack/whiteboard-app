@@ -999,7 +999,6 @@ const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[]; o
                   { label: "사용자 편의",  val: clampScore(idea.userExperience), reasonKey: "userExperienceReason" as const },
                   { label: "주제 차별성", val: clampScore(idea.uniqueness), reasonKey: "uniquenessReason" as const },
                 ].map(({ label, val, reasonKey }) => {
-                  const { label: lvl, color } = scoreToLevel(val);
                   const reason = (idea as any)[reasonKey] as string | undefined;
                   return (
                     <div key={label} className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
@@ -1013,7 +1012,7 @@ const AdviseView: React.FC<{ result: AdviseAnalysis; sources?: SearchSource[]; o
                           </div>
                         )}
                       </div>
-                      <span className="text-lg font-bold flex-shrink-0 ml-4" style={{ color }}>{lvl}</span>
+                      <ScorePill value={val} />
                     </div>
                   );
                 })}
