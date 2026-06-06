@@ -217,11 +217,13 @@ function App() {
       setAnalysisHistory((prev) => prev.filter((item) => item.dbId !== dbId));
     });
 
-    socket.on("analysis-result-updated", ({ id, agentResult }: { id: string; agentResult: AgentAnalysisResult }) => {
+    socket.on("analysis-result-updated", ({ id, dbId, agentResult }: { id?: string; dbId?: number; agentResult: AgentAnalysisResult }) => {
       setAnalysisHistory((prev) => {
-        const updated = prev.map(item => item.id === id ? { ...item, agentResult } : item);
+        const match = (item: AnalysisHistoryItem) =>
+          (dbId != null && item.dbId === dbId) || (id != null && item.id === id);
+        const updated = prev.map(item => match(item) ? { ...item, agentResult } : item);
         // 현재 표시 중인 결과(history[0])가 업데이트된 경우 agentAnalysisResult도 동기화
-        if (prev[0]?.id === id) setAgentAnalysisResult(agentResult);
+        if (prev[0] && match(prev[0])) setAgentAnalysisResult(agentResult);
         return updated;
       });
     });
@@ -322,14 +324,18 @@ function App() {
 
   // 히스토리 아이템 내용 수정 (인라인 편집)
   const handleUpdateHistory = useCallback((id: string, updated: AgentAnalysisResult) => {
+    let dbId: number | undefined;
     setAnalysisHistory(prev => {
-      const next = prev.map(item => item.id === id ? { ...item, agentResult: updated } : item);
+      const next = prev.map(item => {
+        if (item.id === id) { dbId = item.dbId; return { ...item, agentResult: updated }; }
+        return item;
+      });
       // 현재 표시 중인 결과(history[0])가 수정된 경우 agentAnalysisResult도 업데이트
       if (prev[0]?.id === id) setAgentAnalysisResult(updated);
       return next;
     });
-    // 다른 팀원에게 실시간 동기화
-    getSocket().emit("analysis-result-update", { id, agentResult: updated });
+    // 다른 팀원에게 실시간 동기화 — 공통 식별자 dbId 우선 전송
+    getSocket().emit("analysis-result-update", { id, dbId, agentResult: updated });
   }, []);
 
   const handleDeleteHistory = useCallback((dbId: number) => {

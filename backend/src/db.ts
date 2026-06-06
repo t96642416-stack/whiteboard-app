@@ -230,6 +230,15 @@ export async function dbUpdateAnalysisResult(roomId: string, id: string, agentRe
   );
 }
 
+// dbId(정수 PK)로 업데이트 — 클라이언트 간 공통 식별자
+export async function dbUpdateAnalysisResultById(roomId: string, dbId: number, agentResult: any): Promise<void> {
+  if (!pool) return;
+  await pool.query(
+    `UPDATE analysis_results SET data = data || jsonb_build_object('agentResult', $1::jsonb) WHERE id = $2 AND room_id = $3`,
+    [JSON.stringify(agentResult), dbId, roomId]
+  );
+}
+
 export async function dbDeleteAnalysisResult(roomId: string, dbId: number): Promise<void> {
   if (!pool) return;
   await pool.query(

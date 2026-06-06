@@ -704,6 +704,8 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
                 <div>
                   {/* 이미지 (상단) */}
                   <IdeaImage alt={idea.name} blue
+                    initialSrc={(idea as any).imageUrl}
+                    onChange={onUpdateResult ? (url) => onUpdateResult(setIn(result, ["ideas", idx, "imageUrl"], url)) : undefined}
                     onApplyImage={onApplyImage ? (url) => onApplyImage(idea.name, url) : undefined} />
 
                   <div className="grid grid-cols-2 gap-2 mt-2">

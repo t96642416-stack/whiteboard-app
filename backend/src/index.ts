@@ -12,6 +12,7 @@ import {
   dbGetMessages,
   dbUpsertIdea,
   dbUpdateAnalysisResult,
+  dbUpdateAnalysisResultById,
   dbUpdateIdea,
   dbDeleteIdea,
   dbMoveIdea,
@@ -542,17 +543,23 @@ io.on("connection", (socket) => {
   });
 
   // 분석 결과 수정 (이미지 업로드 등) — 다른 팀원에게 브로드캐스트
-  socket.on("analysis-result-update", async ({ id, agentResult }: { id: string; agentResult: any }) => {
+  // dbId(서버 공통 식별자)로 매칭. 구버전 호환 위해 id도 받음.
+  socket.on("analysis-result-update", async ({ id, dbId, agentResult }: { id?: string; dbId?: number; agentResult: any }) => {
     if (!currentRoom) return;
-    // RAM 업데이트
+    // RAM 업데이트 (dbId 우선, 없으면 id)
     if (roomAnalysisResults[currentRoom]) {
-      const item = roomAnalysisResults[currentRoom].find((r: any) => r.id === id);
+      const item = roomAnalysisResults[currentRoom].find((r: any) =>
+        (dbId != null && r.dbId === dbId) || (id != null && r.id === id));
       if (item) item.agentResult = agentResult;
     }
     // DB 업데이트 (비동기)
-    dbUpdateAnalysisResult(currentRoom, id, agentResult).catch(e => console.error("분석 결과 업데이트 실패:", e));
+    if (dbId != null) {
+      dbUpdateAnalysisResultById(currentRoom, dbId, agentResult).catch(e => console.error("분석 결과 업데이트 실패:", e));
+    } else if (id != null) {
+      dbUpdateAnalysisResult(currentRoom, id, agentResult).catch(e => console.error("분석 결과 업데이트 실패:", e));
+    }
     // 방 전체에 브로드캐스트 (발신자 포함 — 모든 팀원 동기화 보장)
-    io.to(currentRoom).emit("analysis-result-updated", { id, agentResult });
+    io.to(currentRoom).emit("analysis-result-updated", { id, dbId, agentResult });
   });
 
   // 분석 내역 삭제
