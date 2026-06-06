@@ -828,9 +828,9 @@ const AttributeView: React.FC<{ result: AttributeAnalysis; sources?: SearchSourc
 // 점수 0-100 범위 보정
 const clampScore = (v: unknown): number => Math.max(0, Math.min(100, Number(v) || 0));
 const scoreToLevel = (v: number): { label: string; color: string; border: string; bg: string } => {
-  if (v >= 70) return { label: "높음", color: "#dc2626", border: "#fca5a5", bg: "#fff1f2" };
-  if (v >= 40) return { label: "중간", color: "#16a34a", border: "#86efac", bg: "#f0fdf4" };
-  return { label: "낮음", color: "#9ca3af", border: "#d1d5db", bg: "#f9fafb" };
+  if (v >= 70) return { label: "높음", color: "#16a34a", border: "#86efac", bg: "#f0fdf4" };
+  if (v >= 40) return { label: "중간", color: "#9ca3af", border: "#d1d5db", bg: "#f9fafb" };
+  return { label: "낮음", color: "#dc2626", border: "#fca5a5", bg: "#fff1f2" };
 };
 
 const ScorePill: React.FC<{ value: number }> = ({ value }) => {

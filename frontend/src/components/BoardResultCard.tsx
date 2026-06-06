@@ -8,9 +8,9 @@ interface Props {
 
 // 점수 → 높음/중간/낮음 변환
 const scoreToLevel = (v: number): { label: string; color: string } => {
-  if (v >= 70) return { label: "높음", color: "#2563eb" };
-  if (v >= 40) return { label: "중간", color: "#16a34a" };
-  return { label: "낮음", color: "#ef4444" };
+  if (v >= 70) return { label: "높음", color: "#16a34a" };
+  if (v >= 40) return { label: "중간", color: "#9ca3af" };
+  return { label: "낮음", color: "#dc2626" };
 };
 
 // 점수 행 컴포넌트
