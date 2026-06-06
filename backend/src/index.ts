@@ -551,8 +551,8 @@ io.on("connection", (socket) => {
     }
     // DB 업데이트 (비동기)
     dbUpdateAnalysisResult(currentRoom, id, agentResult).catch(e => console.error("분석 결과 업데이트 실패:", e));
-    // 발신자 제외하고 다른 팀원에게 브로드캐스트
-    socket.to(currentRoom).emit("analysis-result-updated", { id, agentResult });
+    // 방 전체에 브로드캐스트 (발신자 포함 — 모든 팀원 동기화 보장)
+    io.to(currentRoom).emit("analysis-result-updated", { id, agentResult });
   });
 
   // 분석 내역 삭제
