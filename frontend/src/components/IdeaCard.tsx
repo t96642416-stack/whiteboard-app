@@ -366,30 +366,51 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
               </span>
             </div>
             <span className="text-gray-500 text-xs">{idea.author}</span>
-            <span className="text-gray-300 text-xs ml-auto">
+            <span className="text-gray-400 text-xs ml-auto">
               {new Date(idea.createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
             </span>
-            {/* 코멘트 토글 버튼 */}
+          </div>
+
+          {/* 댓글 바 — 접힌 상태: 기능이 잘 보이도록 글자 + 최근 댓글 미리보기 */}
+          {!showComments && (
             <button
               onClick={handleToggleComments}
-              className="flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded-full text-xs transition-all hover:bg-black hover:bg-opacity-10"
-              style={{ color: showComments ? "#6366f1" : "#9ca3af" }}
-              title="코멘트"
+              className="mt-2.5 w-full flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-white bg-opacity-80 hover:bg-opacity-100 border border-indigo-100 hover:border-indigo-300 shadow-sm transition-all text-left"
+              title={comments.length ? "댓글 보기 / 달기" : "이 아이디어에 댓글 달기"}
             >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.2" className="flex-shrink-0">
                 <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
               </svg>
-              {comments.length > 0 && <span className="font-semibold">{comments.length}</span>}
+              <span className="text-xs font-semibold text-indigo-600 flex-shrink-0">
+                {comments.length ? `댓글 ${comments.length}개` : "댓글 달기"}
+              </span>
+              {comments.length > 0 && (() => {
+                const last = comments[comments.length - 1];
+                return (
+                  <span className="text-xs text-gray-500 truncate min-w-0">
+                    · <b className="font-semibold text-gray-700">{last.author}</b> {last.text}
+                  </span>
+                );
+              })()}
             </button>
-          </div>
+          )}
 
           {/* 코멘트 영역 */}
           {showComments && (
             <div
-              className="mt-2 rounded-xl overflow-hidden"
-              style={{ backgroundColor: "rgba(0,0,0,0.06)" }}
+              className="mt-2.5 rounded-xl overflow-hidden border border-indigo-100"
+              style={{ backgroundColor: "rgba(238,242,255,0.9)" }}
               onClick={e => e.stopPropagation()}
             >
+              <div className="flex items-center gap-1.5 px-2.5 pt-2">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.2">
+                  <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                </svg>
+                <span className="text-xs font-semibold text-indigo-700">댓글 {comments.length}</span>
+                <button onClick={handleToggleComments} className="ml-auto text-xs text-indigo-500 hover:text-indigo-700 px-1.5 py-0.5 rounded hover:bg-white">
+                  접기
+                </button>
+              </div>
               {/* 기존 코멘트 목록 */}
               {comments.length > 0 && (
                 <div className="px-2 pt-2 space-y-1.5 max-h-40 overflow-y-auto">
@@ -418,14 +439,14 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
                   type="text"
                   value={commentText}
                   onChange={e => setCommentText(e.target.value)}
-                  placeholder="코멘트 추가..."
-                  className="flex-1 text-xs px-2.5 py-1.5 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white shadow-sm"
+                  placeholder="이 아이디어에 대한 의견을 남겨주세요"
+                  className="flex-1 min-w-0 text-xs px-2.5 py-2 rounded-lg border border-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
                 />
                 <button
                   type="submit"
                   disabled={!commentText.trim()}
-                  className="p-1 rounded-lg disabled:opacity-30 transition-opacity"
-                  style={{ color: "#6366f1" }}
+                  className="p-1.5 rounded-lg bg-indigo-500 text-white disabled:bg-indigo-200 transition-colors"
+                  title="댓글 등록"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
