@@ -119,6 +119,7 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
           <Tile label="수정 / 삭제된 아이디어" value={`${m.summary.editedIdeas} / ${m.summary.deletedIdeas}`} tip={TIPS.editsDeletes} hint="행동 로그 기준" />
         </div>
 
+        <ObjectiveSummary m={m} />
         <AiInsight room={room} windowMin={windowMin} onError={onError} />
 
         <div className="rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs px-4 py-2.5 leading-relaxed space-y-1">
@@ -219,6 +220,152 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
   );
 };
 
+// ── 지표 요약: 숫자를 정해진 규칙으로 문장화 (평가·추측 없이 사실만, 같은 데이터면 항상 같은 결과)
+const MIN_REQUESTS_FOR_COMPARISON = 3;
+const STALL_MIN = 5;
+
+export function buildSummary(m: Metrics): { title: string; lines: string[] }[] {
+  const s = m.summary;
+  const groups: { title: string; lines: string[] }[] = [];
+  const pct = (n: number, d: number) => (d ? Math.round((n / d) * 1000) / 10 : 0);
+
+  // 1. 규모
+  const scale: string[] = [];
+  if (s.durationMin > 0) {
+    scale.push(`참가자 ${s.participants}명이 ${Math.round(s.durationMin)}분 동안 아이디어 ${s.humanIdeas}개를 직접 작성했습니다 (분당 ${s.humanIdeasPerMin}개).`);
+  } else {
+    scale.push(`참가자 ${s.participants}명이 아이디어 ${s.humanIdeas}개를 직접 작성했습니다.`);
+  }
+  scale.push(`아이디어 1개의 평균 길이는 ${s.avgIdeaLength}자이고, 첨부 파일은 ${s.attachments}개입니다.`);
+  if (s.editedIdeas || s.deletedIdeas) scale.push(`행동 로그 기준으로 아이디어 수정 ${s.editedIdeas}회, 삭제 ${s.deletedIdeas}회가 있었습니다.`);
+  groups.push({ title: "규모", lines: scale });
+
+  // 2. 참여 분포
+  const part: string[] = [];
+  const ranked = [...m.participants].sort((a, b) => b.humanIdeas - a.humanIdeas);
+  if (ranked.length > 0 && s.humanIdeas > 0) {
+    const top = ranked[0];
+    const bottom = ranked[ranked.length - 1];
+    part.push(`가장 많이 작성한 참가자는 ${top.name}로 ${top.humanIdeas}개(전체의 ${pct(top.humanIdeas, s.humanIdeas)}%)이고, 가장 적게 작성한 참가자는 ${bottom.name}로 ${bottom.humanIdeas}개입니다.`);
+    const zero = ranked.filter((p) => p.humanIdeas === 0).map((p) => p.name);
+    if (zero.length) part.push(`아이디어를 작성하지 않은 참가자: ${zero.join(", ")} (${zero.length}명).`);
+    part.push(`지니계수는 ${s.giniHumanIdeas}입니다 (0 = 모든 참가자가 같은 개수, 1 = 한 명이 전부 작성).`);
+  }
+  if (s.comments > 0) {
+    part.push(`댓글 ${s.comments}개 중 ${pct(Math.round(s.crossCommentShare * s.comments), s.comments)}%가 다른 사람의 카드에 달렸습니다.`);
+  } else {
+    part.push("댓글은 없습니다.");
+  }
+  if (ranked.length > 0 && ranked.length < 3) part.push(`참가자가 ${ranked.length}명이라 분포 지표(지니계수 등)는 작은 차이에도 크게 변합니다.`);
+  groups.push({ title: "참여 분포", lines: part });
+
+  // 3. 시간 흐름
+  const time: string[] = [];
+  const { buckets, bucketMin } = m.timeline;
+  if (buckets.length > 0) {
+    // 최다 구간: 너무 잘게 쪼개면 의미가 없어 최소 5분 단위로 묶어서 찾음
+    const win = Math.max(bucketMin, 5);
+    const per = Math.max(1, Math.round(win / bucketMin));
+    const windows: { from: number; to: number; n: number }[] = [];
+    for (let i = 0; i < buckets.length; i += per) {
+      const slice = buckets.slice(i, i + per);
+      windows.push({ from: slice[0].startMin, to: slice[slice.length - 1].startMin + bucketMin, n: slice.reduce((n, b) => n + b.human, 0) });
+    }
+    const maxN = Math.max(...windows.map((w) => w.n));
+    const peaks = windows.filter((w) => w.n === maxN);
+    if (maxN > 0 && windows.length > 1) {
+      time.push(peaks.length === 1
+        ? `${win}분 단위로 보면 사람 아이디어가 가장 많이 나온 구간은 ${peaks[0].from}~${peaks[0].to}분(${maxN}개)입니다.`
+        : `${win}분 단위로 보면 최다 구간(${maxN}개)이 ${peaks.length}곳입니다: ${peaks.map((w) => `${w.from}~${w.to}분`).join(", ")}.`);
+    }
+    // 첫 아이디어와 마지막 아이디어 사이에서 사람 아이디어가 없던 연속 구간
+    const firstIdx = buckets.findIndex((b) => b.human > 0);
+    let lastIdx = -1; buckets.forEach((b, i) => { if (b.human > 0) lastIdx = i; });
+    const stalls: { from: number; to: number }[] = [];
+    if (firstIdx >= 0) {
+      let i = firstIdx;
+      while (i <= lastIdx) {
+        if (buckets[i].human === 0) {
+          let j = i; while (j <= lastIdx && buckets[j].human === 0) j++;
+          const from = buckets[i].startMin, to = buckets[j - 1].startMin + bucketMin;
+          if (to - from >= STALL_MIN) stalls.push({ from, to });
+          i = j;
+        } else i++;
+      }
+    }
+    for (const st of stalls) {
+      const inStall = m.analyses.filter((a) => a.atMin >= st.from && a.atMin < st.to);
+      time.push(`${st.from}~${st.to}분에는 사람 아이디어가 없었습니다` + (inStall.length ? ` (이 구간에 ${inStall.map((a) => `${a.atMin}분 ${agentLabel(a.agentType)}`).join(", ")} 분석 요청).` : "."));
+    }
+    if (stalls.length === 0 && firstIdx >= 0) time.push(`첫 아이디어부터 마지막 아이디어 사이에 ${STALL_MIN}분 이상 아이디어가 없던 구간은 없습니다.`);
+    if (buckets.length >= 2) {
+      const half = Math.ceil(buckets.length / 2);
+      const early = buckets.slice(0, half).reduce((n, b) => n + b.human, 0);
+      const late = buckets.slice(half).reduce((n, b) => n + b.human, 0);
+      time.push(`전반부(0~${half * bucketMin}분) ${early}개, 후반부 ${late}개입니다.`);
+    }
+  }
+  groups.push({ title: "시간 흐름", lines: time });
+
+  // 4. AI 활용
+  const ai: string[] = [];
+  ai.push(`AI 분석은 ${s.analyses}회 요청되었습니다${s.analysisErrors ? ` (실패 ${s.analysisErrors}회 별도)` : ""}.`);
+  ai.push(`보드의 카드 ${s.totalIdeas}개 중 ${s.aiCards}개(${fmtPct(s.aiShare)})가 AI 결과에서 가져온 카드입니다.`);
+  for (const a of m.agentEffects) {
+    if (a.requests === 0) {
+      ai.push(`${agentLabel(a.agentType)}: 남아 있는 분석 기록은 없고, 이 유형에서 가져온 카드가 ${a.aiCardsAdopted}개 있습니다.`);
+      continue;
+    }
+    const ch = a.avgChange ?? 0;
+    const dir = ch > 0 ? `${ch}개 많았습니다` : ch < 0 ? `${Math.abs(ch)}개 적었습니다` : "같았습니다";
+    const note = a.requests < MIN_REQUESTS_FOR_COMPARISON ? ` 요청이 ${a.requests}회뿐이라 비교 값은 참고용입니다.` : "";
+    ai.push(`${agentLabel(a.agentType)}: ${a.requests}회 요청. 분석 후 ${m.windowMin}분 동안의 사람 아이디어가 분석 전 ${m.windowMin}분보다 평균 ${dir} (${a.avgHumanIdeasBefore} → ${a.avgHumanIdeasAfter}개). 이 유형에서 가져온 카드 ${a.aiCardsAdopted}개.${note}`);
+  }
+  groups.push({ title: "AI 활용", lines: ai });
+
+  // 5. 수렴
+  const cats = Object.entries(s.categoryCounts);
+  if (cats.length) {
+    const total = cats.reduce((n, [, v]) => n + v, 0);
+    const conv = (s.categoryCounts.candidate ?? 0) + (s.categoryCounts.review ?? 0);
+    groups.push({ title: "수렴", lines: [
+      `현재 사람 아이디어 ${total}개 중 ${conv}개(${pct(conv, total)}%)가 '후보 아이디어' 또는 '최종 검토' 카테고리에 있습니다.`,
+      `카테고리별: ${cats.sort((a, b) => b[1] - a[1]).map(([k, v]) => `${CATEGORY_LABELS[k] ?? k} ${v}개`).join(", ")}.`,
+    ] });
+  }
+
+  // 6. 데이터 범위
+  groups.push({ title: "데이터 범위", lines: [
+    s.eventLogSince
+      ? `행동 로그는 ${fmtTime(s.eventLogSince)}부터 ${s.eventCount}건 기록되었습니다. 접속 시간·수정·삭제·AI 채팅 지표는 이 시점 이후만 반영됩니다.`
+      : "행동 로그가 없어 접속 시간·수정·삭제·AI 채팅 지표는 측정되지 않았습니다(0으로 표시되어도 '없었음'이 아님).",
+    "삭제된 카드는 아이디어 수에 포함되지 않습니다. 참가자는 입장 이름으로 구분됩니다.",
+  ] });
+
+  return groups.filter((g) => g.lines.length > 0);
+}
+
+const ObjectiveSummary: React.FC<{ m: Metrics }> = ({ m }) => {
+  const groups = buildSummary(m);
+  const copy = () => navigator.clipboard?.writeText(groups.map((g) => `[${g.title}]\n` + g.lines.map((l) => `- ${l}`).join("\n")).join("\n\n")).catch(() => {});
+  return (
+    <Section title="지표 요약"
+      desc="지표 값을 정해진 규칙에 따라 문장으로 옮긴 것입니다. 평가나 추측 없이 데이터가 보여 주는 사실만 적습니다."
+      right={<button onClick={copy} className="text-xs text-gray-500 hover:text-gray-800">복사</button>}>
+      <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
+        {groups.map((g) => (
+          <div key={g.title}>
+            <h3 className="text-xs font-semibold text-gray-500 mb-1.5">{g.title}</h3>
+            <ul className="space-y-1.5">
+              {g.lines.map((l, i) => <li key={i} className="text-sm text-gray-800 leading-relaxed pl-3 relative before:content-[''] before:absolute before:left-0 before:top-[0.6em] before:w-1 before:h-1 before:rounded-full before:bg-gray-400">{l}</li>)}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+};
+
 // ── AI 해석
 interface Insight { text: string; model: string; generatedAt: string; cached: boolean }
 
@@ -247,14 +394,14 @@ const AiInsight: React.FC<{ room: string; windowMin: number; onError: (e: unknow
   };
 
   return (
-    <Section title="AI 해석"
-      desc="지표를 AI가 읽고 연구 관점에서 설명합니다. 이름은 익명(P1, P2 …)으로, 카드·채팅 내용은 보내지 않고 숫자만 전송합니다."
+    <Section title="AI 해석 (선택)"
+      desc="필요할 때만 사용하세요. AI가 지표를 읽고 패턴과 추가 분석 아이디어를 제안합니다(호출마다 API 비용 발생). 이름은 익명으로, 숫자만 전송합니다."
       right={insight && !busy ? (
         <button onClick={() => run(true)} className="text-xs text-gray-500 hover:text-gray-800">다시 생성</button>
       ) : undefined}>
       {!insight && !busy && (
         <button onClick={() => run(false)}
-          className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800">
+          className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50">
           ✨ AI 해석 생성
         </button>
       )}
