@@ -24,6 +24,14 @@ interface Metrics {
   analyses: { atMin: number; agentType: string; requester: string }[];
   agentEffects: { agentType: string; requests: number; avgHumanIdeasBefore: number | null; avgHumanIdeasAfter: number | null; avgChange: number | null; aiCardsAdopted: number }[];
   windowMin: number;
+  concretization: Concretization;
+}
+
+interface ConcGroup { n: number; editedShare: number | null; avgEdits: number | null; avgLengthChange: number | null; avgSpecificityChange: number | null; progressedShare: number | null }
+interface Concretization {
+  humanIdeas: number; trackedIdeas: number; untrackedIdeas: number; totalEdits: number; windowMin: number;
+  analyzed: ConcGroup & { editedAfterAnalysisShare: number | null; editedWithinWindowShare: number | null; avgLengthChangeSinceAnalysis: number | null; avgSpecificityChangeSinceAnalysis: number | null };
+  notAnalyzed: ConcGroup;
 }
 
 const Tile: React.FC<{ label: string; value: React.ReactNode; hint?: string; tip?: TipContent }> = ({ label, value, hint, tip }) => (
@@ -166,6 +174,8 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
           </div>
         </Section>
 
+        <ConcretizationSection c={m.concretization} onDownload={dl} />
+
         <div className="grid gap-4 md:grid-cols-3">
           <Section title="카테고리 분포" tip={TIPS.category} desc="사람이 낸 아이디어 기준 (수렴 과정)">
             <CategoryBars counts={m.summary.categoryCounts} />
@@ -208,7 +218,7 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
 
         <Section title="데이터 내보내기 (CSV)" desc={`엑셀·R·SPSS에서 바로 열 수 있습니다. ${anon ? "이름이 익명화되어 내보내집니다. 단, 글 내용 안에 적힌 이름은 바뀌지 않습니다." : "⚠ 실명이 포함됩니다."}`}>
           <div className="flex flex-wrap gap-2">
-            {([["participants", "참가자별 지표"], ["ideas", "아이디어"], ["comments", "댓글"], ["analyses", "AI 분석 요청"], ["events", "행동 로그 전체"]] as const).map(([k, label]) => (
+            {([["participants", "참가자별 지표"], ["ideas", "아이디어"], ["comments", "댓글"], ["analyses", "AI 분석 요청"], ["concretization", "아이디어 구체화(카드별)"], ["events", "행동 로그 전체"]] as const).map(([k, label]) => (
               <button key={k} onClick={() => dl(k)} className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50">
                 ⬇ {label}
               </button>
@@ -223,6 +233,8 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
 // ── 지표 요약: 숫자를 정해진 규칙으로 문장화 (평가·추측 없이 사실만, 같은 데이터면 항상 같은 결과)
 const MIN_REQUESTS_FOR_COMPARISON = 3;
 const STALL_MIN = 5;
+
+const signed = (n: number | null | undefined) => (n == null ? "—" : n > 0 ? `+${n}` : `${n}`);
 
 export function buildSummary(m: Metrics): { title: string; lines: string[] }[] {
   const s = m.summary;
@@ -323,6 +335,26 @@ export function buildSummary(m: Metrics): { title: string; lines: string[] }[] {
   }
   groups.push({ title: "AI 활용", lines: ai });
 
+  // 4-1. 구체화
+  const c = m.concretization;
+  if (c) {
+    const conc: string[] = [];
+    if (c.trackedIdeas === 0) {
+      conc.push(`수정 이력을 추적할 수 있는 카드가 없습니다 (행동 로그 기록 이후 만든 카드만 추적 가능, 현재 추적 불가 ${c.untrackedIdeas}개).`);
+    } else {
+      conc.push(`이력을 추적할 수 있는 카드 ${c.trackedIdeas}개 중 AI 분석 대상에 포함된 카드는 ${c.analyzed.n}개, 포함되지 않은 카드는 ${c.notAnalyzed.n}개입니다${c.untrackedIdeas ? ` (추적 불가 ${c.untrackedIdeas}개 제외)` : ""}.`);
+      const g = (x: ConcGroup) => `수정된 비율 ${x.editedShare == null ? "—" : fmtPct(x.editedShare)}, 글자 수 변화 평균 ${signed(x.avgLengthChange)}자, 구체 요소 변화 평균 ${signed(x.avgSpecificityChange)}개`;
+      if (c.analyzed.n) conc.push(`분석 받은 카드: ${g(c.analyzed)}.`);
+      if (c.notAnalyzed.n) conc.push(`분석 받지 않은 카드: ${g(c.notAnalyzed)}.`);
+      if (c.analyzed.n) {
+        conc.push(`분석 받은 카드 중 ${c.analyzed.editedAfterAnalysisShare == null ? "—" : fmtPct(c.analyzed.editedAfterAnalysisShare)}가 분석 결과 이후 수정되었고, ${c.windowMin}분 안에 수정된 비율은 ${c.analyzed.editedWithinWindowShare == null ? "—" : fmtPct(c.analyzed.editedWithinWindowShare)}입니다.`);
+        if (c.analyzed.avgLengthChangeSinceAnalysis != null) conc.push(`분석 시점 버전과 비교하면 현재 버전은 글자 수 평균 ${signed(c.analyzed.avgLengthChangeSinceAnalysis)}자, 구체 요소 평균 ${signed(c.analyzed.avgSpecificityChangeSinceAnalysis)}개 변했습니다.`);
+      }
+      if (c.analyzed.n < 5 || c.notAnalyzed.n < 5) conc.push("한쪽 그룹의 카드가 5개 미만이라 그룹 간 비교 값은 참고용입니다.");
+    }
+    groups.push({ title: "아이디어 구체화", lines: conc });
+  }
+
   // 5. 수렴
   const cats = Object.entries(s.categoryCounts);
   if (cats.length) {
@@ -361,6 +393,65 @@ const ObjectiveSummary: React.FC<{ m: Metrics }> = ({ m }) => {
             </ul>
           </div>
         ))}
+      </div>
+    </Section>
+  );
+};
+
+// ── 아이디어 구체화
+const ConcretizationSection: React.FC<{ c: Concretization; onDownload: (kind: string) => void }> = ({ c, onDownload }) => {
+  const pctOr = (v: number | null) => (v == null ? "—" : fmtPct(v));
+  const rows: { label: string; tip: TipContent; a: React.ReactNode; b: React.ReactNode }[] = [
+    { label: "카드 수", tip: TIPS.concGroups, a: c.analyzed.n, b: c.notAnalyzed.n },
+    { label: "수정된 비율", tip: TIPS.concEdited, a: pctOr(c.analyzed.editedShare), b: pctOr(c.notAnalyzed.editedShare) },
+    { label: "평균 수정 횟수", tip: TIPS.concAvgEdits, a: c.analyzed.avgEdits ?? "—", b: c.notAnalyzed.avgEdits ?? "—" },
+    { label: "글자 수 변화 (첫→최종)", tip: TIPS.concLen, a: signed(c.analyzed.avgLengthChange), b: signed(c.notAnalyzed.avgLengthChange) },
+    { label: "구체 요소 변화 (첫→최종)", tip: TIPS.concSpec, a: signed(c.analyzed.avgSpecificityChange), b: signed(c.notAnalyzed.avgSpecificityChange) },
+    { label: "단계 진전 비율", tip: TIPS.concProgress, a: pctOr(c.analyzed.progressedShare), b: pctOr(c.notAnalyzed.progressedShare) },
+  ];
+  return (
+    <Section title="아이디어 구체화"
+      desc={`AI 분석을 받은 아이디어가 이후 얼마나 다듬어졌는지 봅니다. 추적 가능 ${c.trackedIdeas}개 / 추적 불가 ${c.untrackedIdeas}개 (총 수정 ${c.totalEdits}회).`}
+      tip={TIPS.concTracked}>
+      {c.trackedIdeas === 0 ? (
+        <p className="text-sm text-gray-500">아직 수정 이력을 추적할 수 있는 카드가 없습니다. 행동 로그 기록 이후 새로 만든 카드부터 집계됩니다.</p>
+      ) : (
+        <div className="grid gap-5 md:grid-cols-5">
+          <div className="md:col-span-3 overflow-x-auto">
+            <table className="w-full text-sm min-w-[360px]">
+              <thead><tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                <th className="py-2 font-medium">지표</th>
+                <th className="py-2 font-medium text-right">AI 분석 받음</th>
+                <th className="py-2 font-medium text-right">받지 않음</th>
+              </tr></thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.label} className="border-b border-gray-50">
+                    <td className="py-2"><span className="inline-flex items-center">{r.label}<InfoTip tip={r.tip} label={r.label} /></span></td>
+                    <td className="py-2 text-right tabular-nums font-medium">{r.a}</td>
+                    <td className="py-2 text-right tabular-nums">{r.b}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="md:col-span-2 space-y-3">
+            <div className="rounded-lg bg-gray-50 p-3">
+              <div className="text-xs text-gray-500 flex items-center">AI 결과 이후 수정<InfoTip tip={TIPS.concAfterAnalysis} label="AI 결과 이후 수정" /></div>
+              <div className="text-sm mt-1"><b className="tabular-nums">{pctOr(c.analyzed.editedAfterAnalysisShare)}</b> <span className="text-gray-500">결과 이후 수정</span></div>
+              <div className="text-sm"><b className="tabular-nums">{pctOr(c.analyzed.editedWithinWindowShare)}</b> <span className="text-gray-500">결과 후 {c.windowMin}분 안에 수정</span></div>
+            </div>
+            <div className="rounded-lg bg-gray-50 p-3">
+              <div className="text-xs text-gray-500 flex items-center">분석 시점 → 현재<InfoTip tip={TIPS.concSinceAnalysis} label="분석 시점 → 현재" /></div>
+              <div className="text-sm mt-1">글자 수 <b className="tabular-nums">{signed(c.analyzed.avgLengthChangeSinceAnalysis)}</b> · 구체 요소 <b className="tabular-nums">{signed(c.analyzed.avgSpecificityChangeSinceAnalysis)}</b></div>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2">
+        <span className="text-xs text-gray-500 inline-flex items-center mr-1">사람 평가용<InfoTip tip={TIPS.rating} label="사람 평가용 파일" /></span>
+        <button onClick={() => onDownload("rating-sheet")} className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50">⬇ 평가지 (평가자에게 배포)</button>
+        <button onClick={() => onDownload("rating-key")} className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50">⬇ 정답 키 (연구자 보관)</button>
       </div>
     </Section>
   );

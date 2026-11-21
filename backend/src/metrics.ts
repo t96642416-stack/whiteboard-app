@@ -64,6 +64,120 @@ function pickBucket(durationMin: number): number {
   return 1440;
 }
 
+// ── 아이디어 구체화 ─────────────────────────────────
+// 행동 로그(idea_add / idea_edit)로 카드별 버전 이력을 복원하고, AI 분석 결과가 나온 시점과 연결한다.
+
+interface Version { at: number; title: string; content: string; category: string }
+
+const CATEGORY_RANK: Record<string, number> = { brainstorm: 0, other: 0, ai: 0, candidate: 1, review: 2 };
+const verText = (v: { title?: string; content?: string }) => `${v.title ?? ""}\n${v.content ?? ""}`.trim();
+const verLen = (v: { title?: string; content?: string }) => `${v.title ?? ""}${v.content ?? ""}`.trim().length;
+
+/** 구체 요소 수: 숫자 표현(수량·날짜·금액 등) + 목록 항목(-, •, 1. 로 시작하는 줄) */
+export function specificity(text: string): number {
+  const numbers = (text.match(/\d+(?:[.,]\d+)?/g) ?? []).length;
+  const listItems = (text.match(/^\s*(?:[-•*·▪]|\d+[.)])\s+/gm) ?? []).length;
+  return numbers + listItems;
+}
+
+export interface IdeaTrace {
+  ideaId: string; author: string; tracked: boolean; analyzed: boolean; firstAnalyzedAt: string | null;
+  edits: number; editsAfterAnalysis: number; editedWithinWindow: boolean;
+  first: Version | null; atAnalysis: Version | null; final: Version;
+}
+
+export function traceIdeas(room: RoomData, windowMin: number): IdeaTrace[] {
+  const human = room.ideas.filter((i) => !isAiIdea(i));
+  const history = new Map<string, Version[]>();
+  const edits = new Map<string, number[]>();
+  // 분석 요청 → 같은 사용자의 다음 완료 이벤트와 짝지어 "결과를 받은 시점"을 구함
+  const pending = new Map<string, any[]>();
+  const analyses: { at: number; ideaIds: Set<string> }[] = [];
+
+  for (const e of room.events) {
+    const t = ts(e.at); if (t == null) continue;
+    const d = e.data ?? {};
+    if (e.type === "idea_add" && d.ideaId && !d.fromAI) {
+      history.set(d.ideaId, [{ at: t, title: d.title ?? "", content: d.content ?? "", category: d.category ?? "brainstorm" }]);
+    } else if (e.type === "idea_edit" && d.ideaId) {
+      const list = history.get(d.ideaId) ?? [];
+      if (list.length === 0 && d.before) list.push({ at: t - 1, title: d.before.title ?? "", content: d.before.content ?? "", category: d.before.category ?? "brainstorm" });
+      const prev = list[list.length - 1];
+      list.push({ at: t, title: d.after?.title ?? prev?.title ?? "", content: d.after?.content ?? prev?.content ?? "", category: d.after?.category ?? prev?.category ?? "brainstorm" });
+      history.set(d.ideaId, list);
+      edits.set(d.ideaId, [...(edits.get(d.ideaId) ?? []), t]);
+    } else if (e.type === "analysis_request") {
+      const key = e.user ?? "";
+      pending.set(key, [...(pending.get(key) ?? []), d]);
+    } else if (e.type === "analysis_done" || e.type === "analysis_error") {
+      const q = pending.get(e.user ?? "") ?? [];
+      const req = q.shift();
+      if (req && e.type === "analysis_done" && Array.isArray(req.ideaIds)) analyses.push({ at: t, ideaIds: new Set(req.ideaIds) });
+    }
+  }
+
+  const w = windowMin * 60000;
+  return human.map((idea) => {
+    const hist = history.get(idea.id) ?? [];
+    const final: Version = { at: Date.now(), title: idea.title ?? "", content: idea.content ?? "", category: idea.category ?? "brainstorm" };
+    const myAnalyses = analyses.filter((a) => a.ideaIds.has(idea.id)).map((a) => a.at).sort((a, b) => a - b);
+    const firstAn = myAnalyses[0] ?? null;
+    const editTimes = edits.get(idea.id) ?? [];
+    const atAnalysis = firstAn != null ? [...hist].reverse().find((v) => v.at <= firstAn) ?? null : null;
+    return {
+      ideaId: idea.id,
+      author: idea.author,
+      tracked: hist.length > 0,
+      analyzed: firstAn != null,
+      firstAnalyzedAt: firstAn != null ? new Date(firstAn).toISOString() : null,
+      edits: editTimes.length,
+      editsAfterAnalysis: firstAn != null ? editTimes.filter((t) => t > firstAn).length : 0,
+      editedWithinWindow: myAnalyses.some((a) => editTimes.some((t) => t > a && t <= a + w)),
+      first: hist[0] ?? null,
+      atAnalysis,
+      final,
+    };
+  });
+}
+
+function concretizationGroup(list: IdeaTrace[]) {
+  const n = list.length;
+  const avg = (f: (x: IdeaTrace) => number) => (n ? round(list.reduce((s, x) => s + f(x), 0) / n) : null);
+  return {
+    n,
+    editedShare: n ? round(list.filter((x) => x.edits > 0).length / n, 3) : null,
+    avgEdits: avg((x) => x.edits),
+    avgLengthChange: avg((x) => verLen(x.final) - verLen(x.first!)),
+    avgSpecificityChange: avg((x) => specificity(verText(x.final)) - specificity(verText(x.first!))),
+    progressedShare: n ? round(list.filter((x) => (CATEGORY_RANK[x.final.category] ?? 0) > (CATEGORY_RANK[x.first!.category] ?? 0)).length / n, 3) : null,
+  };
+}
+
+export function computeConcretization(room: RoomData, windowMin: number) {
+  const traces = traceIdeas(room, windowMin);
+  const tracked = traces.filter((t) => t.tracked);
+  const analyzed = tracked.filter((t) => t.analyzed);
+  const notAnalyzed = tracked.filter((t) => !t.analyzed);
+  const sinceAnalysis = analyzed.filter((t) => t.atAnalysis);
+  const n = sinceAnalysis.length;
+  return {
+    humanIdeas: traces.length,
+    trackedIdeas: tracked.length,
+    untrackedIdeas: traces.length - tracked.length,
+    totalEdits: tracked.reduce((s, t) => s + t.edits, 0),
+    analyzed: {
+      ...concretizationGroup(analyzed),
+      editedAfterAnalysisShare: analyzed.length ? round(analyzed.filter((t) => t.editsAfterAnalysis > 0).length / analyzed.length, 3) : null,
+      editedWithinWindowShare: analyzed.length ? round(analyzed.filter((t) => t.editedWithinWindow).length / analyzed.length, 3) : null,
+      // 분석 받은 시점의 버전 → 현재 버전 변화 (AI 이후 얼마나 다듬어졌는지)
+      avgLengthChangeSinceAnalysis: n ? round(sinceAnalysis.reduce((s, t) => s + verLen(t.final) - verLen(t.atAnalysis!), 0) / n) : null,
+      avgSpecificityChangeSinceAnalysis: n ? round(sinceAnalysis.reduce((s, t) => s + specificity(verText(t.final)) - specificity(verText(t.atAnalysis!)), 0) / n) : null,
+    },
+    notAnalyzed: concretizationGroup(notAnalyzed),
+    windowMin,
+  };
+}
+
 export function computeMetrics(room: RoomData, opts: MetricsOptions) {
   const nameOf = buildNameMap(room, opts.anon);
   const humanIdeas = room.ideas.filter((i) => !isAiIdea(i));
@@ -223,6 +337,7 @@ export function computeMetrics(room: RoomData, opts: MetricsOptions) {
     timeline: { bucketMin, buckets: timeline },
     analyses: analyses.map(({ t: _t, ...rest }) => rest),
     agentEffects,
+    concretization: computeConcretization(room, opts.windowMin),
     windowMin: opts.windowMin,
   };
 }
@@ -239,12 +354,61 @@ function csv(rows: Record<string, any>[], columns: string[]): string {
   return "﻿" + [columns.join(","), ...rows.map((r) => columns.map((c) => esc(r[c])).join(","))].join("\r\n");
 }
 
-export const CSV_KINDS = ["ideas", "comments", "messages", "analyses", "events", "participants"] as const;
+export const CSV_KINDS = ["ideas", "comments", "messages", "analyses", "events", "participants", "concretization", "rating-sheet", "rating-key"] as const;
+
+// 방 ID로 시드를 고정한 셔플 — 평가지와 정답 키가 항상 같은 순서로 나오도록
+function seededShuffle<T>(arr: T[], seed: string): T[] {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
+  const rand = () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; };
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+/** 사람 평가용 항목: 내용이 바뀐 카드는 첫 버전·최종 버전 두 개, 나머지는 최종 버전 하나. 순서는 섞고 작성자·버전은 가림 */
+function ratingItems(room: RoomData, opts: MetricsOptions, roomId: string) {
+  const items: { ideaId: string; version: "first" | "final"; v: Version; t: IdeaTrace }[] = [];
+  for (const t of traceIdeas(room, opts.windowMin)) {
+    const changed = t.first && verText(t.first) !== verText(t.final);
+    if (changed) items.push({ ideaId: t.ideaId, version: "first", v: t.first!, t });
+    items.push({ ideaId: t.ideaId, version: "final", v: t.final, t });
+  }
+  // 같은 카드의 두 버전이 나란히 나오면 평가자가 비교하며 채점하게 되므로 떨어뜨림
+  const shuffled = seededShuffle(items, roomId);
+  for (let i = 1; i < shuffled.length; i++) {
+    if (shuffled[i].ideaId !== shuffled[i - 1].ideaId) continue;
+    const j = shuffled.findIndex((x, k) => k > i && x.ideaId !== shuffled[i].ideaId && shuffled[k - 1]?.ideaId !== shuffled[i].ideaId && shuffled[k + 1]?.ideaId !== shuffled[i].ideaId);
+    const k = j >= 0 ? j : shuffled.findIndex((x, k) => k < i - 1 && x.ideaId !== shuffled[i].ideaId && shuffled[k - 1]?.ideaId !== shuffled[i].ideaId && shuffled[k + 1]?.ideaId !== shuffled[i].ideaId);
+    if (k >= 0) [shuffled[i], shuffled[k]] = [shuffled[k], shuffled[i]];
+  }
+  return shuffled.map((x, i) => ({ ...x, itemId: `R${String(i + 1).padStart(3, "0")}` }));
+}
 export type CsvKind = typeof CSV_KINDS[number];
 
-export function buildCsv(kind: CsvKind, room: RoomData, opts: MetricsOptions): string {
+export function buildCsv(kind: CsvKind, room: RoomData, opts: MetricsOptions, roomId = ""): string {
   const nameOf = buildNameMap(room, opts.anon);
   switch (kind) {
+    case "concretization":
+      return csv(traceIdeas(room, opts.windowMin).map((t) => ({
+        ideaId: t.ideaId, author: nameOf(t.author), tracked: t.tracked, analyzedByAI: t.analyzed, firstAnalyzedAt: t.firstAnalyzedAt ?? "",
+        edits: t.edits, editsAfterAnalysis: t.editsAfterAnalysis, editedWithinWindow: t.editedWithinWindow,
+        firstLength: t.first ? verLen(t.first) : "", lengthAtAnalysis: t.atAnalysis ? verLen(t.atAnalysis) : "", finalLength: verLen(t.final),
+        firstSpecificity: t.first ? specificity(verText(t.first)) : "", specificityAtAnalysis: t.atAnalysis ? specificity(verText(t.atAnalysis)) : "",
+        finalSpecificity: specificity(verText(t.final)),
+        firstCategory: t.first?.category ?? "", finalCategory: t.final.category,
+        firstText: t.first ? verText(t.first) : "", finalText: verText(t.final),
+      })), ["ideaId", "author", "tracked", "analyzedByAI", "firstAnalyzedAt", "edits", "editsAfterAnalysis", "editedWithinWindow",
+        "firstLength", "lengthAtAnalysis", "finalLength", "firstSpecificity", "specificityAtAnalysis", "finalSpecificity",
+        "firstCategory", "finalCategory", "firstText", "finalText"]);
+    case "rating-sheet":
+      return csv(ratingItems(room, opts, roomId).map((x) => ({
+        itemId: x.itemId, title: x.v.title, content: x.v.content, "구체성(1-5)": "", "메모": "",
+      })), ["itemId", "title", "content", "구체성(1-5)", "메모"]);
+    case "rating-key":
+      return csv(ratingItems(room, opts, roomId).map((x) => ({
+        itemId: x.itemId, ideaId: x.ideaId, version: x.version, analyzedByAI: x.t.analyzed, author: nameOf(x.t.author), edits: x.t.edits,
+      })), ["itemId", "ideaId", "version", "analyzedByAI", "author", "edits"]);
     case "ideas":
       return csv(room.ideas.map((i) => ({
         id: i.id, createdAt: i.createdAt, author: nameOf(i.author),

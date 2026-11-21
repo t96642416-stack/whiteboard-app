@@ -21,7 +21,7 @@ function sanitize(v: any, depth = 0): any {
     return v.length > MAX_TEXT ? v.slice(0, MAX_TEXT) + "…" : v;
   }
   if (depth > 4) return undefined;
-  if (Array.isArray(v)) return v.slice(0, 50).map((x) => sanitize(x, depth + 1));
+  if (Array.isArray(v)) return v.slice(0, 500).map((x) => sanitize(x, depth + 1)); // ideaIds 등 목록 보존
   if (v && typeof v === "object") {
     const out: any = {};
     for (const k of Object.keys(v)) {

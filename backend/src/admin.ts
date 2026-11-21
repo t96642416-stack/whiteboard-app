@@ -237,7 +237,7 @@ export function createAdminRouter(ctx: AdminContext) {
     const file = `${req.params.roomId}-${kind}${o.anon ? "-anon" : ""}.csv`;
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(file)}`);
-    res.send(buildCsv(kind, room, o));
+    res.send(buildCsv(kind, room, o, req.params.roomId));
   }));
 
   router.get("/rooms/:roomId/backup", wrap(async (req, res) => {

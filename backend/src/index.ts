@@ -482,7 +482,7 @@ io.on("connection", (socket) => {
       const analysisRoom = currentRoom;
       const analysisStartedAt = Date.now();
       logEvent(analysisRoom, currentUser, "analysis_request", {
-        agentType, ideaCount: ideas.length, filesCount: files?.length ?? 0, useSearch: !!useSearch,
+        agentType, ideaCount: ideas.length, ideaIds: ideas.map((i: any) => i.id), filesCount: files?.length ?? 0, useSearch: !!useSearch,
         filesOnly: !!filesOnly, sectionCount: sectionGroups?.length ?? 0, scoped: !!ideaIds,
       });
 

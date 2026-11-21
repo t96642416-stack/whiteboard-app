@@ -24,6 +24,9 @@ const SYSTEM_PROMPT = `당신은 협업 아이디어 회의(브레인스토밍)�
 - agentEffects: 에이전트 유형별로 분석 시점 앞뒤 windowMin 분 동안 사람이 낸 아이디어 수의 평균(before/after)과 변화량, 그리고 그 유형의 결과에서 보드로 가져간 AI 카드 수.
 - categoryCounts: 사람 아이디어만의 카테고리 분포(AI 카드는 제외하므로 합계가 totalIdeas보다 작은 것이 정상).
 - 분석 내역은 참가자가 화면에서 삭제할 수 있어, 분석 기록(analyses)보다 AI 카드가 많을 수 있습니다. 이 경우 오류로 단정하지 말고 "삭제된 분석에서 온 카드일 수 있음"으로 다루세요.
+- concretization: 아이디어 구체화. 행동 로그로 버전 이력이 있는 카드(trackedIdeas)만 대상. analyzed = AI 분석 대상에 포함된 카드, notAnalyzed = 포함되지 않은 카드.
+  avgLengthChange/avgSpecificityChange = 최종 버전 − 첫 버전의 글자 수/구체 요소 수(숫자 표현 + 목록 항목) 평균, progressedShare = 카테고리가 후보/최종 검토 쪽으로 올라간 비율,
+  editedWithinWindowShare = 분석 결과 후 windowMin 분 안에 수정된 비율, ...SinceAnalysis = 분석 시점 버전 → 최종 버전 변화. 글자 수·구체 요소 수는 구체성의 대리 지표일 뿐이며, 두 그룹은 무작위 배정이 아니므로 차이를 AI 효과로 단정하지 마세요.
 - editedIdeas/deletedIdeas/activeMinutes 등은 행동 로그(eventLogSince 이후)에서만 계산됩니다. eventCount가 0이면 해당 지표는 아직 측정되지 않은 것입니다.
 
 작성 원칙:
