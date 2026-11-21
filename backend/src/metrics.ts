@@ -80,14 +80,49 @@ export function specificity(text: string): number {
   return numbers + listItems;
 }
 
+// ── 삭제된 아이디어 복원 ──────────────────────────────
+// idea_delete 로그(삭제 당시 내용) + idea_add / idea_edit 이력으로 삭제된 카드를 되살린다. 행동 로그 기록 이후 삭제분만 가능.
+export interface DeletedInfo { deletedAt: string; deletedBy: string | null }
+
+export function deletedIdeas(room: RoomData): (any & { _deleted: DeletedInfo })[] {
+  const current = new Set(room.ideas.map((i) => i.id));
+  const last = new Map<string, any>();      // ideaId → 마지막으로 알려진 상태
+  const deleted = new Map<string, any>();
+  for (const e of room.events) {
+    const d = e.data ?? {};
+    if (!d.ideaId) continue;
+    if (e.type === "idea_add") {
+      last.set(d.ideaId, { id: d.ideaId, title: d.title, content: d.content, category: d.category, author: e.user, createdAt: e.at,
+        analysisSnapshot: d.fromAI ? { agentType: d.agentType } : undefined, attachmentsCount: d.attachments ?? 0 });
+      deleted.delete(d.ideaId); // 삭제 후 되살린 경우(되돌리기)
+    } else if (e.type === "idea_edit") {
+      const prev = last.get(d.ideaId) ?? { id: d.ideaId, author: d.author };
+      last.set(d.ideaId, { ...prev, title: d.after?.title ?? prev.title, content: d.after?.content ?? prev.content, category: d.after?.category ?? prev.category });
+    } else if (e.type === "idea_delete") {
+      const prev = last.get(d.ideaId) ?? { id: d.ideaId };
+      deleted.set(d.ideaId, {
+        ...prev,
+        id: d.ideaId,
+        title: d.title ?? prev.title ?? "",
+        content: d.content ?? prev.content ?? "",
+        author: d.author ?? prev.author ?? null,
+        createdAt: d.createdAt ?? prev.createdAt ?? null,
+        analysisSnapshot: (d.fromAI ?? !!prev.analysisSnapshot) ? (prev.analysisSnapshot ?? { agentType: undefined }) : undefined,
+        _deleted: { deletedAt: e.at, deletedBy: e.user ?? null },
+      });
+    }
+  }
+  return [...deleted.values()].filter((i) => !current.has(i.id));
+}
+
 export interface IdeaTrace {
   ideaId: string; author: string; tracked: boolean; analyzed: boolean; firstAnalyzedAt: string | null;
   edits: number; editsAfterAnalysis: number; editedWithinWindow: boolean;
   first: Version | null; atAnalysis: Version | null; final: Version;
 }
 
-export function traceIdeas(room: RoomData, windowMin: number): IdeaTrace[] {
-  const human = room.ideas.filter((i) => !isAiIdea(i));
+export function traceIdeas(room: RoomData, windowMin: number, includeDeleted = false): (IdeaTrace & { deleted: DeletedInfo | null })[] {
+  const human = [...room.ideas, ...(includeDeleted ? deletedIdeas(room) : [])].filter((i) => !isAiIdea(i));
   const history = new Map<string, Version[]>();
   const edits = new Map<string, number[]>();
   // 분석 요청 → 같은 사용자의 다음 완료 이벤트와 짝지어 "결과를 받은 시점"을 구함
@@ -119,7 +154,7 @@ export function traceIdeas(room: RoomData, windowMin: number): IdeaTrace[] {
   const w = windowMin * 60000;
   return human.map((idea) => {
     const hist = history.get(idea.id) ?? [];
-    const final: Version = { at: Date.now(), title: idea.title ?? "", content: idea.content ?? "", category: idea.category ?? "brainstorm" };
+    const final: Version = { at: idea._deleted ? Date.parse(idea._deleted.deletedAt) : Date.now(), title: idea.title ?? "", content: idea.content ?? "", category: idea.category ?? "brainstorm" };
     const myAnalyses = analyses.filter((a) => a.ideaIds.has(idea.id)).map((a) => a.at).sort((a, b) => a - b);
     const firstAn = myAnalyses[0] ?? null;
     const editTimes = edits.get(idea.id) ?? [];
@@ -127,6 +162,7 @@ export function traceIdeas(room: RoomData, windowMin: number): IdeaTrace[] {
     return {
       ideaId: idea.id,
       author: idea.author,
+      deleted: idea._deleted ?? null,
       tracked: hist.length > 0,
       analyzed: firstAn != null,
       firstAnalyzedAt: firstAn != null ? new Date(firstAn).toISOString() : null,
@@ -229,12 +265,12 @@ export function computeMetrics(room: RoomData, opts: MetricsOptions) {
 
   // 이벤트 기반 (이벤트 로그가 쌓인 이후 데이터만)
   const openSessions = new Map<string, number>();
-  let deletedIdeas = 0, editedIdeas = 0, analysisErrors = 0;
+  let editedIdeas = 0, analysisErrors = 0;
   for (const e of events) {
     const x = u(e.user);
     const t = ts(e.at);
     if (e.type === "idea_edit") { editedIdeas++; if (x) x.edits++; }
-    if (e.type === "idea_delete") { deletedIdeas++; if (x) x.deletes++; }
+    // 삭제는 아래에서 "최종적으로 삭제된 카드" 기준으로 셈 (삭제 후 되돌린 카드 제외)
     if (e.type === "ai_chat" && x) x.aiChats++;
     if (e.type === "analysis_error") analysisErrors++;
     if (e.type === "join" && x && t) { if (!openSessions.has(x.name)) openSessions.set(x.name, t); }
@@ -244,6 +280,11 @@ export function computeMetrics(room: RoomData, opts: MetricsOptions) {
     }
   }
   if (end != null) for (const [name, s] of openSessions) { const x = users.get(name); if (x) x.activeMs += end - s; }
+  const finallyDeleted = deletedIdeas(room);
+  {
+    for (const d of finallyDeleted) { const x = u(d._deleted.deletedBy); if (x) x.deletes++; }
+  }
+  const deletedCount = finallyDeleted.length;
 
   const participants = [...users.values()].map((x) => ({
     name: x.name,
@@ -329,7 +370,7 @@ export function computeMetrics(room: RoomData, opts: MetricsOptions) {
       durationMin: round(durationMin, 1),
       humanIdeasPerMin: durationMin > 0 ? round(humanIdeas.length / durationMin, 3) : 0,
       editedIdeas,
-      deletedIdeas,
+      deletedIdeas: deletedCount,
       eventCount: events.length,
       eventLogSince: firstEvent,
     },
@@ -390,15 +431,16 @@ export function buildCsv(kind: CsvKind, room: RoomData, opts: MetricsOptions, ro
   const nameOf = buildNameMap(room, opts.anon);
   switch (kind) {
     case "concretization":
-      return csv(traceIdeas(room, opts.windowMin).map((t) => ({
-        ideaId: t.ideaId, author: nameOf(t.author), tracked: t.tracked, analyzedByAI: t.analyzed, firstAnalyzedAt: t.firstAnalyzedAt ?? "",
+      return csv(traceIdeas(room, opts.windowMin, true).map((t) => ({
+        ideaId: t.ideaId, status: t.deleted ? "deleted" : "active", deletedAt: t.deleted?.deletedAt ?? "",
+        author: nameOf(t.author), tracked: t.tracked, analyzedByAI: t.analyzed, firstAnalyzedAt: t.firstAnalyzedAt ?? "",
         edits: t.edits, editsAfterAnalysis: t.editsAfterAnalysis, editedWithinWindow: t.editedWithinWindow,
         firstLength: t.first ? verLen(t.first) : "", lengthAtAnalysis: t.atAnalysis ? verLen(t.atAnalysis) : "", finalLength: verLen(t.final),
         firstSpecificity: t.first ? specificity(verText(t.first)) : "", specificityAtAnalysis: t.atAnalysis ? specificity(verText(t.atAnalysis)) : "",
         finalSpecificity: specificity(verText(t.final)),
         firstCategory: t.first?.category ?? "", finalCategory: t.final.category,
         firstText: t.first ? verText(t.first) : "", finalText: verText(t.final),
-      })), ["ideaId", "author", "tracked", "analyzedByAI", "firstAnalyzedAt", "edits", "editsAfterAnalysis", "editedWithinWindow",
+      })), ["ideaId", "status", "deletedAt", "author", "tracked", "analyzedByAI", "firstAnalyzedAt", "edits", "editsAfterAnalysis", "editedWithinWindow",
         "firstLength", "lengthAtAnalysis", "finalLength", "firstSpecificity", "specificityAtAnalysis", "finalSpecificity",
         "firstCategory", "finalCategory", "firstText", "finalText"]);
     case "rating-sheet":
@@ -409,13 +451,23 @@ export function buildCsv(kind: CsvKind, room: RoomData, opts: MetricsOptions, ro
       return csv(ratingItems(room, opts, roomId).map((x) => ({
         itemId: x.itemId, ideaId: x.ideaId, version: x.version, analyzedByAI: x.t.analyzed, author: nameOf(x.t.author), edits: x.t.edits,
       })), ["itemId", "ideaId", "version", "analyzedByAI", "author", "edits"]);
-    case "ideas":
-      return csv(room.ideas.map((i) => ({
-        id: i.id, createdAt: i.createdAt, author: nameOf(i.author),
+    case "ideas": {
+      const rows = [...room.ideas, ...deletedIdeas(room)].map((i: any) => ({
+        id: i.id,
+        status: i._deleted ? "deleted" : "active",
+        createdAt: i.createdAt ?? "", author: nameOf(i.author),
         source: isAiIdea(i) ? "ai" : "human", agentType: i.analysisSnapshot?.agentType ?? "",
-        category: i.category ?? "brainstorm", title: i.title, content: i.content, length: textLen(i),
-        attachments: (i.attachments ?? []).length, comments: (i.comments ?? []).length,
-      })), ["id", "createdAt", "author", "source", "agentType", "category", "title", "content", "length", "attachments", "comments"]);
+        category: i.category ?? "brainstorm", title: i.title ?? "", content: i.content ?? "", length: textLen(i),
+        attachments: i._deleted ? (i.attachmentsCount ?? "") : (i.attachments ?? []).length,
+        comments: i._deleted ? "" : (i.comments ?? []).length,
+        deletedAt: i._deleted?.deletedAt ?? "",
+        deletedBy: i._deleted ? nameOf(i._deleted.deletedBy) : "",
+        deletedByAuthor: i._deleted ? (i._deleted.deletedBy === i.author) : "",
+      }));
+      rows.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+      return csv(rows, ["id", "status", "createdAt", "author", "source", "agentType", "category", "title", "content", "length",
+        "attachments", "comments", "deletedAt", "deletedBy", "deletedByAuthor"]);
+    }
     case "comments":
       return csv(room.ideas.flatMap((i) => (i.comments ?? []).map((c: any) => ({
         ideaId: i.id, ideaAuthor: nameOf(i.author), createdAt: c.createdAt, author: nameOf(c.author),

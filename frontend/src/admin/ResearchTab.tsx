@@ -216,9 +216,9 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
           </div>
         </div>
 
-        <Section title="데이터 내보내기 (CSV)" desc={`엑셀·R·SPSS에서 바로 열 수 있습니다. ${anon ? "이름이 익명화되어 내보내집니다. 단, 글 내용 안에 적힌 이름은 바뀌지 않습니다." : "⚠ 실명이 포함됩니다."}`}>
+        <Section title="데이터 내보내기 (CSV)" desc={`엑셀·R·SPSS에서 바로 열 수 있습니다. ${anon ? "이름이 익명화되어 내보내집니다. 단, 글 내용 안에 적힌 이름은 바뀌지 않습니다." : "⚠ 입장 이름이 그대로 포함됩니다."} 아이디어 파일에는 삭제된 카드도 status=deleted로 함께 들어갑니다(삭제 시각·삭제한 사람 포함, 행동 로그 기록 이후 삭제분).`}>
           <div className="flex flex-wrap gap-2">
-            {([["participants", "참가자별 지표"], ["ideas", "아이디어"], ["comments", "댓글"], ["analyses", "AI 분석 요청"], ["concretization", "아이디어 구체화(카드별)"], ["events", "행동 로그 전체"]] as const).map(([k, label]) => (
+            {([["participants", "참가자별 지표"], ["ideas", "아이디어 (삭제 포함)"], ["comments", "댓글"], ["analyses", "AI 분석 요청"], ["concretization", "아이디어 구체화 (카드별, 삭제 포함)"], ["events", "행동 로그 전체"]] as const).map(([k, label]) => (
               <button key={k} onClick={() => dl(k)} className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50">
                 ⬇ {label}
               </button>
