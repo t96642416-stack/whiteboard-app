@@ -5,7 +5,7 @@ import {
 } from "./db";
 import { getEvents, memoryEventRooms, clearMemoryEvents, logEvent } from "./events";
 import { computeMetrics, buildCsv, CSV_KINDS, CsvKind, RoomData } from "./metrics";
-import { generateInsight, insightErrorMessage } from "./insights";
+import { listRooms, getRoom, createRoom, setRoomClosed, removeRoom, ROOM_CODE_RE } from "./rooms";
 
 // 관리자 API — 비밀번호(ADMIN_PASSWORD 또는 화면에서 바꾼 값)가 있을 때만 동작
 
@@ -15,6 +15,7 @@ export interface AdminContext {
   ramRoomIds: () => string[];
   clearRoomCache: (roomId: string) => void;
   roomHasUsers: (roomId: string) => boolean;
+  closeRoomSockets: (roomId: string) => void;
 }
 
 const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
@@ -198,6 +199,15 @@ export function createAdminRouter(ctx: AdminContext) {
     for (const s of live) if (!rooms.find((r) => r.roomId === s.roomId)) {
       rooms.push({ roomId: s.roomId, ideas: 0, sections: 0, messages: 0, analyses: 0, images: 0, events: 0, bytes: 0, lastActivity: null });
     }
+    // 관리자가 만든 방(아직 데이터가 없는 방 포함)을 목록에 합치고 상태를 붙임
+    for (const m of listRooms()) if (!rooms.find((r) => r.roomId === m.roomId)) {
+      rooms.push({ roomId: m.roomId, ideas: 0, sections: 0, messages: 0, analyses: 0, images: 0, events: 0, bytes: 0, lastActivity: null });
+    }
+    rooms = rooms.map((r) => {
+      const m = getRoom(r.roomId);
+      return { ...r, title: m?.title ?? null, createdAt: m?.createdAt ?? null, status: !m ? "unregistered" : m.closedAt ? "closed" : "open", closedAt: m?.closedAt ?? null };
+    });
+    rooms.sort((a, b) => String(b.createdAt ?? b.lastActivity ?? "").localeCompare(String(a.createdAt ?? a.lastActivity ?? "")));
     const storage = await dbStorage();
     res.json({
       db: isDbAvailable(),
@@ -208,25 +218,38 @@ export function createAdminRouter(ctx: AdminContext) {
     });
   }));
 
+  // 방 만들기
+  router.post("/rooms", wrap(async (req, res) => {
+    const roomId = typeof req.body?.roomId === "string" ? req.body.roomId.trim() : "";
+    const title = typeof req.body?.title === "string" && req.body.title.trim() ? req.body.title.trim().slice(0, 60) : null;
+    if (!ROOM_CODE_RE.test(roomId)) return res.status(400).json({ error: "방 코드는 영문·숫자·한글·-·_ 로 1~40자여야 합니다." });
+    if (getRoom(roomId)) return res.status(409).json({ error: "이미 있는 방 코드입니다." });
+    const existing = isDbAvailable() ? (await dbListRooms()).find((r) => r.roomId === roomId) : null;
+    if (existing) return res.status(409).json({ error: "이 코드로 저장된 데이터가 이미 있습니다. 다른 코드를 쓰세요." });
+    const room = await createRoom(roomId, title);
+    if (!room) return res.status(409).json({ error: "이미 있는 방 코드입니다." });
+    console.log(`[관리자] 방 만들기: ${roomId}`);
+    res.json(room);
+  }));
+
+  // 방 마감 / 다시 열기
+  router.post("/rooms/:roomId/close", wrap(async (req, res) => {
+    const room = await setRoomClosed(req.params.roomId, true);
+    if (!room) return res.status(404).json({ error: "관리 대상 방이 아닙니다." });
+    ctx.closeRoomSockets(req.params.roomId);
+    logEvent(req.params.roomId, null, "admin_close_room");
+    res.json(room);
+  }));
+  router.post("/rooms/:roomId/reopen", wrap(async (req, res) => {
+    const room = await setRoomClosed(req.params.roomId, false);
+    if (!room) return res.status(404).json({ error: "관리 대상 방이 아닙니다." });
+    logEvent(req.params.roomId, null, "admin_reopen_room");
+    res.json(room);
+  }));
+
   router.get("/rooms/:roomId/metrics", wrap(async (req, res) => {
     const room = await loadRoom(req.params.roomId);
     res.json(computeMetrics(room, opts(req)));
-  }));
-
-  // AI 해석 (버튼을 눌렀을 때만 생성 — API 비용 발생)
-  router.post("/rooms/:roomId/insight", wrap(async (req, res) => {
-    const room = await loadRoom(req.params.roomId);
-    if (room.ideas.length === 0 && room.analysisResults.length === 0) {
-      return res.status(400).json({ error: "해석할 데이터가 없습니다." });
-    }
-    const windowMin = Math.min(120, Math.max(1, Number(req.body?.window) || 5));
-    try {
-      res.json(await generateInsight(req.params.roomId, room, windowMin, !!req.body?.force));
-    } catch (e) {
-      const { status, message } = insightErrorMessage(e);
-      console.error("[관리자] AI 해석 실패:", e);
-      res.status(status).json({ error: message });
-    }
   }));
 
   router.get("/rooms/:roomId/csv/:kind", wrap(async (req, res) => {
@@ -252,6 +275,7 @@ export function createAdminRouter(ctx: AdminContext) {
     if (req.body?.confirm !== roomId) return res.status(400).json({ error: "확인용 방 ID가 일치하지 않습니다." });
     if (ctx.roomHasUsers(roomId)) return res.status(409).json({ error: "접속 중인 사용자가 있어 삭제할 수 없습니다." });
     await dbDeleteRoom(roomId);
+    await removeRoom(roomId);
     clearMemoryEvents(roomId);
     ctx.clearRoomCache(roomId);
     console.log(`[관리자] 방 삭제: ${roomId}`);
@@ -268,7 +292,9 @@ export function createAdminRouter(ctx: AdminContext) {
     if (existing && (existing.ideas || existing.sections || existing.messages || existing.analyses || existing.images)) {
       return res.status(409).json({ error: "비어 있지 않은 방입니다. 다른 방 ID를 쓰거나 먼저 삭제하세요." });
     }
+    if (!ROOM_CODE_RE.test(roomId)) return res.status(400).json({ error: "방 코드는 영문·숫자·한글·-·_ 로 1~40자여야 합니다." });
     await dbRestoreRoom(roomId, backup);
+    if (!getRoom(roomId)) await createRoom(roomId, backup.title ?? null);
     ctx.clearRoomCache(roomId);
     logEvent(roomId, null, "admin_restore", { from: backup.roomId, exportedAt: backup.exportedAt });
     console.log(`[관리자] 방 복원: ${backup.roomId} → ${roomId}`);

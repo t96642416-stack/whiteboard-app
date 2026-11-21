@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { getSocket } from "./socket";
+import { getSocket, BACKEND_URL } from "./socket";
 import { Idea, IdeaComment, AnalysisResult, AgentAnalysisResult, ChatMessage, AgentType, CARD_COLORS, AnalysisFile, IdeaCategory, IdeaAttachment, AnalysisHistoryItem } from "./types";
 import Board from "./components/Board";
 import AIPanel from "./components/AIPanel";
@@ -10,16 +10,45 @@ const COLOR_OPTIONS = [
   { value: "#4F48ED", label: "보라" },
 ];
 
-const LoginModal: React.FC<{ onJoin: (userName: string, roomId: string, color: string) => void }> = ({ onJoin }) => {
+// 관리자가 만든 방인지 확인 (없거나 마감된 방이면 오류 메시지)
+async function checkRoom(roomId: string): Promise<{ title: string | null; error: string | null }> {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/rooms/${encodeURIComponent(roomId)}`);
+    const body = await res.json().catch(() => ({}));
+    return { title: body.title ?? null, error: body.error ?? (res.ok ? null : "방 정보를 확인하지 못했습니다.") };
+  } catch {
+    return { title: null, error: "서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요." };
+  }
+}
+
+// 초대 링크(?room=방코드)로 들어온 경우 방이 미리 정해짐
+const invitedRoom = new URLSearchParams(window.location.search).get("room")?.trim() || null;
+
+const LoginModal: React.FC<{ onJoin: (userName: string, roomId: string, color: string) => void; joinError: string | null }> = ({ onJoin, joinError }) => {
   const [userName, setUserName] = useState("");
-  const [roomId, setRoomId] = useState("room-1");
+  const [roomId, setRoomId] = useState(invitedRoom ?? "");
+  const [roomTitle, setRoomTitle] = useState<string | null>(null);
+  const [roomError, setRoomError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
   const [selectedColor, setSelectedColor] = useState("#E5E7EB");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!invitedRoom) return;
+    checkRoom(invitedRoom).then(({ title, error }) => { setRoomTitle(title); setRoomError(error); });
+  }, []);
+
+  useEffect(() => { if (joinError) setRoomError(joinError); }, [joinError]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userName.trim()) return;
+    const room = roomId.trim();
+    if (!userName.trim() || !room) return;
+    setChecking(true);
+    const { error } = await checkRoom(room);
+    setChecking(false);
+    if (error) { setRoomError(error); return; }
     // 참여 코드 표기 통일: "p 01" / "P01 " → "P01" (대소문자·공백 차이로 다른 참가자로 집계되지 않도록)
-    onJoin(userName.replace(/\s+/g, "").toUpperCase(), roomId.trim() || "room-1", selectedColor);
+    onJoin(userName.replace(/\s+/g, "").toUpperCase(), room, selectedColor);
   };
 
   return (
@@ -37,14 +66,25 @@ const LoginModal: React.FC<{ onJoin: (userName: string, roomId: string, color: s
               className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-800
                          placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all" />
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">방 ID</label>
-            <input type="text" value={roomId} onChange={(e) => setRoomId(e.target.value)}
-              placeholder="room-1" maxLength={30}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-800
-                         placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all" />
-            <p className="text-xs text-gray-400 mt-1">같은 방 ID를 입력하면 실시간으로 공유됩니다</p>
-          </div>
+          {invitedRoom ? (
+            <div className="rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-3">
+              <p className="text-xs font-semibold text-indigo-500">참여할 방</p>
+              <p className="text-sm font-bold text-indigo-900 mt-0.5">{roomTitle || invitedRoom}</p>
+              {roomTitle && <p className="text-xs text-indigo-400 mt-0.5">방 코드 {invitedRoom}</p>}
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">방 코드 *</label>
+              <input type="text" value={roomId} onChange={(e) => { setRoomId(e.target.value); setRoomError(null); }}
+                placeholder="안내받은 방 코드" maxLength={40} autoComplete="off"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-800
+                           placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all" />
+              <p className="text-xs text-gray-400 mt-1">관리자에게 받은 링크로 들어오면 자동으로 입력됩니다</p>
+            </div>
+          )}
+          {roomError && (
+            <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-2.5 text-sm text-red-700">{roomError}</div>
+          )}
           <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
             <p className="text-xs font-semibold text-amber-900 mb-1.5">참여 전 확인해주세요</p>
             <ul className="text-xs text-amber-900 space-y-1 list-disc pl-4 leading-relaxed">
@@ -69,10 +109,10 @@ const LoginModal: React.FC<{ onJoin: (userName: string, roomId: string, color: s
               <span className="text-xs text-gray-500">{COLOR_OPTIONS.find((o) => o.value === selectedColor)?.label}</span>
             </div>
           </div>
-          <button type="submit" disabled={!userName.trim()}
+          <button type="submit" disabled={!userName.trim() || !roomId.trim() || checking || (!!invitedRoom && !!roomError)}
             className="w-full py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-200 disabled:text-gray-400
                        text-white rounded-xl text-sm font-bold transition-all shadow-sm mt-2">
-            입장하기
+            {checking ? "확인 중…" : "입장하기"}
           </button>
         </form>
       </div>
@@ -107,6 +147,8 @@ function App() {
   const [isAIResponding, setIsAIResponding] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentType>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [roomClosed, setRoomClosed] = useState(false);
 
   const showError = useCallback((msg: string) => {
     setErrorBanner(msg);
@@ -123,6 +165,7 @@ function App() {
     setUserColor(color);
     setRoomId(room);
     joinInfoRef.current = { roomId: room, userName: name, userColor: color };
+    setJoinError(null);
     socket.emit("join-room", { roomId: room, userName: name, userColor: color });
     setJoined(true);
   }, []);
@@ -140,6 +183,15 @@ function App() {
         }
       }
     };
+
+    // 입장이 거절된 경우(없는 방·마감된 방) 입장 화면으로
+    socket.on("join-error", ({ message }: { message: string }) => {
+      joinInfoRef.current = null;
+      setJoinError(message);
+      setJoined(false);
+    });
+    // 관리자가 방을 마감한 경우
+    socket.on("room-closed", () => { joinInfoRef.current = null; setRoomClosed(true); });
 
     socket.on("connect", rejoinRoom);
     socket.on("reconnect", rejoinRoom);
@@ -307,6 +359,8 @@ function App() {
     });
 
     return () => {
+      socket.off("join-error");
+      socket.off("room-closed");
       socket.off("connect");
       socket.off("reconnect");
       socket.off("room-state");
@@ -469,7 +523,17 @@ function App() {
     getSocket().emit("chat-messages-clear");
   }, []);
 
-  if (!joined) return <LoginModal onJoin={handleJoin} />;
+  if (roomClosed) return (
+    <div className="fixed inset-0 bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center">
+        <div className="text-4xl mb-3">🎉</div>
+        <h1 className="text-lg font-bold text-gray-900">세션이 종료되었습니다</h1>
+        <p className="text-sm text-gray-500 mt-2">관리자가 방을 마감했습니다. 참여해 주셔서 감사합니다.</p>
+      </div>
+    </div>
+  );
+
+  if (!joined) return <LoginModal onJoin={handleJoin} joinError={joinError} />;
 
   return (
     <div className="flex h-screen overflow-hidden relative">

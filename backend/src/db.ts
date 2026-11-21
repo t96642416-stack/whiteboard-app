@@ -83,6 +83,14 @@ async function createTables(pool: Pool) {
     );
     CREATE INDEX IF NOT EXISTS idx_events_room_time ON events(room_id, created_at);
 
+    -- 관리자가 만든 방 (등록된 방에만 입장 가능)
+    CREATE TABLE IF NOT EXISTS managed_rooms (
+      room_id TEXT PRIMARY KEY,
+      title TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      closed_at TIMESTAMPTZ
+    );
+
     -- 관리자 설정 (비밀번호 해시 등)
     CREATE TABLE IF NOT EXISTS admin_settings (
       key TEXT PRIMARY KEY,
@@ -90,6 +98,19 @@ async function createTables(pool: Pool) {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
+  // 방 등록 기능 도입 전부터 있던 방은 한 번만 자동 등록 (장부가 비어 있을 때)
+  const { rows } = await pool.query("SELECT count(*)::int AS n FROM managed_rooms");
+  if (rows[0].n === 0) {
+    const r = await pool.query(`
+      INSERT INTO managed_rooms (room_id, created_at)
+      SELECT room_id, min(created_at) FROM (
+        SELECT room_id, created_at FROM ideas UNION ALL SELECT room_id, created_at FROM sections
+        UNION ALL SELECT room_id, created_at FROM messages UNION ALL SELECT room_id, created_at FROM analysis_results
+        UNION ALL SELECT room_id, created_at FROM canvas_images
+      ) t GROUP BY room_id
+      ON CONFLICT DO NOTHING`);
+    if (r.rowCount) console.log(`📋 기존 방 ${r.rowCount}개를 관리 대상 방으로 등록했습니다.`);
+  }
   console.log("✅ DB 테이블 준비 완료");
 }
 
@@ -423,4 +444,28 @@ export async function dbSetSetting(key: string, value: any): Promise<void> {
      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
     [key, JSON.stringify(value)]
   );
+}
+
+// ─── 관리자가 만든 방 ─────────────────────────────────
+
+export async function dbListManagedRooms(): Promise<{ roomId: string; title: string | null; createdAt: string; closedAt: string | null }[]> {
+  if (!pool) return [];
+  const res = await pool.query("SELECT room_id, title, created_at, closed_at FROM managed_rooms ORDER BY created_at DESC");
+  return res.rows.map((r) => ({ roomId: r.room_id, title: r.title, createdAt: r.created_at.toISOString(), closedAt: r.closed_at?.toISOString() ?? null }));
+}
+
+export async function dbCreateManagedRoom(roomId: string, title: string | null): Promise<boolean> {
+  if (!pool) return true;
+  const res = await pool.query("INSERT INTO managed_rooms (room_id, title) VALUES ($1, $2) ON CONFLICT DO NOTHING", [roomId, title]);
+  return (res.rowCount ?? 0) > 0;
+}
+
+export async function dbSetManagedRoomClosed(roomId: string, closed: boolean): Promise<void> {
+  if (!pool) return;
+  await pool.query("UPDATE managed_rooms SET closed_at = $2 WHERE room_id = $1", [roomId, closed ? new Date() : null]);
+}
+
+export async function dbDeleteManagedRoom(roomId: string): Promise<void> {
+  if (!pool) return;
+  await pool.query("DELETE FROM managed_rooms WHERE room_id = $1", [roomId]);
 }

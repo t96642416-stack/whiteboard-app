@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import qrcode from "qrcode-generator";
 import { getJson, sendJson, download, roomPath } from "./api";
 import { fmtBytes, fmtAgo, fmtTime } from "./format";
 
 interface Room {
   roomId: string; ideas: number; sections: number; messages: number; analyses: number; images: number;
   events: number | null; bytes: number | null; lastActivity: string | null; liveUsers: number;
+  title: string | null; status: "open" | "closed" | "unregistered"; createdAt: string | null; closedAt: string | null;
 }
 interface Overview {
   db: boolean;
@@ -28,6 +30,8 @@ const OpsTab: React.FC<{ onError: (e: unknown) => void; onOpenResearch: (roomId:
   const [data, setData] = useState<Overview | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Room | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [inviting, setInviting] = useState<{ roomId: string; title: string | null } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -104,12 +108,14 @@ const OpsTab: React.FC<{ onError: (e: unknown) => void; onOpenResearch: (roomId:
         <RestoreCard onDone={(msg) => { flash(msg); load(); }} onError={onError} disabled={!data.db} />
       </div>
 
-      <Card title={`방 목록 (${data.rooms.length})`}>
+      <Card title={`방 목록 (${data.rooms.length})`}
+        right={<button onClick={() => setCreating(true)} className="px-3 py-1.5 rounded-lg bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800">+ 방 만들기</button>}>
         <div className="overflow-x-auto -mx-4 sm:mx-0">
           <table className="w-full text-sm min-w-[720px]">
             <thead>
               <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
-                <th className="py-2 px-4 sm:pl-0 font-medium">방 ID</th>
+                <th className="py-2 px-4 sm:pl-0 font-medium">방</th>
+                <th className="py-2 font-medium">상태</th>
                 <th className="py-2 font-medium text-right">아이디어</th>
                 <th className="py-2 font-medium text-right">섹션</th>
                 <th className="py-2 font-medium text-right">채팅</th>
@@ -124,9 +130,14 @@ const OpsTab: React.FC<{ onError: (e: unknown) => void; onOpenResearch: (roomId:
             <tbody>
               {data.rooms.map((r) => (
                 <tr key={r.roomId} className="border-b border-gray-50 hover:bg-gray-50">
-                  <td className="py-2 px-4 sm:pl-0 font-medium">
-                    {r.roomId}
-                    {r.liveUsers > 0 && <span className="ml-2 text-[11px] font-semibold text-emerald-700 bg-emerald-50 rounded px-1.5 py-0.5">● {r.liveUsers}명 접속</span>}
+                  <td className="py-2 px-4 sm:pl-0">
+                    <div className="font-medium">{r.title || r.roomId}</div>
+                    {r.title && <div className="text-xs text-gray-400">{r.roomId}</div>}
+                  </td>
+                  <td className="py-2 whitespace-nowrap">
+                    {r.status === "open" && <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 rounded px-1.5 py-0.5">● 진행 중{r.liveUsers > 0 ? ` · ${r.liveUsers}명` : ""}</span>}
+                    {r.status === "closed" && <span className="text-[11px] font-semibold text-gray-600 bg-gray-100 rounded px-1.5 py-0.5" title={fmtTime(r.closedAt)}>■ 마감</span>}
+                    {r.status === "unregistered" && <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 rounded px-1.5 py-0.5" title="관리자가 만들지 않은 방이라 입장할 수 없습니다">미등록</span>}
                   </td>
                   <td className="py-2 text-right tabular-nums">{r.ideas}</td>
                   <td className="py-2 text-right tabular-nums">{r.sections}</td>
@@ -137,6 +148,22 @@ const OpsTab: React.FC<{ onError: (e: unknown) => void; onOpenResearch: (roomId:
                   <td className="py-2 text-right tabular-nums">{fmtBytes(r.bytes)}</td>
                   <td className="py-2 pl-4 text-gray-500" title={fmtTime(r.lastActivity)}>{fmtAgo(r.lastActivity)}</td>
                   <td className="py-2 pr-4 sm:pr-0 text-right whitespace-nowrap">
+                    {r.status === "open" && (
+                      <button onClick={() => setInviting({ roomId: r.roomId, title: r.title })} className="text-xs px-2 py-1 rounded hover:bg-indigo-50 text-indigo-600 font-semibold">초대</button>
+                    )}
+                    {r.status === "open" && (
+                      <button onClick={async () => {
+                        if (!window.confirm(`'${r.title || r.roomId}' 방을 마감할까요?\n접속 중인 참가자${r.liveUsers ? ` ${r.liveUsers}명` : ""}의 화면에 종료 안내가 뜨고, 이후 입장할 수 없습니다.`)) return;
+                        try { await sendJson("POST", `${roomPath(r.roomId)}/close`, {}); flash(`'${r.title || r.roomId}' 방을 마감했습니다.`); load(); }
+                        catch (e: any) { onError(e); flash(e.message); }
+                      }} className="text-xs px-2 py-1 rounded hover:bg-gray-100 text-gray-700">마감</button>
+                    )}
+                    {r.status === "closed" && (
+                      <button onClick={async () => {
+                        try { await sendJson("POST", `${roomPath(r.roomId)}/reopen`, {}); flash(`'${r.title || r.roomId}' 방을 다시 열었습니다.`); load(); }
+                        catch (e: any) { onError(e); flash(e.message); }
+                      }} className="text-xs px-2 py-1 rounded hover:bg-gray-100 text-gray-700">다시 열기</button>
+                    )}
                     <button onClick={() => onOpenResearch(r.roomId)} className="text-xs px-2 py-1 rounded hover:bg-gray-100 text-gray-700">지표</button>
                     <button onClick={() => download(`${roomPath(r.roomId)}/backup`).catch((e) => { onError(e); flash(e.message); })}
                       className="text-xs px-2 py-1 rounded hover:bg-gray-100 text-gray-700">백업</button>
@@ -152,10 +179,94 @@ const OpsTab: React.FC<{ onError: (e: unknown) => void; onOpenResearch: (roomId:
         <p className="mt-3 text-xs text-gray-400">"마지막 기록"은 마지막으로 새 항목이 저장된 시각입니다. 카드 수정·이동은 행동 로그(이번 업데이트부터 기록)에 반영됩니다.</p>
       </Card>
 
+      {creating && (
+        <CreateRoomDialog existing={data.rooms.map((r) => r.roomId)} onClose={() => setCreating(false)} onError={onError}
+          onDone={(room) => { setCreating(false); load(); setInviting(room); }} />
+      )}
+      {inviting && <InviteDialog room={inviting} onClose={() => setInviting(null)} />}
+
       {deleting && (
         <DeleteDialog room={deleting} onClose={() => setDeleting(null)}
           onDone={() => { setDeleting(null); flash(`'${deleting.roomId}' 방을 삭제했습니다.`); load(); }} onError={onError} />
       )}
+    </div>
+  );
+};
+
+function suggestRoomId(existing: string[]): string {
+  const d = new Date();
+  const prefix = `exp-${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}-`;
+  let n = 1;
+  while (existing.includes(prefix + n)) n++;
+  return prefix + n;
+}
+
+const CreateRoomDialog: React.FC<{ existing: string[]; onClose: () => void; onDone: (room: { roomId: string; title: string | null }) => void; onError: (e: unknown) => void }> = ({ existing, onClose, onDone, onError }) => {
+  const [roomId, setRoomId] = useState(() => suggestRoomId(existing));
+  const [title, setTitle] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const valid = /^[A-Za-z0-9가-힣_-]{1,40}$/.test(roomId.trim());
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!valid) return;
+    setBusy(true); setErr(null);
+    try {
+      const room = await sendJson<{ roomId: string; title: string | null }>("POST", "/rooms", { roomId: roomId.trim(), title: title.trim() });
+      onDone(room);
+    } catch (e: any) { onError(e); setErr(e.message); } finally { setBusy(false); }
+  };
+  const field = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200";
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4" onClick={onClose}>
+      <form onSubmit={submit} className="bg-white rounded-xl w-full max-w-md p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-semibold">방 만들기</h3>
+        <label className="block text-xs text-gray-500">방 코드 (링크에 들어감, 영문·숫자·한글·-·_)
+          <input value={roomId} onChange={(e) => setRoomId(e.target.value)} autoFocus className={field + " mt-1 font-mono"} />
+        </label>
+        <label className="block text-xs text-gray-500">방 이름 (선택, 참가자 입장 화면에 표시)
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 1조 – 환경 아이디어 (AI 사용)" maxLength={60} className={field + " mt-1"} />
+        </label>
+        {!valid && roomId && <p className="text-sm text-red-600">방 코드는 영문·숫자·한글·-·_ 로 1~40자여야 합니다.</p>}
+        {err && <p className="text-sm text-red-600">{err}</p>}
+        <div className="flex justify-end gap-2 pt-1">
+          <button type="button" onClick={onClose} className="px-3 py-2 text-sm rounded-lg hover:bg-gray-100">취소</button>
+          <button disabled={!valid || busy} className="px-3 py-2 text-sm rounded-lg bg-gray-900 text-white font-semibold disabled:bg-gray-200 disabled:text-gray-400">
+            {busy ? "만드는 중…" : "만들고 초대 링크 받기"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+const InviteDialog: React.FC<{ room: { roomId: string; title: string | null }; onClose: () => void }> = ({ room, onClose }) => {
+  const url = `${window.location.origin}/?room=${encodeURIComponent(room.roomId)}`;
+  const [copied, setCopied] = useState(false);
+  const local = /^(localhost|127\.|\[::1\])/.test(window.location.hostname);
+  const svg = React.useMemo(() => {
+    const qr = qrcode(0, "M");
+    qr.addData(unescape(encodeURIComponent(url))); // 한글 방 코드도 UTF-8로
+    qr.make();
+    return qr.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+  }, [url]);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* 무시 */ }
+  };
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4" onClick={onClose}>
+      <div className="bg-white rounded-xl w-full max-w-sm p-5 space-y-3 text-center" onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-semibold">참가자 초대</h3>
+        <p className="text-sm text-gray-600">{room.title || room.roomId}</p>
+        <div className="mx-auto w-56 h-56 [&>svg]:w-full [&>svg]:h-full" dangerouslySetInnerHTML={{ __html: svg }} />
+        <p className="text-xs text-gray-500">참가자가 QR을 찍거나 링크를 열면 방이 정해진 입장 화면이 나옵니다. 참여 코드만 입력하면 됩니다.</p>
+        <div className="flex gap-2">
+          <input readOnly value={url} onFocus={(e) => e.target.select()} className="flex-1 min-w-0 px-2 py-1.5 border border-gray-200 rounded-lg text-xs font-mono bg-gray-50" />
+          <button onClick={copy} className="px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-semibold shrink-0">{copied ? "복사됨" : "복사"}</button>
+        </div>
+        {local && <p className="text-xs text-amber-700">지금은 localhost 주소라 다른 기기에서 열 수 없습니다. 배포된 사이트의 관리자 화면에서 초대하세요.</p>}
+        <button onClick={onClose} className="w-full py-2 text-sm rounded-lg hover:bg-gray-100">닫기</button>
+      </div>
     </div>
   );
 };

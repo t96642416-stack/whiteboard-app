@@ -5,6 +5,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import { createAdminRouter } from "./admin";
+import { loadRooms, getRoom, joinBlockReason } from "./rooms";
 import { logEvent } from "./events";
 import { LAZY_IMAGE, stripDataUrls, fillLazyImages } from "./lazyImages";
 import { analyzeIdeas, chatWithAI, IdeaInput, AnalysisFile } from "./claude";
@@ -75,6 +76,8 @@ app.use("/api/admin", createAdminRouter({
     delete roomAnalysisResults[roomId]; delete roomCanvasImages[roomId]; delete roomTopics[roomId];
   },
   roomHasUsers: (roomId) => [...liveSessions.values()].some((s) => s.roomId === roomId),
+  // 방 마감: 참가자 화면에 종료 안내를 보내고 연결을 끊음
+  closeRoomSockets: (roomId) => { io.to(roomId).emit("room-closed"); io.in(roomId).disconnectSockets(true); },
 }));
 app.use(express.json());
 
@@ -103,6 +106,14 @@ const roomCanvasImages: Record<string, any[]> = {};
 const roomTopics: Record<string, string> = {}; // 방별 주제 (메모리 유지)
 // 관리자 화면용 실시간 접속 세션 (socketId → 정보)
 const liveSessions = new Map<string, { roomId: string; userName: string; joinedAt: string }>();
+
+// 참가자 입장 화면용: 방이 있는지, 마감됐는지
+app.get("/api/rooms/:roomId", (req, res) => {
+  const room = getRoom(req.params.roomId);
+  const block = joinBlockReason(req.params.roomId);
+  if (!room && block) return res.status(404).json({ error: block });
+  res.json({ roomId: req.params.roomId, title: room?.title ?? null, closed: !!room?.closedAt, error: block });
+});
 
 // 헬스 체크
 app.get("/health", (_req, res) => {
@@ -139,6 +150,9 @@ io.on("connection", (socket) => {
   socket.on(
     "join-room",
     async ({ roomId, userName, userColor }: { roomId: string; userName: string; userColor?: string }) => {
+      // 관리자가 만들고 마감되지 않은 방에만 입장
+      const block = typeof roomId === "string" ? joinBlockReason(roomId) : "잘못된 방입니다.";
+      if (block) { socket.emit("join-error", { message: block }); return; }
       currentRoom = roomId;
       currentUser = userName;
 
@@ -711,7 +725,7 @@ io.on("connection", (socket) => {
 const PORT = process.env.PORT || 3001;
 
 // DB 초기화 후 서버 시작
-initDb().then(() => {
+initDb().then(loadRooms).then(() => {
   httpServer.listen(PORT, () => {
     console.log(`\n🚀 서버가 포트 ${PORT}에서 시작되었습니다.`);
     console.log(`   헬스 체크: http://localhost:${PORT}/health`);

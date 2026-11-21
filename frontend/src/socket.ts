@@ -1,7 +1,7 @@
 import { io, Socket } from "socket.io-client";
 
 // 터널/배포 환경에서는 현재 페이지 origin을 백엔드로 사용
-const BACKEND_URL =
+export const BACKEND_URL =
   window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
     ? "http://localhost:3001"
     : window.location.origin;
