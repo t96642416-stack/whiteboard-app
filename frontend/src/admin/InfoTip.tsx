@@ -163,7 +163,6 @@ export const TIPS: Record<string, TipContent> = {
   pAiCards: { what: "이 참가자가 AI 분석 결과에서 보드로 가져간 카드 수입니다." },
   pLen: { what: "이 참가자 아이디어의 평균 글자 수입니다 (정교성)." },
   pComments: { what: "이 참가자가 단 댓글 수입니다. 괄호 안은 그중 남의 카드에 단 댓글 수입니다." },
-  pAiChats: { what: "AI 패널에서 AI에게 직접 질문한 횟수입니다.", read: "행동 로그 기록 이후만 집계됩니다." },
   pRequests: { what: "이 참가자가 AI 분석을 요청한 횟수입니다." },
   pEdits: { what: "이 참가자가 카드를 수정/삭제한 횟수입니다.", read: "행동 로그 기록 이후만 집계됩니다." },
   pActive: { what: "이 참가자가 방에 접속해 있던 총 시간(분)입니다.", how: "입장~퇴장 기록을 더한 값.", read: "행동 로그 기록 이후만 집계됩니다. 창을 열어 두기만 해도 포함됩니다." },

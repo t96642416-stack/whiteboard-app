@@ -134,7 +134,7 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
           <p>참가자별 지표는 <b>카드를 추가한 사람의 이름</b> 기준입니다. 한 사람이 대신 입력했거나 같은 사람이 다른 이름으로 들어온 경우 실제와 다르게 집계됩니다.</p>
           <p>
           {m.summary.eventLogSince
-            ? <>행동 로그(접속 시간·수정·삭제·AI 채팅 등)는 <b>{fmtTime(m.summary.eventLogSince)}</b>부터 기록되었습니다 ({m.summary.eventCount}건). 그 이전 활동은 저장된 결과물(카드·분석)로만 계산됩니다.</>
+            ? <>행동 로그(접속 시간·수정·삭제 등)는 <b>{fmtTime(m.summary.eventLogSince)}</b>부터 기록되었습니다 ({m.summary.eventCount}건). 그 이전 활동은 저장된 결과물(카드·분석)로만 계산됩니다.</>
             : <>이 방에는 아직 행동 로그가 없습니다. 접속 시간·수정·삭제 지표는 이번 업데이트 이후 활동부터 집계됩니다. 삭제된 카드는 아이디어 수에 포함되지 않습니다.</>}</p>
         </div>
 
@@ -190,7 +190,6 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
                     <th className="py-2 font-medium text-right"><span className="inline-flex items-center">AI 카드<InfoTip tip={TIPS.pAiCards} label="AI 카드" /></span></th>
                     <th className="py-2 font-medium text-right"><span className="inline-flex items-center">평균 길이<InfoTip tip={TIPS.pLen} label="평균 길이" /></span></th>
                     <th className="py-2 font-medium text-right"><span className="inline-flex items-center">댓글(타인)<InfoTip tip={TIPS.pComments} label="댓글(타인)" /></span></th>
-                    <th className="py-2 font-medium text-right"><span className="inline-flex items-center">AI 채팅<InfoTip tip={TIPS.pAiChats} label="AI 채팅" /></span></th>
                     <th className="py-2 font-medium text-right"><span className="inline-flex items-center">분석 요청<InfoTip tip={TIPS.pRequests} label="분석 요청" /></span></th>
                     <th className="py-2 font-medium text-right"><span className="inline-flex items-center">수정/삭제<InfoTip tip={TIPS.pEdits} label="수정/삭제" /></span></th>
                     <th className="py-2 font-medium text-right"><span className="inline-flex items-center">접속(분)<InfoTip tip={TIPS.pActive} label="접속(분)" /></span></th>
@@ -203,7 +202,6 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
                         <td className="py-2 text-right tabular-nums">{p.aiCardsAdded}</td>
                         <td className="py-2 text-right tabular-nums">{p.avgIdeaLength}</td>
                         <td className="py-2 text-right tabular-nums">{p.comments}({p.commentsOnOthers})</td>
-                        <td className="py-2 text-right tabular-nums">{p.aiChats}</td>
                         <td className="py-2 text-right tabular-nums">{p.analysisRequests}</td>
                         <td className="py-2 text-right tabular-nums">{p.edits}/{p.deletes}</td>
                         <td className="py-2 text-right tabular-nums">{p.activeMinutes ?? "—"}</td>
@@ -369,8 +367,8 @@ export function buildSummary(m: Metrics): { title: string; lines: string[] }[] {
   // 6. 데이터 범위
   groups.push({ title: "데이터 범위", lines: [
     s.eventLogSince
-      ? `행동 로그는 ${fmtTime(s.eventLogSince)}부터 ${s.eventCount}건 기록되었습니다. 접속 시간·수정·삭제·AI 채팅 지표는 이 시점 이후만 반영됩니다.`
-      : "행동 로그가 없어 접속 시간·수정·삭제·AI 채팅 지표는 측정되지 않았습니다(0으로 표시되어도 '없었음'이 아님).",
+      ? `행동 로그는 ${fmtTime(s.eventLogSince)}부터 ${s.eventCount}건 기록되었습니다. 접속 시간·수정·삭제 지표는 이 시점 이후만 반영됩니다.`
+      : "행동 로그가 없어 접속 시간·수정·삭제 지표는 측정되지 않았습니다(0으로 표시되어도 '없었음'이 아님).",
     "삭제된 카드는 아이디어 수에 포함되지 않습니다. 참가자는 입장 이름으로 구분됩니다.",
   ] });
 
