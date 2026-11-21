@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { getJson, download, roomPath } from "./api";
+import ReactMarkdown from "react-markdown";
+import { getJson, sendJson, download, roomPath } from "./api";
 import { agentLabel, fmtPct, fmtTime, CATEGORY_LABELS } from "./format";
 
 // 차트 색 (검증된 기본 팔레트 1·2번: 인접 쌍 색각이상 구분 통과)
@@ -117,6 +118,8 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
           <Tile label="수정 / 삭제된 아이디어" value={`${m.summary.editedIdeas} / ${m.summary.deletedIdeas}`} hint="행동 로그 기준" />
         </div>
 
+        <AiInsight room={room} windowMin={windowMin} onError={onError} />
+
         <div className="rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs px-4 py-2.5 leading-relaxed space-y-1">
           <p>참가자별 지표는 <b>카드를 추가한 사람의 이름</b> 기준입니다. 한 사람이 대신 입력했거나 같은 사람이 다른 이름으로 들어온 경우 실제와 다르게 집계됩니다.</p>
           <p>
@@ -212,6 +215,64 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
         </Section>
       </>}
     </div>
+  );
+};
+
+// ── AI 해석
+interface Insight { text: string; model: string; generatedAt: string; cached: boolean }
+
+const AiInsight: React.FC<{ room: string; windowMin: number; onError: (e: unknown) => void }> = ({ room, windowMin, onError }) => {
+  const [insight, setInsight] = useState<Insight | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  // 방이나 비교 구간이 바뀌면 이전 해석은 숨김
+  useEffect(() => { setInsight(null); setErr(null); }, [room, windowMin]);
+
+  const run = async (force: boolean) => {
+    setBusy(true); setErr(null);
+    try { setInsight(await sendJson<Insight>("POST", `${roomPath(room)}/insight`, { window: windowMin, force })); }
+    catch (e: any) { onError(e); setErr(e.message); }
+    finally { setBusy(false); }
+  };
+
+  const md = {
+    h2: (p: any) => <h3 className="text-sm font-bold text-gray-900 mt-4 first:mt-0 mb-1.5" {...p} />,
+    h3: (p: any) => <h4 className="text-sm font-semibold text-gray-800 mt-3 mb-1" {...p} />,
+    p: (p: any) => <p className="text-sm text-gray-700 leading-relaxed mb-2" {...p} />,
+    ul: (p: any) => <ul className="list-disc pl-5 space-y-1 mb-2 text-sm text-gray-700 leading-relaxed" {...p} />,
+    ol: (p: any) => <ol className="list-decimal pl-5 space-y-1 mb-2 text-sm text-gray-700 leading-relaxed" {...p} />,
+    strong: (p: any) => <strong className="font-semibold text-gray-900" {...p} />,
+  };
+
+  return (
+    <Section title="AI 해석"
+      desc="지표를 AI가 읽고 연구 관점에서 설명합니다. 이름은 익명(P1, P2 …)으로, 카드·채팅 내용은 보내지 않고 숫자만 전송합니다."
+      right={insight && !busy ? (
+        <button onClick={() => run(true)} className="text-xs text-gray-500 hover:text-gray-800">다시 생성</button>
+      ) : undefined}>
+      {!insight && !busy && (
+        <button onClick={() => run(false)}
+          className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800">
+          ✨ AI 해석 생성
+        </button>
+      )}
+      {busy && (
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <span className="inline-block w-4 h-4 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
+          지표를 읽고 해석하는 중… (보통 30초~1분)
+        </div>
+      )}
+      {err && <p className="text-sm text-red-600 mt-2">{err}</p>}
+      {insight && !busy && (
+        <div>
+          <ReactMarkdown components={md}>{insight.text}</ReactMarkdown>
+          <p className="text-[11px] text-gray-400 mt-3 pt-2 border-t border-gray-100">
+            {fmtTime(insight.generatedAt)} 생성{insight.cached ? " (저장된 결과)" : ""} · AI가 작성한 해석이므로 수치와 함께 직접 확인하세요.
+          </p>
+        </div>
+      )}
+    </Section>
   );
 };
 

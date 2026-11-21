@@ -5,6 +5,7 @@ import {
 } from "./db";
 import { getEvents, memoryEventRooms, clearMemoryEvents, logEvent } from "./events";
 import { computeMetrics, buildCsv, CSV_KINDS, CsvKind, RoomData } from "./metrics";
+import { generateInsight, insightErrorMessage } from "./insights";
 
 // 관리자 API — 비밀번호(ADMIN_PASSWORD 또는 화면에서 바꾼 값)가 있을 때만 동작
 
@@ -210,6 +211,22 @@ export function createAdminRouter(ctx: AdminContext) {
   router.get("/rooms/:roomId/metrics", wrap(async (req, res) => {
     const room = await loadRoom(req.params.roomId);
     res.json(computeMetrics(room, opts(req)));
+  }));
+
+  // AI 해석 (버튼을 눌렀을 때만 생성 — API 비용 발생)
+  router.post("/rooms/:roomId/insight", wrap(async (req, res) => {
+    const room = await loadRoom(req.params.roomId);
+    if (room.ideas.length === 0 && room.analysisResults.length === 0) {
+      return res.status(400).json({ error: "해석할 데이터가 없습니다." });
+    }
+    const windowMin = Math.min(120, Math.max(1, Number(req.body?.window) || 5));
+    try {
+      res.json(await generateInsight(req.params.roomId, room, windowMin, !!req.body?.force));
+    } catch (e) {
+      const { status, message } = insightErrorMessage(e);
+      console.error("[관리자] AI 해석 실패:", e);
+      res.status(status).json({ error: message });
+    }
   }));
 
   router.get("/rooms/:roomId/csv/:kind", wrap(async (req, res) => {
