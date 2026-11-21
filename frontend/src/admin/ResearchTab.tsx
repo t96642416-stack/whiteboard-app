@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { getJson, sendJson, download, roomPath } from "./api";
 import { agentLabel, fmtPct, fmtTime, CATEGORY_LABELS } from "./format";
+import InfoTip, { TIPS, TipContent } from "./InfoTip";
 
 // 차트 색 (검증된 기본 팔레트 1·2번: 인접 쌍 색각이상 구분 통과)
 const C_HUMAN = "#2a78d6";
@@ -25,19 +26,19 @@ interface Metrics {
   windowMin: number;
 }
 
-const Tile: React.FC<{ label: string; value: React.ReactNode; hint?: string }> = ({ label, value, hint }) => (
+const Tile: React.FC<{ label: string; value: React.ReactNode; hint?: string; tip?: TipContent }> = ({ label, value, hint, tip }) => (
   <div className="bg-white rounded-xl border border-gray-200 p-4">
-    <div className="text-xs text-gray-500">{label}</div>
+    <div className="text-xs text-gray-500 flex items-center">{label}{tip && <InfoTip tip={tip} label={label} />}</div>
     <div className="text-xl font-bold tabular-nums mt-1">{value}</div>
     {hint && <div className="text-[11px] text-gray-400 mt-1 leading-snug">{hint}</div>}
   </div>
 );
 
-const Section: React.FC<{ title: string; desc?: string; right?: React.ReactNode; children: React.ReactNode }> = ({ title, desc, right, children }) => (
+const Section: React.FC<{ title: string; desc?: string; right?: React.ReactNode; tip?: TipContent; children: React.ReactNode }> = ({ title, desc, right, tip, children }) => (
   <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
     <div className="flex items-start gap-3 mb-3">
       <div>
-        <h2 className="text-sm font-semibold text-gray-800">{title}</h2>
+        <h2 className="text-sm font-semibold text-gray-800 flex items-center">{title}{tip && <InfoTip tip={tip} label={title} />}</h2>
         {desc && <p className="text-xs text-gray-500 mt-0.5">{desc}</p>}
       </div>
       <div className="ml-auto shrink-0">{right}</div>
@@ -106,16 +107,16 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
 
       {m && room && <>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Tile label="참가자" value={`${m.summary.participants}명`} />
-          <Tile label="사람이 낸 아이디어 (유창성)" value={m.summary.humanIdeas}
+          <Tile label="참가자" value={`${m.summary.participants}명`} tip={TIPS.participants} />
+          <Tile label="사람이 낸 아이디어 (유창성)" value={m.summary.humanIdeas} tip={TIPS.fluency}
             hint={m.summary.durationMin > 0 ? `분당 ${m.summary.humanIdeasPerMin}개 · 진행 ${Math.round(m.summary.durationMin)}분` : undefined} />
-          <Tile label="AI 결과에서 가져온 카드" value={`${m.summary.aiCards}개`} hint={`전체 카드의 ${fmtPct(m.summary.aiShare)} (AI 의존도)`} />
-          <Tile label="평균 아이디어 길이 (정교성)" value={`${m.summary.avgIdeaLength}자`} hint={`첨부 ${m.summary.attachments}개`} />
-          <Tile label="참여 균등도 (지니계수)" value={m.summary.giniHumanIdeas}
+          <Tile label="AI 결과에서 가져온 카드" value={`${m.summary.aiCards}개`} tip={TIPS.aiShare} hint={`전체 카드의 ${fmtPct(m.summary.aiShare)} (AI 의존도)`} />
+          <Tile label="평균 아이디어 길이 (정교성)" value={`${m.summary.avgIdeaLength}자`} tip={TIPS.elaboration} hint={`첨부 ${m.summary.attachments}개`} />
+          <Tile label="참여 균등도 (지니계수)" value={m.summary.giniHumanIdeas} tip={TIPS.gini}
             hint="0 = 모두 똑같이 냄, 1 = 한 명이 다 냄" />
-          <Tile label="댓글" value={m.summary.comments} hint={`남의 카드에 단 비율 ${fmtPct(m.summary.crossCommentShare)}`} />
-          <Tile label="AI 분석 요청" value={m.summary.analyses} hint={m.summary.analysisErrors ? `실패 ${m.summary.analysisErrors}회` : undefined} />
-          <Tile label="수정 / 삭제된 아이디어" value={`${m.summary.editedIdeas} / ${m.summary.deletedIdeas}`} hint="행동 로그 기준" />
+          <Tile label="댓글" value={m.summary.comments} tip={TIPS.comments} hint={`남의 카드에 단 비율 ${fmtPct(m.summary.crossCommentShare)}`} />
+          <Tile label="AI 분석 요청" value={m.summary.analyses} tip={TIPS.analyses} hint={m.summary.analysisErrors ? `실패 ${m.summary.analysisErrors}회` : undefined} />
+          <Tile label="수정 / 삭제된 아이디어" value={`${m.summary.editedIdeas} / ${m.summary.deletedIdeas}`} tip={TIPS.editsDeletes} hint="행동 로그 기준" />
         </div>
 
         <AiInsight room={room} windowMin={windowMin} onError={onError} />
@@ -128,7 +129,7 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
             : <>이 방에는 아직 행동 로그가 없습니다. 접속 시간·수정·삭제 지표는 이번 업데이트 이후 활동부터 집계됩니다. 삭제된 카드는 아이디어 수에 포함되지 않습니다.</>}</p>
         </div>
 
-        <Section title="시간에 따른 아이디어 생성"
+        <Section title="시간에 따른 아이디어 생성" tip={TIPS.timeline}
           desc={`${m.timeline.bucketMin}분 단위 · 위쪽 ▼ 표시는 AI 분석 시점 · 시작 ${fmtTime(m.summary.start)}`}>
           <Timeline m={m} />
         </Section>
@@ -139,11 +140,11 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
             <table className="w-full text-sm min-w-[560px]">
               <thead><tr className="text-left text-xs text-gray-500 border-b border-gray-100">
                 <th className="py-2 font-medium">에이전트</th>
-                <th className="py-2 font-medium text-right">요청 수</th>
-                <th className="py-2 font-medium text-right">분석 전</th>
-                <th className="py-2 font-medium text-right">분석 후</th>
-                <th className="py-2 font-medium text-right">변화</th>
-                <th className="py-2 font-medium text-right">보드로 가져간 AI 카드</th>
+                <th className="py-2 font-medium text-right"><span className="inline-flex items-center">요청 수<InfoTip tip={TIPS.agentRequests} label="요청 수" /></span></th>
+                <th className="py-2 font-medium text-right"><span className="inline-flex items-center">분석 전<InfoTip tip={TIPS.agentBefore} label="분석 전" /></span></th>
+                <th className="py-2 font-medium text-right"><span className="inline-flex items-center">분석 후<InfoTip tip={TIPS.agentAfter} label="분석 후" /></span></th>
+                <th className="py-2 font-medium text-right"><span className="inline-flex items-center">변화<InfoTip tip={TIPS.agentChange} label="변화" /></span></th>
+                <th className="py-2 font-medium text-right"><span className="inline-flex items-center">보드로 가져간 AI 카드<InfoTip tip={TIPS.agentAdopted} label="보드로 가져간 AI 카드" /></span></th>
               </tr></thead>
               <tbody>
                 {m.agentEffects.length === 0 && <tr><td colSpan={6} className="py-4 text-center text-gray-400">분석 기록이 없습니다</td></tr>}
@@ -165,7 +166,7 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
         </Section>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <Section title="카테고리 분포" desc="사람이 낸 아이디어 기준 (수렴 과정)">
+          <Section title="카테고리 분포" tip={TIPS.category} desc="사람이 낸 아이디어 기준 (수렴 과정)">
             <CategoryBars counts={m.summary.categoryCounts} />
           </Section>
           <div className="md:col-span-2">
@@ -174,14 +175,14 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
                 <table className="w-full text-sm min-w-[640px]">
                   <thead><tr className="text-left text-xs text-gray-500 border-b border-gray-100">
                     <th className="py-2 font-medium">참가자</th>
-                    <th className="py-2 font-medium text-right">아이디어</th>
-                    <th className="py-2 font-medium text-right">AI 카드</th>
-                    <th className="py-2 font-medium text-right">평균 길이</th>
-                    <th className="py-2 font-medium text-right">댓글(타인)</th>
-                    <th className="py-2 font-medium text-right">AI 채팅</th>
-                    <th className="py-2 font-medium text-right">분석 요청</th>
-                    <th className="py-2 font-medium text-right">수정/삭제</th>
-                    <th className="py-2 font-medium text-right">접속(분)</th>
+                    <th className="py-2 font-medium text-right"><span className="inline-flex items-center">아이디어<InfoTip tip={TIPS.pIdeas} label="아이디어" /></span></th>
+                    <th className="py-2 font-medium text-right"><span className="inline-flex items-center">AI 카드<InfoTip tip={TIPS.pAiCards} label="AI 카드" /></span></th>
+                    <th className="py-2 font-medium text-right"><span className="inline-flex items-center">평균 길이<InfoTip tip={TIPS.pLen} label="평균 길이" /></span></th>
+                    <th className="py-2 font-medium text-right"><span className="inline-flex items-center">댓글(타인)<InfoTip tip={TIPS.pComments} label="댓글(타인)" /></span></th>
+                    <th className="py-2 font-medium text-right"><span className="inline-flex items-center">AI 채팅<InfoTip tip={TIPS.pAiChats} label="AI 채팅" /></span></th>
+                    <th className="py-2 font-medium text-right"><span className="inline-flex items-center">분석 요청<InfoTip tip={TIPS.pRequests} label="분석 요청" /></span></th>
+                    <th className="py-2 font-medium text-right"><span className="inline-flex items-center">수정/삭제<InfoTip tip={TIPS.pEdits} label="수정/삭제" /></span></th>
+                    <th className="py-2 font-medium text-right"><span className="inline-flex items-center">접속(분)<InfoTip tip={TIPS.pActive} label="접속(분)" /></span></th>
                   </tr></thead>
                   <tbody>
                     {m.participants.map((p) => (
