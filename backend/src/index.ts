@@ -4,6 +4,7 @@ import { Server } from "socket.io";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
+import { LAZY_IMAGE, stripDataUrls, fillLazyImages } from "./lazyImages";
 import { analyzeIdeas, chatWithAI, IdeaInput, AnalysisFile } from "./claude";
 import {
   initDb,
@@ -63,7 +64,17 @@ app.use(express.json());
 
 // 프론트엔드 빌드 파일 서빙 (dist 폴더)
 const frontendDist = path.join(__dirname, "../../frontend/dist");
-app.use(express.static(frontendDist));
+// 해시가 붙은 빌드 파일(assets/)은 내용이 바뀌면 파일명이 바뀌므로 1년간 브라우저 캐시,
+// index.html은 항상 새로 확인해서 배포 직후에도 최신 화면이 뜨도록 함
+app.use(express.static(frontendDist, {
+  setHeaders: (res, filePath) => {
+    if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    } else {
+      res.setHeader("Cache-Control", "no-cache");
+    }
+  },
+}));
 
 // 방별 인메모리 캐시 (DB와 병행 — 빠른 읽기용)
 const roomIdeas: Record<string, IdeaInput[]> = {};
@@ -160,16 +171,22 @@ io.on("connection", (socket) => {
 
       const usersArray = Array.from(roomUsers[roomId].entries()).map(([name, color]) => ({ name, color }));
 
-      // 1단계: 이미지 없이 빠르게 전송 (RAM은 이미지 제외 상태)
+      // 1단계: 이미지 없이 빠르게 전송 — 큰 이미지는 자리표시(LAZY_IMAGE)로 바꿔서 보드부터 띄움
+      const heavy = {
+        messages: roomMessages[roomId] || [],
+        analysisResults: roomAnalysisResults[roomId] || [],
+        canvasImages: roomCanvasImages[roomId] || [],
+      };
+      const light = stripDataUrls(heavy);
       socket.emit("room-state", {
         ideas: roomIdeas[roomId] || [],
         users: usersArray,
-        messages: roomMessages[roomId] || [],
         sections: roomSections[roomId] || [],
-        analysisResults: roomAnalysisResults[roomId] || [],
-        canvasImages: roomCanvasImages[roomId] || [],
         topic: roomTopics[roomId] || "",
+        ...light.value,
       });
+      // 1.5단계: 빠진 이미지(캔버스·분석 결과·채팅)를 바로 뒤에 전송
+      if (light.changed) socket.emit("room-heavy-patch", heavy);
 
       // 2단계: DB에서 이미지 있는 카드만 읽어 별도 전송 (백그라운드)
       setImmediate(async () => {
@@ -262,7 +279,7 @@ io.on("connection", (socket) => {
 
   // 캔버스 이미지 추가
   socket.on("canvas-image-added", async (img: any) => {
-    if (!currentRoom) return;
+    if (!currentRoom || !img || img.src === LAZY_IMAGE) return;
     if (!roomCanvasImages[currentRoom]) roomCanvasImages[currentRoom] = [];
     if (!roomCanvasImages[currentRoom].find((i: any) => i.id === img.id)) {
       roomCanvasImages[currentRoom].push(img);
@@ -575,7 +592,8 @@ io.on("connection", (socket) => {
     if (roomAnalysisResults[currentRoom]) {
       const item = roomAnalysisResults[currentRoom].find((r: any) =>
         (dbId != null && r.dbId === dbId) || (id != null && r.id === id));
-      if (item) item.agentResult = agentResult;
+      // 이미지 로딩 전에 수정한 경우 자리표시 값이 저장되지 않도록 기존 이미지로 채움
+      if (item) { agentResult = fillLazyImages(agentResult, item.agentResult); item.agentResult = agentResult; }
     }
     // DB 업데이트 (비동기)
     if (dbId != null) {

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Idea, IdeaCategory, IdeaAttachment, CARD_COLORS } from "../types";
+import { readImageFile } from "../utils/image";
 
 interface IdeaCardProps {
   idea: Idea;
@@ -103,11 +104,17 @@ const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onDelete, onEdit, onAddCommen
       if (editAttachments.length >= 5) { alert("파일은 최대 5개까지 첨부할 수 있어요"); return; }
       if (file.size > 10 * 1024 * 1024) { alert(`${file.name}: 10MB 이하만 가능해요`); return; }
       const isImage = file.type.startsWith("image/");
+      if (isImage) {
+        readImageFile(file).then(({ dataUrl, mimeType }) => {
+          setEditAttachments(prev => prev.length >= 5 ? prev : [...prev, { name: file.name, type: "image", mimeType, content: dataUrl }]);
+        });
+        return;
+      }
       const reader = new FileReader();
       reader.onload = () => {
         setEditAttachments(prev => prev.length >= 5 ? prev : [...prev, {
           name: file.name,
-          type: isImage ? "image" : "file",
+          type: "file",
           mimeType: file.type,
           content: reader.result as string,
         }]);

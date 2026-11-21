@@ -3,6 +3,7 @@ import { getSocket } from "./socket";
 import { Idea, IdeaComment, AnalysisResult, AgentAnalysisResult, ChatMessage, AgentType, CARD_COLORS, AnalysisFile, IdeaCategory, IdeaAttachment, AnalysisHistoryItem } from "./types";
 import Board from "./components/Board";
 import AIPanel from "./components/AIPanel";
+import { LAZY_IMAGE, fillLazyImages } from "./utils/lazyImages";
 
 const COLOR_OPTIONS = [
   { value: "#E5E7EB", label: "옅은 회색" },
@@ -151,6 +152,34 @@ function App() {
       }
     });
 
+    // 입장 직후 자리표시로 왔던 이미지(채팅·분석 결과)를 진짜 이미지로 채움 (캔버스 이미지는 Board에서 처리)
+    socket.on("room-heavy-patch", ({ messages: fullMessages, analysisResults: fullResults }: { messages?: ChatMessage[]; analysisResults?: AnalysisHistoryItem[] }) => {
+      if (fullMessages?.length) {
+        setChatMessages((prev) => prev.map((m, i) => {
+          const full = fullMessages[i];
+          return full && full.timestamp === m.timestamp ? fillLazyImages(m, full) : m;
+        }));
+      }
+      if (fullResults?.length) {
+        setAnalysisHistory((prev) => {
+          const replaced = new Map<unknown, unknown>();
+          const next = prev.map((item) => {
+            const full = fullResults.find((r) => (item.dbId != null && r.dbId === item.dbId) || r.id === item.id);
+            if (!full) return item;
+            const filled = fillLazyImages(item, full);
+            if (item.agentResult && filled.agentResult !== item.agentResult) replaced.set(item.agentResult, filled.agentResult);
+            if (item.result && filled.result !== item.result) replaced.set(item.result, filled.result);
+            return filled;
+          });
+          if (replaced.size > 0) {
+            setAgentAnalysisResult((cur) => (cur && replaced.has(cur) ? replaced.get(cur) as AgentAnalysisResult : cur));
+            setAnalysisResult((cur) => (cur && replaced.has(cur) ? replaced.get(cur) as AnalysisResult : cur));
+          }
+          return next;
+        });
+      }
+    });
+
     socket.on("idea-added", (idea: Idea) => {
       setIdeas((prev) => prev.find((i) => i.id === idea.id) ? prev : [...prev, idea]);
     });
@@ -271,6 +300,7 @@ function App() {
       socket.off("connect");
       socket.off("reconnect");
       socket.off("room-state");
+      socket.off("room-heavy-patch");
       socket.off("idea-added");
       socket.off("room-images-patch");
       socket.off("idea-deleted");
@@ -346,6 +376,7 @@ function App() {
 
   // AI 분석 이미지를 보드 카드에 적용
   const handleApplyImage = useCallback((_ideaName: string, imageUrl: string) => {
+    if (imageUrl === LAZY_IMAGE) return; // 아직 이미지 로딩 중
     setPendingCanvasImage(imageUrl);
   }, []);
 

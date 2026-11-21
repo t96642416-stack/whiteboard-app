@@ -5,6 +5,8 @@ import BoardResultCard from "./BoardResultCard";
 import AddIdeaModal from "./AddIdeaModal";
 import { getSocket } from "../socket";
 import LiveCursors from "./LiveCursors";
+import { readImageFile } from "../utils/image";
+import { fillLazyImages } from "../utils/lazyImages";
 
 const CARD_WIDTH = 240;
 const COLS = 3;
@@ -142,10 +144,16 @@ const Board: React.FC<BoardProps> = ({
   // 캔버스 이미지 상태
   const [canvasImages, setCanvasImages] = useState<CanvasImage[]>([]);
   const canvasImageInputRef = useRef<HTMLInputElement>(null);
+  const heavyCanvasImagesRef = useRef<CanvasImage[] | null>(null); // 입장 직후 따로 받은 원본 이미지
 
   // initialCanvasImages 로드
   useEffect(() => {
-    if (initialCanvasImages) setCanvasImages(initialCanvasImages);
+    if (!initialCanvasImages) return;
+    // 진짜 이미지가 먼저 도착해 있었다면 그것으로 채워서 설정
+    const full = heavyCanvasImagesRef.current;
+    setCanvasImages(full
+      ? initialCanvasImages.map(img => { const f = full.find(x => x.id === img.id); return f ? fillLazyImages(img, f) : img; })
+      : initialCanvasImages);
   }, [initialCanvasImages]);
 
   // BoardResultCard 너비 상태
@@ -198,6 +206,15 @@ const Board: React.FC<BoardProps> = ({
     const onCanvasImageDeleted = ({ id }: { id: string }) => {
       setCanvasImages(prev => prev.filter(i => i.id !== id));
     };
+    // 입장 직후 자리표시로 왔던 캔버스 이미지를 진짜 이미지로 채움
+    const onHeavyPatch = ({ canvasImages: full }: { canvasImages?: CanvasImage[] }) => {
+      if (!full?.length) return;
+      heavyCanvasImagesRef.current = full;
+      setCanvasImages(prev => prev.map(img => {
+        const f = full.find(x => x.id === img.id);
+        return f ? fillLazyImages(img, f) : img;
+      }));
+    };
 
     socket.on("idea-moved", onMoved);
     socket.on("idea-resized", onResized);
@@ -207,7 +224,9 @@ const Board: React.FC<BoardProps> = ({
     socket.on("canvas-image-added", onCanvasImageAdded);
     socket.on("canvas-image-updated", onCanvasImageUpdated);
     socket.on("canvas-image-deleted", onCanvasImageDeleted);
+    socket.on("room-heavy-patch", onHeavyPatch);
     return () => {
+      socket.off("room-heavy-patch", onHeavyPatch);
       socket.off("idea-moved", onMoved);
       socket.off("idea-resized", onResized);
       socket.off("section-added", onSectionAdded);
@@ -850,9 +869,7 @@ const Board: React.FC<BoardProps> = ({
   const handleCanvasImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const src = ev.target?.result as string;
+    readImageFile(file).then(({ dataUrl: src }) => {
       const imgEl = new window.Image();
       imgEl.onload = () => {
         const maxW = 600;
@@ -874,8 +891,7 @@ const Board: React.FC<BoardProps> = ({
         getSocket().emit("canvas-image-added", newImg);
       };
       imgEl.src = src;
-    };
-    reader.readAsDataURL(file);
+    });
     e.target.value = "";
   };
 
@@ -918,22 +934,26 @@ const Board: React.FC<BoardProps> = ({
       if (topicFiles.length >= 3) { alert("파일은 최대 3개까지 첨부할 수 있어요"); return; }
       if (file.size > 5 * 1024 * 1024) { alert(`${file.name}: 5MB 이하 파일만 가능해요`); return; }
       const isImage = file.type.startsWith("image/");
-      const reader = new FileReader();
-      reader.onload = () => {
+      const addFile = (content: string, mimeType: string) => {
         setTopicFiles((prev) => {
           if (prev.length >= 3) return prev;
           const newFiles = [...prev, {
             name: file.name,
             type: isImage ? "image" : "text",
-            mimeType: file.type,
-            content: reader.result as string,
+            mimeType,
+            content,
           } as AnalysisFile];
           onTopicFilesChange?.(newFiles);
           return newFiles;
         });
       };
-      if (isImage) reader.readAsDataURL(file);
-      else reader.readAsText(file, "utf-8");
+      if (isImage) {
+        readImageFile(file).then(({ dataUrl, mimeType }) => addFile(dataUrl, mimeType));
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => addFile(reader.result as string, file.type);
+        reader.readAsText(file, "utf-8");
+      }
     });
     e.target.value = "";
   };

@@ -14,6 +14,7 @@ import {
   AnalysisSnapshot,
   FocusMention,
 } from "../types";
+import { readImageFile } from "../utils/image";
 
 interface Props {
   result: AgentAnalysisResult;
@@ -93,13 +94,10 @@ const IdeaImage: React.FC<{
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const url = ev.target?.result as string;
+    readImageFile(file).then(({ dataUrl: url }) => {
       setLocalSrc(url);
       onChange?.(url);
-    };
-    reader.readAsDataURL(file);
+    });
   };
 
   return (

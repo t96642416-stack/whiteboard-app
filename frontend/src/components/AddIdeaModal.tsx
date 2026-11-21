@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { CARD_COLORS, IdeaCategory, IdeaAttachment } from "../types";
+import { readImageFile } from "../utils/image";
 
 interface AddIdeaModalProps {
   onClose: () => void;
@@ -42,10 +43,9 @@ const AddIdeaModal: React.FC<AddIdeaModalProps> = ({ onClose, onAdd, defaultCate
       const reader = new FileReader();
 
       if (isImage) {
-        reader.onload = () => setAttachments((prev) => prev.length >= 5 ? prev : [...prev, {
-          name: file.name, type: "image", mimeType: file.type, content: reader.result as string,
-        }]);
-        reader.readAsDataURL(file);
+        readImageFile(file).then(({ dataUrl, mimeType }) => setAttachments((prev) => prev.length >= 5 ? prev : [...prev, {
+          name: file.name, type: "image", mimeType, content: dataUrl,
+        }]));
       } else {
         // 비이미지: 아이콘만 표시 (내용은 base64로 저장)
         reader.onload = () => setAttachments((prev) => prev.length >= 5 ? prev : [...prev, {

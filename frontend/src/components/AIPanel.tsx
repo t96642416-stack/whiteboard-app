@@ -4,6 +4,7 @@ import { AgentType, AnalysisResult as AnalysisResultType, AgentAnalysisResult, C
 import AnalysisResult from "./AnalysisResult";
 import AgentAnalysisResultComponent from "./AgentAnalysisResult";
 import { useMeetingRecognition } from "../hooks/useVoiceRecognition";
+import { readImageFile } from "../utils/image";
 
 interface AIPanelProps {
   analysisResult: AnalysisResultType | null;
@@ -187,16 +188,12 @@ const AIPanel: React.FC<AIPanelProps> = ({
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      alert("2MB 이하 이미지만 업로드 가능해요");
+    if (file.size > 10 * 1024 * 1024) {
+      alert("10MB 이하 이미지만 업로드 가능해요");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const imageUrl = reader.result as string;
-      onSendChat("", imageUrl);
-    };
-    reader.readAsDataURL(file);
+    // 압축 후 전송하므로 원본 제한을 10MB로 완화
+    readImageFile(file).then(({ dataUrl }) => onSendChat("", dataUrl));
     e.target.value = "";
   };
 
@@ -209,8 +206,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
       if (file.size > 5 * 1024 * 1024) { alert(`${file.name}: 5MB 이하 파일만 업로드 가능해요`); return; }
       const reader = new FileReader();
       if (file.type.startsWith("image/")) {
-        reader.onload = () => setIdeaFiles((prev) => prev.length >= 6 ? prev : [...prev, { name: file.name, type: "image", mimeType: file.type, content: reader.result as string, role: "idea" }]);
-        reader.readAsDataURL(file);
+        readImageFile(file).then(({ dataUrl, mimeType }) => setIdeaFiles((prev) => prev.length >= 6 ? prev : [...prev, { name: file.name, type: "image", mimeType, content: dataUrl, role: "idea" }]));
       } else {
         reader.onload = () => setIdeaFiles((prev) => prev.length >= 6 ? prev : [...prev, { name: file.name, type: "text", content: reader.result as string, role: "idea" }]);
         reader.readAsText(file, "utf-8");
@@ -228,8 +224,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
       if (file.size > 10 * 1024 * 1024) { alert(`${file.name}: 10MB 이하 파일만 업로드 가능해요`); return; }
       const reader = new FileReader();
       if (file.type.startsWith("image/")) {
-        reader.onload = () => setReferenceFiles((prev) => prev.length >= 2 ? prev : [...prev, { name: file.name, type: "image", mimeType: file.type, content: reader.result as string, role: "reference" }]);
-        reader.readAsDataURL(file);
+        readImageFile(file).then(({ dataUrl, mimeType }) => setReferenceFiles((prev) => prev.length >= 2 ? prev : [...prev, { name: file.name, type: "image", mimeType, content: dataUrl, role: "reference" }]));
       } else {
         reader.onload = () => setReferenceFiles((prev) => prev.length >= 2 ? prev : [...prev, { name: file.name, type: "text", content: reader.result as string, role: "reference" }]);
         reader.readAsText(file, "utf-8");
