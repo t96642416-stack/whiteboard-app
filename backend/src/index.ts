@@ -4,6 +4,8 @@ import { Server } from "socket.io";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
+import { createAdminRouter } from "./admin";
+import { logEvent } from "./events";
 import { LAZY_IMAGE, stripDataUrls, fillLazyImages } from "./lazyImages";
 import { analyzeIdeas, chatWithAI, IdeaInput, AnalysisFile } from "./claude";
 import {
@@ -60,6 +62,20 @@ const io = new Server(httpServer, {
 });
 
 app.use(cors({ origin: "*" }));
+// 관리자 API (자체 JSON 파서 사용 — 백업 복원용 큰 요청 허용)
+app.use("/api/admin", createAdminRouter({
+  liveSessions: () => [...liveSessions.values()],
+  ramRoom: (roomId) => roomIdeas[roomId] || roomSections[roomId] || roomMessages[roomId] ? {
+    ideas: roomIdeas[roomId] || [], sections: roomSections[roomId] || [], messages: roomMessages[roomId] || [],
+    analysisResults: roomAnalysisResults[roomId] || [], canvasImages: roomCanvasImages[roomId] || [],
+  } : null,
+  ramRoomIds: () => Object.keys(roomIdeas),
+  clearRoomCache: (roomId) => {
+    delete roomIdeas[roomId]; delete roomSections[roomId]; delete roomMessages[roomId];
+    delete roomAnalysisResults[roomId]; delete roomCanvasImages[roomId]; delete roomTopics[roomId];
+  },
+  roomHasUsers: (roomId) => [...liveSessions.values()].some((s) => s.roomId === roomId),
+}));
 app.use(express.json());
 
 // 프론트엔드 빌드 파일 서빙 (dist 폴더)
@@ -85,6 +101,8 @@ const roomSections: Record<string, any[]> = {};
 const roomAnalysisResults: Record<string, any[]> = {};
 const roomCanvasImages: Record<string, any[]> = {};
 const roomTopics: Record<string, string> = {}; // 방별 주제 (메모리 유지)
+// 관리자 화면용 실시간 접속 세션 (socketId → 정보)
+const liveSessions = new Map<string, { roomId: string; userName: string; joinedAt: string }>();
 
 // 헬스 체크
 app.get("/health", (_req, res) => {
@@ -125,6 +143,16 @@ io.on("connection", (socket) => {
       currentUser = userName;
 
       socket.join(roomId);
+      const prevSession = liveSessions.get(socket.id);
+      if (prevSession && prevSession.roomId !== roomId) {
+        // 같은 연결로 다른 방으로 이동 → 이전 방 퇴장 기록
+        logEvent(prevSession.roomId, prevSession.userName, "leave", {
+          reason: "switch-room", durationSec: Math.round((Date.now() - Date.parse(prevSession.joinedAt)) / 1000),
+        });
+      }
+      const sameRoom = prevSession?.roomId === roomId; // 재연결 시 중복 join 방지
+      liveSessions.set(socket.id, { roomId, userName, joinedAt: sameRoom ? prevSession!.joinedAt : new Date().toISOString() });
+      if (!sameRoom) logEvent(roomId, userName, "join");
 
       if (!roomUsers[roomId]) {
         roomUsers[roomId] = new Map();
@@ -230,6 +258,11 @@ io.on("connection", (socket) => {
     roomIdeas[currentRoom].push(ideaForRam);
 
     dbUpsertIdea(currentRoom, idea).catch(e => console.error("idea upsert 실패:", e));
+    logEvent(currentRoom, currentUser, "idea_add", {
+      ideaId: idea.id, title: idea.title, content: idea.content, category: (idea as any).category,
+      fromAI: !!(idea as any).analysisSnapshot, agentType: (idea as any).analysisSnapshot?.agentType,
+      attachments: idea.attachments?.length ?? 0,
+    });
 
     // 발신자 제외하고 브로드캐스트 (발신자는 이미 낙관적 업데이트로 반영됨)
     socket.to(currentRoom).emit("idea-added", idea);
@@ -239,6 +272,13 @@ io.on("connection", (socket) => {
   // 아이디어 수정
   socket.on("idea-updated", async ({ ideaId, title, content, category, color, aiImageUrl, attachments }: { ideaId: string; title: string; content: string; category?: string; color?: string; aiImageUrl?: string; attachments?: any[] }) => {
     if (!currentRoom) return;
+    const prevIdea = roomIdeas[currentRoom]?.find((i: any) => i.id === ideaId) as any;
+    logEvent(currentRoom, currentUser, "idea_edit", {
+      ideaId, author: prevIdea?.author,
+      before: prevIdea ? { title: prevIdea.title, content: prevIdea.content, category: prevIdea.category } : null,
+      after: { title, content, category },
+      attachmentsChanged: attachments !== undefined,
+    });
     if (roomIdeas[currentRoom]) {
       const idea = roomIdeas[currentRoom].find((i: any) => i.id === ideaId) as any;
       if (idea) {
@@ -274,6 +314,7 @@ io.on("connection", (socket) => {
     }
     // DB 업데이트
     dbMoveIdea(currentRoom, ideaId, x, y).catch(e => console.error("idea move 실패:", e));
+    logEvent(currentRoom, currentUser, "idea_move", { ideaId, x: Math.round(x), y: Math.round(y) });
     socket.to(currentRoom).emit("idea-moved", { ideaId, x, y });
   });
 
@@ -285,6 +326,7 @@ io.on("connection", (socket) => {
       roomCanvasImages[currentRoom].push(img);
     }
     dbUpsertCanvasImage(currentRoom, img).catch(e => console.error("canvas-image upsert 실패:", e));
+    logEvent(currentRoom, currentUser, "canvas_image_add", { id: img.id, width: img.width, height: img.height });
     socket.to(currentRoom).emit("canvas-image-added", img);
   });
 
@@ -306,6 +348,7 @@ io.on("connection", (socket) => {
       roomCanvasImages[currentRoom] = roomCanvasImages[currentRoom].filter((i: any) => i.id !== id);
     }
     dbDeleteCanvasImage(currentRoom, id).catch(e => console.error("canvas-image delete 실패:", e));
+    logEvent(currentRoom, currentUser, "canvas_image_delete", { id });
     socket.to(currentRoom).emit("canvas-image-deleted", { id });
   });
 
@@ -328,6 +371,7 @@ io.on("connection", (socket) => {
       roomSections[currentRoom].push(section);
     }
     dbUpsertSection(currentRoom, section).catch(e => console.error("section upsert 실패:", e));
+    logEvent(currentRoom, currentUser, "section_add", { id: section.id, title: section.title });
     socket.to(currentRoom).emit("section-added", section);
   });
 
@@ -338,6 +382,7 @@ io.on("connection", (socket) => {
       if (idx !== -1) roomSections[currentRoom][idx] = { ...roomSections[currentRoom][idx], ...update };
     }
     dbUpdateSection(currentRoom, update).catch(e => console.error("section update 실패:", e));
+    logEvent(currentRoom, currentUser, "section_update", update);
     socket.to(currentRoom).emit("section-updated", update);
   });
 
@@ -347,6 +392,7 @@ io.on("connection", (socket) => {
       roomSections[currentRoom] = roomSections[currentRoom].filter((s: any) => s.id !== id);
     }
     dbDeleteSection(currentRoom, id).catch(e => console.error("section delete 실패:", e));
+    logEvent(currentRoom, currentUser, "section_delete", { id });
     socket.to(currentRoom).emit("section-deleted", { id });
   });
 
@@ -354,6 +400,11 @@ io.on("connection", (socket) => {
   socket.on("idea-deleted", async ({ ideaId }: { ideaId: string }) => {
     if (!currentRoom) return;
 
+    const deleted = roomIdeas[currentRoom]?.find((i: any) => i.id === ideaId) as any;
+    logEvent(currentRoom, currentUser, "idea_delete", {
+      ideaId, author: deleted?.author, title: deleted?.title, content: deleted?.content,
+      fromAI: !!deleted?.analysisSnapshot, createdAt: deleted?.createdAt,
+    });
     if (roomIdeas[currentRoom]) {
       roomIdeas[currentRoom] = roomIdeas[currentRoom].filter(
         (idea) => idea.id !== ideaId
@@ -428,6 +479,12 @@ io.on("connection", (socket) => {
 
       // 분석 시작 알림
       io.to(currentRoom).emit("analysis-started", { requester: currentUser, agentType });
+      const analysisRoom = currentRoom;
+      const analysisStartedAt = Date.now();
+      logEvent(analysisRoom, currentUser, "analysis_request", {
+        agentType, ideaCount: ideas.length, filesCount: files?.length ?? 0, useSearch: !!useSearch,
+        filesOnly: !!filesOnly, sectionCount: sectionGroups?.length ?? 0, scoped: !!ideaIds,
+      });
 
       try {
         const result = await analyzeIdeas(
@@ -462,6 +519,7 @@ io.on("connection", (socket) => {
           ...result,
           _meta: { requester: currentUser, agentType, timestamp, dbId },
         });
+        logEvent(analysisRoom, currentUser, "analysis_done", { agentType, dbId, durationMs: Date.now() - analysisStartedAt });
         console.log(`분석 완료 (방: ${currentRoom})`);
 
       } catch (error) {
@@ -472,6 +530,7 @@ io.on("connection", (socket) => {
           errorMessage = JSON.stringify(error);
         }
         console.error(`분석 오류 (방: ${currentRoom}):`, error);
+        logEvent(analysisRoom, currentUser, "analysis_error", { agentType, message: errorMessage, durationMs: Date.now() - analysisStartedAt });
         io.to(currentRoom).emit("analysis-error", { message: errorMessage });
       }
     }
@@ -492,6 +551,7 @@ io.on("connection", (socket) => {
       if (!currentRoom) return;
 
       const ideas = roomIdeas[currentRoom] || [];
+      logEvent(currentRoom, currentUser, "ai_chat", { message, contextIdea: contextIdea?.title ?? null });
 
       // 메시지 브로드캐스트
       io.to(currentRoom).emit("user-message", {
@@ -524,6 +584,7 @@ io.on("connection", (socket) => {
   socket.on("topic-changed", ({ topic }: { topic: string }) => {
     if (!currentRoom) return;
     roomTopics[currentRoom] = topic; // 메모리에 저장
+    logEvent(currentRoom, currentUser, "topic_change", { topic });
     socket.to(currentRoom).emit("topic-changed", { topic });
   });
 
@@ -544,6 +605,7 @@ io.on("connection", (socket) => {
       }
       roomMessages[currentRoom].push(chatMsg);
       dbInsertMessage(currentRoom, chatMsg).catch(e => console.error("message insert 실패:", e));
+      logEvent(currentRoom, currentUser, "chat", { message, hasImage: !!imageUrl });
       io.to(currentRoom).emit("chat-message", chatMsg);
     }
   );
@@ -560,6 +622,7 @@ io.on("connection", (socket) => {
     }
     // 코멘트가 포함된 전체 아이디어를 DB에 저장
     const idea = roomIdeas[currentRoom]?.find((i: any) => i.id === ideaId);
+    logEvent(currentRoom, currentUser, "comment_add", { ideaId, ideaAuthor: (idea as any)?.author, text: comment?.text });
     if (idea) dbUpsertIdea(currentRoom, idea).catch(e => console.error("comment save 실패:", e));
     socket.broadcast.to(currentRoom).emit("comment-added", { ideaId, comment });
   });
@@ -581,6 +644,7 @@ io.on("connection", (socket) => {
     if (!currentRoom) return;
     roomMessages[currentRoom] = [];
     dbClearMessages(currentRoom).catch(e => console.error("chat clear 실패:", e));
+    logEvent(currentRoom, currentUser, "chat_clear");
     io.to(currentRoom).emit("chat-messages-cleared");
   });
 
@@ -601,6 +665,7 @@ io.on("connection", (socket) => {
     } else if (id != null) {
       dbUpdateAnalysisResult(currentRoom, id, agentResult).catch(e => console.error("분석 결과 업데이트 실패:", e));
     }
+    logEvent(currentRoom, currentUser, "analysis_edit", { dbId: dbId ?? null, id: id ?? null });
     // 방 전체에 브로드캐스트 (발신자 포함 — 모든 팀원 동기화 보장)
     io.to(currentRoom).emit("analysis-result-updated", { id, dbId, agentResult });
   });
@@ -612,12 +677,20 @@ io.on("connection", (socket) => {
       roomAnalysisResults[currentRoom] = roomAnalysisResults[currentRoom].filter((r: any) => r.dbId !== dbId);
     }
     dbDeleteAnalysisResult(currentRoom, dbId).catch(e => console.error("분석 내역 삭제 실패:", e));
+    logEvent(currentRoom, currentUser, "analysis_delete", { dbId });
     io.to(currentRoom).emit("analysis-result-deleted", { dbId });
   });
 
   // 연결 해제
-  socket.on("disconnect", () => {
+  socket.on("disconnect", (reason) => {
     if (currentRoom) socket.to(currentRoom).emit("cursor-leave", { id: socket.id });
+    const session = liveSessions.get(socket.id);
+    liveSessions.delete(socket.id);
+    if (session) {
+      logEvent(session.roomId, session.userName, "leave", {
+        reason, durationSec: Math.round((Date.now() - Date.parse(session.joinedAt)) / 1000),
+      });
+    }
     if (currentRoom && roomUsers[currentRoom]) {
       // 같은 유저가 이미 새 소켓으로 재연결했으면 삭제하지 않음 (0명 버그 방지)
       const latestSocketId = roomUserSockets[currentRoom]?.get(currentUser);
