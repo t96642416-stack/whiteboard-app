@@ -61,3 +61,8 @@ export async function download(path: string): Promise<void> {
 }
 
 export const roomPath = (roomId: string) => `/rooms/${encodeURIComponent(roomId)}`;
+
+export async function changePassword(current: string, next: string): Promise<void> {
+  const { token } = await sendJson<{ token: string }>("POST", "/password", { current, next });
+  setToken(token);
+}

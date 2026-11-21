@@ -82,6 +82,13 @@ async function createTables(pool: Pool) {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_events_room_time ON events(room_id, created_at);
+
+    -- 관리자 설정 (비밀번호 해시 등)
+    CREATE TABLE IF NOT EXISTS admin_settings (
+      key TEXT PRIMARY KEY,
+      value JSONB NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
   `);
   console.log("✅ DB 테이블 준비 완료");
 }
@@ -399,4 +406,21 @@ export async function dbRestoreRoom(roomId: string, backup: any): Promise<void> 
   } finally {
     client.release();
   }
+}
+
+// ─── 관리자 설정 ─────────────────────────────────────
+
+export async function dbGetSetting(key: string): Promise<any | null> {
+  if (!pool) return null;
+  const res = await pool.query("SELECT value FROM admin_settings WHERE key = $1", [key]);
+  return res.rows[0]?.value ?? null;
+}
+
+export async function dbSetSetting(key: string, value: any): Promise<void> {
+  if (!pool) return;
+  await pool.query(
+    `INSERT INTO admin_settings (key, value, updated_at) VALUES ($1, $2, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+    [key, JSON.stringify(value)]
+  );
 }

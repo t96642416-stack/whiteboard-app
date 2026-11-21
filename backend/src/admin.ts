@@ -1,12 +1,12 @@
 import express, { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
 import {
-  isDbAvailable, dbListRooms, dbStorage, dbGetRoomFull, dbDeleteRoom, dbRestoreRoom,
+  isDbAvailable, dbListRooms, dbStorage, dbGetRoomFull, dbDeleteRoom, dbRestoreRoom, dbGetSetting, dbSetSetting,
 } from "./db";
 import { getEvents, memoryEventRooms, clearMemoryEvents, logEvent } from "./events";
 import { computeMetrics, buildCsv, CSV_KINDS, CsvKind, RoomData } from "./metrics";
 
-// 관리자 API — ADMIN_PASSWORD 환경변수가 있을 때만 동작
+// 관리자 API — 비밀번호(ADMIN_PASSWORD 또는 화면에서 바꾼 값)가 있을 때만 동작
 
 export interface AdminContext {
   liveSessions: () => { roomId: string; userName: string; joinedAt: string }[];
@@ -18,25 +18,80 @@ export interface AdminContext {
 
 const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 const VOLUME_LIMIT_BYTES = Number(process.env.DB_VOLUME_MB || 500) * 1024 * 1024;
+const MIN_PASSWORD_LENGTH = 8;
 
-function sign(exp: number, password: string): string {
-  return crypto.createHmac("sha256", password).update(`admin:${exp}`).digest("hex");
+// ── 비밀번호 저장소
+// 처음엔 환경변수 ADMIN_PASSWORD로 로그인하고, 관리자 화면에서 바꾸면 DB에 scrypt 해시로 저장(이후엔 DB 값이 우선).
+// 비밀번호를 잊으면 ADMIN_RESET_PASSWORD 환경변수로 초기화 (같은 값은 한 번만 적용되어 재시작해도 화면에서 바꾼 값이 유지됨).
+interface PwHash { salt: string; hash: string }
+interface AuthState { pw: PwHash | null; secret: string }
+
+const sha256 = (s: string) => crypto.createHash("sha256").update(s).digest("hex");
+
+function hashPassword(pw: string): PwHash {
+  const salt = crypto.randomBytes(16).toString("hex");
+  return { salt, hash: crypto.scryptSync(pw, salt, 64).toString("hex") };
 }
 
-function verifyToken(token: string | undefined, password: string): boolean {
-  if (!token) return false;
-  const [expStr, sig] = token.split(".");
-  const exp = Number(expStr);
-  if (!Number.isFinite(exp) || exp < Date.now() || !sig) return false;
-  const expected = Buffer.from(sign(exp, password));
-  const given = Buffer.from(sig);
-  return expected.length === given.length && crypto.timingSafeEqual(expected, given);
+function checkHash(pw: string, h: PwHash): boolean {
+  const given = crypto.scryptSync(pw, h.salt, 64);
+  const stored = Buffer.from(h.hash, "hex");
+  return given.length === stored.length && crypto.timingSafeEqual(given, stored);
 }
 
 function safeEqual(a: string, b: string): boolean {
   const ha = crypto.createHash("sha256").update(a).digest();
   const hb = crypto.createHash("sha256").update(b).digest();
   return crypto.timingSafeEqual(ha, hb);
+}
+
+let authPromise: Promise<AuthState> | null = null;
+const memorySettings: Record<string, any> = {}; // DB 없을 때
+
+async function getSetting(key: string) { return isDbAvailable() ? dbGetSetting(key) : memorySettings[key] ?? null; }
+async function setSetting(key: string, value: any) { if (isDbAvailable()) await dbSetSetting(key, value); else memorySettings[key] = value; }
+
+async function loadAuth(): Promise<AuthState> {
+  let pw: PwHash | null = await getSetting("admin_password");
+  let secret: string | null = await getSetting("token_secret");
+  const reset = process.env.ADMIN_RESET_PASSWORD;
+  if (reset && reset.length >= MIN_PASSWORD_LENGTH && (await getSetting("reset_marker")) !== sha256(reset)) {
+    pw = hashPassword(reset);
+    secret = null; // 기존 로그인 모두 만료
+    await setSetting("admin_password", pw);
+    await setSetting("reset_marker", sha256(reset));
+    console.log("[관리자] ADMIN_RESET_PASSWORD로 비밀번호를 초기화했습니다. 이 환경변수는 지워도 됩니다.");
+  }
+  if (!secret) { secret = crypto.randomBytes(32).toString("hex"); await setSetting("token_secret", secret); }
+  return { pw, secret };
+}
+function auth(): Promise<AuthState> {
+  if (!authPromise) authPromise = loadAuth().catch((e) => { authPromise = null; throw e; });
+  return authPromise;
+}
+
+function passwordConfigured(a: AuthState) { return !!a.pw || !!process.env.ADMIN_PASSWORD; }
+function verifyPassword(given: string, a: AuthState): boolean {
+  if (a.pw) return checkHash(given, a.pw);
+  const env = process.env.ADMIN_PASSWORD;
+  return !!env && safeEqual(given, env);
+}
+
+function sign(exp: number, secret: string): string {
+  return crypto.createHmac("sha256", secret).update(`admin:${exp}`).digest("hex");
+}
+function issueToken(secret: string) {
+  const exp = Date.now() + TOKEN_TTL_MS;
+  return { token: `${exp}.${sign(exp, secret)}`, expiresAt: new Date(exp).toISOString() };
+}
+function verifyToken(token: string | undefined, secret: string): boolean {
+  if (!token) return false;
+  const [expStr, sig] = token.split(".");
+  const exp = Number(expStr);
+  if (!Number.isFinite(exp) || exp < Date.now() || !sig) return false;
+  const expected = Buffer.from(sign(exp, secret));
+  const given = Buffer.from(sig);
+  return expected.length === given.length && crypto.timingSafeEqual(expected, given);
 }
 
 // 로그인 시도 제한: IP당 10분에 10번
@@ -48,6 +103,7 @@ function tooManyAttempts(ip: string): boolean {
   a.count++;
   return a.count > 10;
 }
+const clientIp = (req: Request) => (req.headers["x-forwarded-for"] as string)?.split(",")[0].trim() || req.ip || "unknown";
 
 // async 핸들러의 오류를 express 오류 처리로 넘김 (Express 4는 자동으로 안 잡음)
 const wrap = (fn: (req: Request, res: Response) => Promise<any>) =>
@@ -59,26 +115,47 @@ export function createAdminRouter(ctx: AdminContext) {
   const router = express.Router();
   router.use(express.json({ limit: "200mb" })); // 백업 복원용
 
-  const password = () => process.env.ADMIN_PASSWORD || "";
-
-  router.post("/login", (req, res) => {
-    if (!password()) return res.status(503).json({ error: "관리자 비밀번호(ADMIN_PASSWORD)가 서버에 설정되지 않았습니다." });
-    const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0].trim() || req.ip || "unknown";
-    if (tooManyAttempts(ip)) return res.status(429).json({ error: "시도가 너무 많습니다. 10분 뒤에 다시 시도하세요." });
+  router.post("/login", wrap(async (req, res) => {
+    const a = await auth();
+    if (!passwordConfigured(a)) return res.status(503).json({ error: "관리자 비밀번호(ADMIN_PASSWORD)가 서버에 설정되지 않았습니다." });
+    if (tooManyAttempts(clientIp(req))) return res.status(429).json({ error: "시도가 너무 많습니다. 10분 뒤에 다시 시도하세요." });
     const given = typeof req.body?.password === "string" ? req.body.password : "";
-    if (!safeEqual(given, password())) return res.status(401).json({ error: "비밀번호가 틀렸습니다." });
-    const exp = Date.now() + TOKEN_TTL_MS;
-    res.json({ token: `${exp}.${sign(exp, password())}`, expiresAt: new Date(exp).toISOString() });
-  });
+    if (!verifyPassword(given, a)) return res.status(401).json({ error: "비밀번호가 틀렸습니다." });
+    res.json(issueToken(a.secret));
+  }));
 
   // 이하 모든 경로는 인증 필요
   router.use((req: Request, res: Response, next: NextFunction) => {
-    if (!password()) return res.status(503).json({ error: "ADMIN_PASSWORD 미설정" });
-    const auth = req.headers.authorization;
-    const token = auth?.startsWith("Bearer ") ? auth.slice(7) : undefined;
-    if (!verifyToken(token, password())) return res.status(401).json({ error: "로그인이 필요합니다." });
-    next();
+    auth().then((a) => {
+      const h = req.headers.authorization;
+      const token = h?.startsWith("Bearer ") ? h.slice(7) : undefined;
+      if (!verifyToken(token, a.secret)) return res.status(401).json({ error: "로그인이 필요합니다." });
+      next();
+    }).catch(next);
   });
+
+  router.get("/me", wrap(async (_req, res) => {
+    const a = await auth();
+    res.json({ passwordSource: a.pw ? "changed" : "env" });
+  }));
+
+  // 비밀번호 변경 → 다른 기기의 로그인은 모두 만료, 현재 기기엔 새 토큰 발급
+  router.post("/password", wrap(async (req, res) => {
+    const a = await auth();
+    if (tooManyAttempts(clientIp(req))) return res.status(429).json({ error: "시도가 너무 많습니다. 10분 뒤에 다시 시도하세요." });
+    const current = typeof req.body?.current === "string" ? req.body.current : "";
+    const next = typeof req.body?.next === "string" ? req.body.next : "";
+    if (!verifyPassword(current, a)) return res.status(403).json({ error: "현재 비밀번호가 틀렸습니다.", field: "current" });
+    if (next.length < MIN_PASSWORD_LENGTH || next.length > 200) return res.status(400).json({ error: `새 비밀번호는 ${MIN_PASSWORD_LENGTH}자 이상이어야 합니다.` });
+    if (next === current) return res.status(400).json({ error: "현재 비밀번호와 다른 비밀번호를 입력하세요." });
+    const pw = hashPassword(next);
+    const secret = crypto.randomBytes(32).toString("hex");
+    await setSetting("admin_password", pw);
+    await setSetting("token_secret", secret);
+    authPromise = Promise.resolve({ pw, secret });
+    console.log("[관리자] 비밀번호가 변경되었습니다.");
+    res.json(issueToken(secret));
+  }));
 
   router.param("roomId", (_req, res, next, roomId) => {
     if (!ROOM_ID_RE.test(roomId)) return res.status(400).json({ error: "잘못된 방 ID" });
