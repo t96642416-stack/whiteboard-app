@@ -28,6 +28,7 @@ import {
   dbGetAnalysisResults,
   dbInsertAnalysisResult,
   dbDeleteAnalysisResult,
+  isDbAvailable,
 } from "./db";
 
 dotenv.config();
@@ -613,7 +614,7 @@ initDb().then(() => {
     console.log(`   헬스 체크: http://localhost:${PORT}/health`);
     console.log(`   ANTHROPIC_API_KEY: ${process.env.ANTHROPIC_API_KEY ? "✓ 설정됨" : "✗ 미설정"}`);
     console.log(`   GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? "✓ 설정됨 (길이: " + process.env.GEMINI_API_KEY.length + ")" : "✗ 미설정"}`);
-    console.log(`   DATABASE_URL: ${process.env.DATABASE_URL ? "✓ DB 연결됨" : "✗ 없음 (메모리 모드)"}\n`);
+    console.log(`   DATABASE_URL: ${isDbAvailable() ? "✓ DB 연결됨" : process.env.DATABASE_URL ? "✗ 연결 실패 (메모리 모드)" : "✗ 없음 (메모리 모드)"}\n`);
   });
 }).catch(e => {
   console.error("DB 초기화 실패:", e);

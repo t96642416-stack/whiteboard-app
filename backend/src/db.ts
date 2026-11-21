@@ -1,7 +1,7 @@
 import { Pool } from "pg";
 
 // DATABASE_URL이 없으면 메모리 모드로 동작 (로컬 개발용)
-const pool = process.env.DATABASE_URL
+let pool: Pool | null = process.env.DATABASE_URL
   ? new Pool({
       connectionString: process.env.DATABASE_URL,
       ssl: { rejectUnauthorized: false }, // Railway SSL
@@ -16,6 +16,17 @@ export async function initDb() {
     console.log("📦 DB 없음 → 메모리 모드로 동작합니다.");
     return;
   }
+  try {
+    await createTables(pool);
+  } catch (e) {
+    // DB에 연결할 수 없어도 서버 전체가 죽지 않도록 메모리 모드로 전환
+    console.error("⚠️ DB 연결 실패 → 메모리 모드로 전환합니다 (데이터는 재시작 시 사라짐):", e);
+    pool.end().catch(() => {});
+    pool = null;
+  }
+}
+
+async function createTables(pool: Pool) {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ideas (
       id TEXT NOT NULL,
