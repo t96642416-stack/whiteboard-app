@@ -44,6 +44,14 @@ const LoginModal: React.FC<{ onJoin: (userName: string, roomId: string, color: s
                          placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all" />
             <p className="text-xs text-gray-400 mt-1">같은 방 ID를 입력하면 실시간으로 공유됩니다</p>
           </div>
+          <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+            <p className="text-xs font-semibold text-amber-900 mb-1.5">참여 전 확인해주세요</p>
+            <ul className="text-xs text-amber-900 space-y-1 list-disc pl-4 leading-relaxed">
+              <li><b>한 사람당 한 기기</b>로, <b>본인 이름</b>으로 입장해주세요.</li>
+              <li>아이디어는 <b>낸 사람이 직접</b> 추가해주세요. 대신 입력하면 입력한 사람의 아이디어로 기록돼요.</li>
+              <li>다시 들어올 때도 <b>같은 이름</b>을 써주세요.</li>
+            </ul>
+          </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">내 컬러</label>
             <div className="flex items-center gap-3">

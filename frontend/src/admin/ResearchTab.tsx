@@ -117,10 +117,12 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
           <Tile label="수정 / 삭제된 아이디어" value={`${m.summary.editedIdeas} / ${m.summary.deletedIdeas}`} hint="행동 로그 기준" />
         </div>
 
-        <div className="rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs px-4 py-2.5 leading-relaxed">
+        <div className="rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs px-4 py-2.5 leading-relaxed space-y-1">
+          <p>참가자별 지표는 <b>카드를 추가한 사람의 이름</b> 기준입니다. 한 사람이 대신 입력했거나 같은 사람이 다른 이름으로 들어온 경우 실제와 다르게 집계됩니다.</p>
+          <p>
           {m.summary.eventLogSince
-            ? <>행동 로그(접속 시간·수정·삭제·AI 채팅 등)는 <b>{fmtTime(m.summary.eventLogSince)}</b>부터 기록되었습니다 ({m.summary.eventCount}건). 그 이전 활동은 저장된 결과물(카드·채팅·분석)로만 계산됩니다.</>
-            : <>이 방에는 아직 행동 로그가 없습니다. 접속 시간·수정·삭제 지표는 이번 업데이트 이후 활동부터 집계됩니다. 삭제된 카드는 아이디어 수에 포함되지 않습니다.</>}
+            ? <>행동 로그(접속 시간·수정·삭제·AI 채팅 등)는 <b>{fmtTime(m.summary.eventLogSince)}</b>부터 기록되었습니다 ({m.summary.eventCount}건). 그 이전 활동은 저장된 결과물(카드·분석)로만 계산됩니다.</>
+            : <>이 방에는 아직 행동 로그가 없습니다. 접속 시간·수정·삭제 지표는 이번 업데이트 이후 활동부터 집계됩니다. 삭제된 카드는 아이디어 수에 포함되지 않습니다.</>}</p>
         </div>
 
         <Section title="시간에 따른 아이디어 생성"
@@ -173,7 +175,6 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
                     <th className="py-2 font-medium text-right">AI 카드</th>
                     <th className="py-2 font-medium text-right">평균 길이</th>
                     <th className="py-2 font-medium text-right">댓글(타인)</th>
-                    <th className="py-2 font-medium text-right">채팅</th>
                     <th className="py-2 font-medium text-right">AI 채팅</th>
                     <th className="py-2 font-medium text-right">분석 요청</th>
                     <th className="py-2 font-medium text-right">수정/삭제</th>
@@ -187,7 +188,6 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
                         <td className="py-2 text-right tabular-nums">{p.aiCardsAdded}</td>
                         <td className="py-2 text-right tabular-nums">{p.avgIdeaLength}</td>
                         <td className="py-2 text-right tabular-nums">{p.comments}({p.commentsOnOthers})</td>
-                        <td className="py-2 text-right tabular-nums">{p.chats}</td>
                         <td className="py-2 text-right tabular-nums">{p.aiChats}</td>
                         <td className="py-2 text-right tabular-nums">{p.analysisRequests}</td>
                         <td className="py-2 text-right tabular-nums">{p.edits}/{p.deletes}</td>
@@ -203,7 +203,7 @@ const ResearchTab: React.FC<{ onError: (e: unknown) => void; initialRoom: string
 
         <Section title="데이터 내보내기 (CSV)" desc={`엑셀·R·SPSS에서 바로 열 수 있습니다. ${anon ? "이름이 익명화되어 내보내집니다. 단, 글 내용 안에 적힌 이름은 바뀌지 않습니다." : "⚠ 실명이 포함됩니다."}`}>
           <div className="flex flex-wrap gap-2">
-            {([["participants", "참가자별 지표"], ["ideas", "아이디어"], ["comments", "댓글"], ["messages", "채팅"], ["analyses", "AI 분석 요청"], ["events", "행동 로그 전체"]] as const).map(([k, label]) => (
+            {([["participants", "참가자별 지표"], ["ideas", "아이디어"], ["comments", "댓글"], ["analyses", "AI 분석 요청"], ["events", "행동 로그 전체"]] as const).map(([k, label]) => (
               <button key={k} onClick={() => dl(k)} className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50">
                 ⬇ {label}
               </button>

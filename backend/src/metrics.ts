@@ -271,7 +271,7 @@ export function buildCsv(kind: CsvKind, room: RoomData, opts: MetricsOptions): s
       })), ["at", "user", "type", "data"]);
     case "participants": {
       const m = computeMetrics(room, opts);
-      const cols = ["name", "humanIdeas", "aiCardsAdded", "avgIdeaLength", "comments", "commentsOnOthers", "chats", "aiChats", "analysisRequests", "edits", "deletes", "activeMinutes"];
+      const cols = ["name", "humanIdeas", "aiCardsAdded", "avgIdeaLength", "comments", "commentsOnOthers", "aiChats", "analysisRequests", "edits", "deletes", "activeMinutes"];
       return csv(m.participants, cols);
     }
   }
