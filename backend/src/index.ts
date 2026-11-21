@@ -95,6 +95,17 @@ io.on("connection", (socket) => {
     console.error(`소켓 에러 (${socket.id}):`, err);
   });
 
+  // 실시간 마우스 커서 (저장하지 않고 같은 방 사람들에게만 전달, 밀리면 버려도 되는 데이터라 volatile)
+  socket.on("cursor-move", (pos: { x: number; y: number }) => {
+    if (!currentRoom || !pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) return;
+    socket.volatile.to(currentRoom).emit("cursor-move", { id: socket.id, name: currentUser, x: pos.x, y: pos.y });
+  });
+
+  socket.on("cursor-leave", () => {
+    if (!currentRoom) return;
+    socket.to(currentRoom).emit("cursor-leave", { id: socket.id });
+  });
+
   // 방 참가
   socket.on(
     "join-room",
@@ -588,6 +599,7 @@ io.on("connection", (socket) => {
 
   // 연결 해제
   socket.on("disconnect", () => {
+    if (currentRoom) socket.to(currentRoom).emit("cursor-leave", { id: socket.id });
     if (currentRoom && roomUsers[currentRoom]) {
       // 같은 유저가 이미 새 소켓으로 재연결했으면 삭제하지 않음 (0명 버그 방지)
       const latestSocketId = roomUserSockets[currentRoom]?.get(currentUser);

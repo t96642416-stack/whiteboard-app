@@ -4,6 +4,7 @@ import IdeaCard from "./IdeaCard";
 import BoardResultCard from "./BoardResultCard";
 import AddIdeaModal from "./AddIdeaModal";
 import { getSocket } from "../socket";
+import LiveCursors from "./LiveCursors";
 
 const CARD_WIDTH = 240;
 const COLS = 3;
@@ -1080,6 +1081,9 @@ const Board: React.FC<BoardProps> = ({
               </button>
             </div>
           )}
+
+          {/* 다른 참가자 마우스 커서 */}
+          <LiveCursors canvasRef={canvasRef} offset={offset} zoom={zoom} />
 
           <div style={{
             position: "absolute",
